@@ -90,7 +90,7 @@
     const SERVER_URL = 'https://serveratiuz.onrender.com';
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
 
-    // Шифрование используется только для пароля, больше нигде
+    // Шифрование только для пароля
     const enc = new TextEncoder(); const dec = new TextDecoder();
     async function deriveKey(password, saltBase64) {
       const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
@@ -105,34 +105,42 @@
         sendServerMessage('get_chats', {});
       };
       ws.onmessage = (e) => {
-      const msg = JSON.parse(e.data);
-      if (msg.type === 'auth_ok') {
-        currentUser.name = msg.name; currentUser.avatar = msg.avatar; currentUser.status = msg.status;
-      } else if (msg.type === 'message') {
-        if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
-        if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
-        chats[msg.chatId].messages.push({ from: msg.from, text: msg.text, time: msg.time });
-        if (msg.chatId === activeChatId) addMessageToUI(msg);
-        renderChatList();
-      } else if (msg.type === 'chat_list') {
-        chats = msg.chats;
-        renderChatList();
-        if (activeChatId) openChat(activeChatId);
-      } else if (msg.type === 'chat_created') {
-        activeChatId = msg.chatId;
-        sendServerMessage('get_chats', {});
-      } else if (msg.type === 'messages') {
-        displayMessages(msg.messages);
-      } else if (msg.type === 'user_search_result') {
-        showSearchResults(msg.users);
-      }
-    };
+        const msg = JSON.parse(e.data);
+        if (msg.type === 'auth_ok') {
+          currentUser.name = msg.name; currentUser.avatar = msg.avatar; currentUser.status = msg.status;
+        } else if (msg.type === 'message') {
+          // Игнорируем собственные сообщения (сервер может слать эхо)
+          if (msg.from === currentUser.login) return;
+          if (!chats[msg.chatId]) {
+            sendServerMessage('get_chats', {});
+            return;
+          }
+          if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
+          chats[msg.chatId].messages.push({ from: msg.from, text: msg.text, time: msg.time });
+          if (msg.chatId === activeChatId) {
+            addMessageToUI({ from: msg.from, text: msg.text, time: msg.time });
+            scrollMessagesDown();
+          }
+          renderChatList();
+        } else if (msg.type === 'chat_list') {
+          chats = msg.chats;
+          renderChatList();
+          if (activeChatId) openChat(activeChatId);
+        } else if (msg.type === 'chat_created') {
+          activeChatId = msg.chatId;
+          sendServerMessage('get_chats', {});
+        } else if (msg.type === 'messages') {
+          displayMessages(msg.messages);
+          if (activeChatId) scrollMessagesDown();
+        } else if (msg.type === 'user_search_result') {
+          showSearchResults(msg.users);
+        }
+      };
       ws.onclose = () => setTimeout(connectWebSocket, 3000);
     }
 
-    // Отправляем данные без шифрования (только JSON)
     function sendServerMessage(type, data) {
-      if (ws.readyState === WebSocket.OPEN) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type, ...data }));
       }
     }
@@ -194,7 +202,6 @@
     function displayMessages(msgs) {
       const cont = document.getElementById('messagesContainer'); cont.innerHTML='';
       msgs.forEach(m => addMessageToUI(m));
-      cont.scrollTop = cont.scrollHeight;
     }
 
     function addMessageToUI(msg) {
@@ -204,10 +211,22 @@
       document.getElementById('messagesContainer').appendChild(div);
     }
 
+    function scrollMessagesDown() {
+      const container = document.getElementById('messagesContainer');
+      container.scrollTop = container.scrollHeight;
+    }
+
     document.getElementById('sendBtn').addEventListener('click', ()=>{
-      const text = document.getElementById('messageInput').value.trim();
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
       if (!text || !activeChatId) return;
-      document.getElementById('messageInput').value='';
+      input.value = '';
+      const msg = { from: currentUser.login, text, time: Date.now() };
+      if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
+      if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
+      chats[activeChatId].messages.push(msg);
+      addMessageToUI(msg);
+      scrollMessagesDown();
       sendServerMessage('send_message', { chatId: activeChatId, text });
     });
 
