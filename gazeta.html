@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Газета SkyCitadel</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0d1225;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      min-height: 100vh;
+    }
+    h1 {
+      text-align: center;
+      font-size: 2rem;
+      margin-bottom: 1.5rem;
+      color: #b7ceff;
+      text-shadow: 0 0 8px #2f4b8c;
+    }
+    #news {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .article {
+      background: rgba(20, 28, 50, 0.7);
+      backdrop-filter: blur(8px);
+      border: 1px solid #2e3b5c;
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 0.8rem;
+      transition: background 0.2s;
+    }
+    .article:hover {
+      background: rgba(30, 40, 65, 0.8);
+    }
+    .article h2 {
+      margin: 0 0 0.4rem 0;
+      font-size: 1.1rem;
+      color: #cfdbff;
+    }
+    .article h2 a {
+      color: #aac0ff;
+      text-decoration: none;
+    }
+    .article h2 a:hover {
+      text-decoration: underline;
+    }
+    .article p {
+      font-size: 0.85rem;
+      color: #8899cc;
+    }
+    .date {
+      text-align: center;
+      margin-top: 20px;
+      font-style: italic;
+      color: #5b6d9a;
+    }
+    #sources {
+      max-width: 800px;
+      margin: 20px auto 0;
+      font-size: 0.85rem;
+      color: #6b7b9e;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>📰 Новости РИА</h1>
+  <div id="news">Загрузка новостей...</div>
+  <div class="date" id="updateTime"></div>
+  <div id="sources">
+    <strong>Источник:</strong> РИА Новости (RSS)
+  </div>
+
+  <script>
+    // Реальный RSS РИА Новостей (архивная лента, обновляется часто)
+    const rssFeeds = [
+      'https://ria.ru/export/rss2/archive/index.xml'
+    ];
+
+    const newsContainer = document.getElementById('news');
+    const updateTime = document.getElementById('updateTime');
+
+    function fetchRSS(feedUrl) {
+      return fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
+        .then(response => response.json())
+        .then(data => data.items)
+        .catch(err => {
+          console.error('Ошибка при загрузке RSS:', feedUrl, err);
+          return [];
+        });
+    }
+
+    function loadNews() {
+      newsContainer.innerHTML = 'Загрузка новостей...';
+      let allItems = [];
+
+      Promise.all(rssFeeds.map(fetchRSS))
+        .then(results => {
+          results.forEach(items => {
+            allItems = allItems.concat(items);
+          });
+          // Сортировка по дате (свежие сверху)
+          allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+          displayNews(allItems.slice(0, 10)); // 10 последних новостей
+        });
+    }
+
+    function displayNews(items) {
+      if (items.length === 0) {
+        newsContainer.innerHTML = '<p style="text-align:center;">Нет новостей для отображения.</p>';
+        return;
+      }
+      newsContainer.innerHTML = '';
+      items.forEach(item => {
+        const articleDiv = document.createElement('div');
+        articleDiv.className = 'article';
+        articleDiv.innerHTML = `
+          <h2><a href="${item.link}" target="_blank">${item.title}</a></h2>
+          <p>${new Date(item.pubDate).toLocaleString('ru-RU')}</p>
+        `;
+        newsContainer.appendChild(articleDiv);
+      });
+      updateTime.textContent = 'Обновлено: ' + new Date().toLocaleString('ru-RU');
+    }
+
+    // Первая загрузка и автообновление каждый час (3600000 мс)
+    loadNews();
+    setInterval(loadNews, 3600000);
+  </script>
+</body>
+</html>
