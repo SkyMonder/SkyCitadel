@@ -105,29 +105,28 @@
         sendServerMessage('get_chats', {});
       };
       ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data);
-        if (msg.type === 'auth_ok') {
-          currentUser.name = msg.name; currentUser.avatar = msg.avatar; currentUser.status = msg.status;
-        } else if (msg.type === 'message') {
-          if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
-          if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
-          chats[msg.chatId].messages.push({ from: msg.from, text: msg.text, time: msg.time });
-          if (msg.chatId === activeChatId) addMessageToUI(msg);
-          renderChatList();
-        } else if (msg.type === 'chat_list') {
-          chats = msg.chats;
-          renderChatList();
-          if (activeChatId) openChat(activeChatId);
-        } else if (msg.type === 'messages') {
-          displayMessages(msg.messages);
-        } else if (msg.type === 'chat_created') {
-          activeChatId = msg.chatId;
-          sendServerMessage('get_chats', {});
-        }
-        } else if (msg.type === 'user_search_result') {
-          showSearchResults(msg.users);
-        }
-      };
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'auth_ok') {
+        currentUser.name = msg.name; currentUser.avatar = msg.avatar; currentUser.status = msg.status;
+      } else if (msg.type === 'message') {
+        if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
+        if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
+        chats[msg.chatId].messages.push({ from: msg.from, text: msg.text, time: msg.time });
+        if (msg.chatId === activeChatId) addMessageToUI(msg);
+        renderChatList();
+      } else if (msg.type === 'chat_list') {
+        chats = msg.chats;
+        renderChatList();
+        if (activeChatId) openChat(activeChatId);
+      } else if (msg.type === 'chat_created') {
+        activeChatId = msg.chatId;
+        sendServerMessage('get_chats', {});
+      } else if (msg.type === 'messages') {
+        displayMessages(msg.messages);
+      } else if (msg.type === 'user_search_result') {
+        showSearchResults(msg.users);
+      }
+    };
       ws.onclose = () => setTimeout(connectWebSocket, 3000);
     }
 
