@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>SkyCitadel — Цифровая крепость</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0f1e;
+      color: #e0e8ff;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #0d1425 0%, #131b2f 100%);
+      border-right: 1px solid #2a3450;
+      display: flex;
+      flex-direction: column;
+      padding: 1.2rem 0.8rem;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.6);
+      z-index: 10;
+    }
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #b5ceff, #5f7ecf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 2rem;
+      text-align: center;
+      text-shadow: 0 0 12px #2f4b8c;
+    }
+    .nav-btn {
+      background: transparent;
+      border: 1px solid #2f3b5c;
+      color: #cbd5ff;
+      padding: 0.9rem 1.2rem;
+      margin: 0.3rem 0;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      backdrop-filter: blur(4px);
+    }
+    .nav-btn i { font-style: normal; font-size: 1.2rem; }
+    .nav-btn:hover, .nav-btn.active {
+      background: #1f2b4a;
+      border-color: #5f7ecf;
+      box-shadow: 0 0 15px #2f4b8c;
+      color: #ffffff;
+    }
+    .spacer { flex: 1; }
+    .status-line {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: #6b7b9e;
+      border-top: 1px solid #2a3450;
+      padding-top: 0.8rem;
+    }
+    .main {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      background: radial-gradient(circle at 20% 20%, #121a30, #080d1a);
+    }
+    .section { display: none; animation: fadeIn 0.3s ease; }
+    .section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .card {
+      background: rgba(20, 28, 50, 0.8);
+      backdrop-filter: blur(16px);
+      border: 1px solid #2e3b5c;
+      border-radius: 24px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.8rem;
+      margin-bottom: 1.2rem;
+      color: #b7ceff;
+      border-left: 4px solid #5f7ecf;
+      padding-left: 1rem;
+    }
+    #map { height: 500px; border-radius: 20px; border: 1px solid #3f4b6b; }
+    .map-search { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .map-search input { flex: 1; padding: 0.7rem 1rem; border-radius: 12px; background: #0d1225; border: 1px solid #3a4660; color: #fff; }
+    .map-search button { padding: 0.7rem 1.5rem; border-radius: 12px; background: #2f4b8c; border: none; color: white; font-weight: bold; cursor: pointer; }
+    
+    /* Радио */
+    .radio-stations {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      margin: 1rem 0;
+    }
+    .station-btn {
+      background: #1c2541;
+      border: 1px solid #3f4b6b;
+      padding: 0.6rem 1.2rem;
+      border-radius: 20px;
+      color: #cfdbff;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .station-btn.playing {
+      background: #2f4b8c;
+      border-color: #6b8cff;
+      box-shadow: 0 0 12px #2f4b8c;
+    }
+    .custom-stream-area {
+      margin-top: 1rem;
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .custom-stream-area input {
+      flex: 1;
+      padding: 0.6rem;
+      border-radius: 10px;
+      background: #0d1225;
+      border: 1px solid #3a4660;
+      color: white;
+    }
+
+    .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
+    .calc-display { grid-column: span 4; background: #0a0f1e; padding: 1rem; font-size: 2rem; text-align: right; border-radius: 16px; border: 1px solid #3a4660; margin-bottom: 0.5rem; }
+    .calc-btn { padding: 1rem; font-size: 1.3rem; border-radius: 16px; background: #1e2744; border: 1px solid #3a4660; color: white; cursor: pointer; transition: 0.2s; }
+    .calc-btn.operator { background: #2f3b5c; }
+    .calc-btn.equal { background: #3f62b0; }
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .cal-header button { background: #1e2744; border: none; color: white; padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; text-align: center; }
+    .cal-day-name { color: #7f8bb3; font-weight: bold; }
+    .cal-day { padding: 0.8rem; background: #121a32; border-radius: 12px; cursor: default; }
+    .cal-day.today { background: #2f4b8c; font-weight: bold; }
+    .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
+    .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
+    #youtube-player { border-radius: 20px; overflow: hidden; margin-top: 1rem; }
+    .placeholder-icon { font-size: 3rem; margin-bottom: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="sidebar">
+    <div class="logo">🛡️ SkyCitadel</div>
+    <button class="nav-btn active" data-section="maps">🗺️ Карты</button>
+    <button class="nav-btn" data-section="radio">📻 Радио</button>
+    <button class="nav-btn" data-section="messenger">💬 Мессенджер</button>
+    <button class="nav-btn" data-section="social">👥 Соцсеть</button>
+    <button class="nav-btn" data-section="news">📰 Новости</button>
+    <button class="nav-btn" data-section="announce">📢 Объявления</button>
+    <button class="nav-btn" data-section="calendar">📅 Календарь</button>
+    <button class="nav-btn" data-section="calculator">🧮 Калькулятор</button>
+    <button class="nav-btn" data-section="weather">☁️ Погода</button>
+    <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
+    <div class="spacer"></div>
+    <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
+  </div>
+
+  <div class="main">
+    <!-- Карты -->
+    <div id="maps" class="section active">
+      <div class="card">
+        <h2>🗺️ Интерактивная карта</h2>
+        <div class="map-search">
+          <input type="text" id="map-search-input" placeholder="Поиск места...">
+          <button id="map-search-btn">Искать</button>
+        </div>
+        <div id="map"></div>
+      </div>
+    </div>
+
+    <!-- Радио (ИСПРАВЛЕНО – рабочий HTML5 плеер) -->
+    <div id="radio" class="section">
+      <div class="card">
+        <h2>📻 Радио — Прямые потоки</h2>
+        <div class="radio-stations" id="radio-list"></div>
+        <audio id="radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
+        <div class="custom-stream-area">
+          <input type="text" id="custom-stream" placeholder="Вставь URL своего потока...">
+          <button id="play-custom-stream" style="padding:0.6rem 1.2rem; background:#2f4b8c; border:none; color:white; border-radius:10px; cursor:pointer;">▶ Играть</button>
+        </div>
+        <p style="margin-top:0.8rem; font-size:0.8rem; opacity:0.8;">Если поток не играет, возможно, он заблокирован браузером (Mixed Content). Используй HTTPS-потоки.</p>
+      </div>
+    </div>
+
+    <!-- Мессенджер заглушка -->
+    <div id="messenger" class="section">
+      <div class="card" style="text-align:center; padding:3rem;">
+        <div class="placeholder-icon">💬</div>
+        <h2>Мессенджер</h2>
+        <p>Безопасный чат на базе второго сервиса (end-to-end шифрование).<br>Появится позже отдельным модулем.</p>
+      </div>
+    </div>
+
+    <!-- Соцсеть заглушка -->
+    <div id="social" class="section">
+      <div class="card" style="text-align:center; padding:3rem;">
+        <div class="placeholder-icon">👥</div>
+        <h2>Социальная сеть</h2>
+        <p>Лента, профили, посты — всё с шифрованием.<br>Будет интегрирована через второй сервис.</p>
+      </div>
+    </div>
+
+    <!-- Новости -->
+    <div id="news" class="section">
+      <div class="card">
+        <h2>📰 Автообновляемая газета</h2>
+        <p style="margin-bottom:0.8rem;">Источник: РИА Новости (обновляется каждый час)</p>
+        <iframe id="news-iframe" class="news-frame" src="gazeta.html"></iframe>
+        <button id="refresh-news" style="margin-top:0.7rem; background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">🔄 Обновить сейчас</button>
+      </div>
+    </div>
+
+    <!-- Спецобъявления -->
+    <div id="announce" class="section">
+      <div class="card">
+        <h2>📢 Специальные объявления (только от создателя)</h2>
+        <div id="announce-container">Загрузка...</div>
+      </div>
+    </div>
+
+    <!-- Календарь -->
+    <div id="calendar" class="section">
+      <div class="card">
+        <h2>📅 Календарь</h2>
+        <div class="cal-header">
+          <button id="cal-prev">◀</button>
+          <span id="cal-month-year"></span>
+          <button id="cal-next">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-days"></div>
+      </div>
+    </div>
+
+    <!-- Калькулятор -->
+    <div id="calculator" class="section">
+      <div class="card">
+        <h2>🧮 Калькулятор</h2>
+        <div class="calc-grid">
+          <div class="calc-display" id="calc-display">0</div>
+          <button class="calc-btn" data-action="clear">C</button>
+          <button class="calc-btn operator" data-action="(">(</button>
+          <button class="calc-btn operator" data-action=")">)</button>
+          <button class="calc-btn operator" data-action="/">÷</button>
+          <button class="calc-btn" data-action="7">7</button>
+          <button class="calc-btn" data-action="8">8</button>
+          <button class="calc-btn" data-action="9">9</button>
+          <button class="calc-btn operator" data-action="*">×</button>
+          <button class="calc-btn" data-action="4">4</button>
+          <button class="calc-btn" data-action="5">5</button>
+          <button class="calc-btn" data-action="6">6</button>
+          <button class="calc-btn operator" data-action="-">−</button>
+          <button class="calc-btn" data-action="1">1</button>
+          <button class="calc-btn" data-action="2">2</button>
+          <button class="calc-btn" data-action="3">3</button>
+          <button class="calc-btn operator" data-action="+">+</button>
+          <button class="calc-btn" data-action="0">0</button>
+          <button class="calc-btn" data-action=".">.</button>
+          <button class="calc-btn" data-action="back">⌫</button>
+          <button class="calc-btn equal" data-action="=">=</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Погода -->
+    <div id="weather" class="section">
+      <div class="card">
+        <h2>☁️ Погода (через защищённый канал)</h2>
+        <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+          <input type="text" id="city-input" placeholder="Город" value="Москва" style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+          <button id="weather-btn" style="background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">Узнать</button>
+        </div>
+        <div id="weather-result">Введи город и нажми кнопку. Данные идут через шифрованный запрос ко второму сервису.</div>
+      </div>
+    </div>
+
+    <!-- Музыкальный центр -->
+    <div id="music" class="section">
+      <div class="card">
+        <h2>🎵 Музыкальный центр</h2>
+        <p>YouTube плейлист + локальный трек <code>track.mp3</code></p>
+        <div id="youtube-player"></div>
+        <div style="margin-top:1.5rem;">
+          <p>Локальный аудиоплеер:</p>
+          <audio id="local-audio" controls style="width:100%;">
+            <source src="track.mp3" type="audio/mpeg">
+            Твой браузер не поддерживает audio.
+          </audio>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (function() {
+      // ========== НАВИГАЦИЯ ==========
+      const navButtons = document.querySelectorAll('.nav-btn');
+      const sections = document.querySelectorAll('.section');
+      navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          navButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const targetId = btn.getAttribute('data-section');
+          sections.forEach(sec => sec.classList.remove('active'));
+          document.getElementById(targetId).classList.add('active');
+          if (targetId === 'maps') setTimeout(() => map.invalidateSize(), 100);
+          if (targetId === 'calendar') renderCalendar();
+          if (targetId === 'news') refreshNewsIframe();
+        });
+      });
+
+      // ========== ШИФРОВАНИЕ AES-256-GCM ==========
+      const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
+      async function getKey() {
+        const keyBytes = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+        return await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+      }
+      async function encryptPayload(plainObj) {
+        const key = await getKey();
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
+        const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+        const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
+        combined.set(iv, 0);
+        combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
+        return btoa(String.fromCharCode(...combined));
+      }
+      async function decryptPayload(combinedBase64) {
+        const key = await getKey();
+        const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
+        const iv = combined.slice(0, 12);
+        const data = combined.slice(12);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        return JSON.parse(new TextDecoder().decode(decrypted));
+      }
+      async function secureFetch(endpoint, payload) {
+        const encrypted = await encryptPayload(payload);
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: encrypted })
+        });
+        if (!response.ok) throw new Error(`Ошибка ${response.status}`);
+        const json = await response.json();
+        if (!json.data) throw new Error('Нет зашифрованного ответа');
+        return await decryptPayload(json.data);
+      }
+
+      // ========== КАРТЫ ==========
+      const map = L.map('map').setView([55.751244, 37.618423], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
+      document.getElementById('map-search-btn').addEventListener('click', async () => {
+        const query = document.getElementById('map-search-input').value.trim();
+        if (!query) return;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const { lat, lon } = data[0];
+          map.setView([lat, lon], 13);
+          L.marker([lat, lon]).addTo(map).bindPopup(query).openPopup();
+        }
+      });
+
+      // ========== РАДИО (полностью переработано) ==========
+      const stations = [
+        { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
+        { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
+        { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
+        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' },
+        { name: 'Дорожное радио', url: 'https://dorognoe.hostingradio.ru/dorognoe96.aacp' },
+        { name: 'Юмор FM', url: 'https://humorfm.hostingradio.ru/humorfm96.aacp' },
+        { name: 'Relax FM', url: 'https://relax.hostingradio.ru/relax96.aacp' }
+      ];
+
+      const radioAudio = document.getElementById('radio-audio');
+      const radioListDiv = document.getElementById('radio-list');
+
+      function renderRadioButtons() {
+        radioListDiv.innerHTML = '';
+        stations.forEach(st => {
+          const btn = document.createElement('button');
+          btn.className = 'station-btn';
+          btn.textContent = st.name;
+          btn.addEventListener('click', () => {
+            radioAudio.src = st.url;
+            radioAudio.load();
+            radioAudio.play().catch(err => {
+              alert('Не удалось воспроизвести: ' + st.name + '. Возможно, Mixed Content. Попробуй другую станцию.');
+            });
+            document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
+            btn.classList.add('playing');
+          });
+          radioListDiv.appendChild(btn);
+        });
+      }
+      renderRadioButtons();
+
+      document.getElementById('play-custom-stream').addEventListener('click', () => {
+        const customUrl = document.getElementById('custom-stream').value.trim();
+        if (customUrl) {
+          radioAudio.src = customUrl;
+          radioAudio.load();
+          radioAudio.play().catch(err => alert('Не удалось воспроизвести пользовательский поток. Проверь URL.'));
+          document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
+        }
+      });
+
+      // ========== НОВОСТИ ==========
+      function refreshNewsIframe() {
+        const iframe = document.getElementById('news-iframe');
+        iframe.src = iframe.src;
+      }
+      document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
+
+      // ========== ОБЪЯВЛЕНИЯ ==========
+      async function loadAnnouncements() {
+        const container = document.getElementById('announce-container');
+        try {
+          const res = await fetch('special.json');
+          if (!res.ok) throw new Error('Файл не найден');
+          const items = await res.json();
+          container.innerHTML = items.map(item => `<div class="announce-item">📌 ${item.text}</div>`).join('');
+        } catch (e) {
+          container.innerHTML = '<p>Объявлений пока нет (файл special.json отсутствует).</p>';
+        }
+      }
+      loadAnnouncements();
+      setInterval(loadAnnouncements, 10 * 60 * 1000);
+
+      // ========== КАЛЕНДАРЬ ==========
+      let calDate = new Date();
+      function renderCalendar() {
+        const year = calDate.getFullYear();
+        const month = calDate.getMonth();
+        const firstDay = new Date(year, month, 1).getDay() || 7;
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        document.getElementById('cal-month-year').textContent = 
+          calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        const grid = document.getElementById('cal-days');
+        grid.innerHTML = '';
+        const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+        dayNames.forEach(d => { const div = document.createElement('div'); div.className='cal-day-name'; div.textContent=d; grid.appendChild(div); });
+        for (let i = 1; i < firstDay; i++) { grid.appendChild(document.createElement('div')); }
+        const today = new Date();
+        for (let d = 1; d <= daysInMonth; d++) {
+          const div = document.createElement('div');
+          div.className = 'cal-day';
+          div.textContent = d;
+          if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) {
+            div.classList.add('today');
+          }
+          grid.appendChild(div);
+        }
+      }
+      document.getElementById('cal-prev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
+      document.getElementById('cal-next').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
+      renderCalendar();
+
+      // ========== КАЛЬКУЛЯТОР ==========
+      const calcDisplay = document.getElementById('calc-display');
+      let calcInput = '';
+      function updateCalcDisplay() { calcDisplay.textContent = calcInput || '0'; }
+      document.querySelectorAll('.calc-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const action = btn.getAttribute('data-action');
+          if (action === 'clear') { calcInput = ''; }
+          else if (action === 'back') { calcInput = calcInput.slice(0, -1); }
+          else if (action === '=') {
+            try { calcInput = eval(calcInput.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-')).toString(); }
+            catch { calcInput = 'Ошибка'; }
+          } else {
+            const symbols = { '×':'*', '÷':'/', '−':'-' };
+            calcInput += symbols[action] || action;
+          }
+          updateCalcDisplay();
+        });
+      });
+
+      // ========== ПОГОДА ==========
+      document.getElementById('weather-btn').addEventListener('click', async () => {
+        const city = document.getElementById('city-input').value.trim();
+        const resultDiv = document.getElementById('weather-result');
+        if (!city) return;
+        resultDiv.textContent = 'Запрос через шифрованный канал...';
+        try {
+          const SERVICE2_URL = 'https://skycitadel-service2.onrender.com/api/weather';
+          const response = await secureFetch(SERVICE2_URL, { city });
+          resultDiv.innerHTML = `🌡️ ${response.temp}°C, ${response.desc}<br>📍 ${response.city}`;
+        } catch (e) {
+          resultDiv.textContent = 'Ошибка получения погоды. Возможно, сервис #2 не запущен.';
+        }
+      });
+
+      // ========== МУЗЫКАЛЬНЫЙ ЦЕНТР (YouTube) ==========
+      const YT_PLAYLIST_ID = 'PLrAXtmS8DZzy3W8U2wJ5HyBQd1bw2Jh6v';
+      function onYouTubeIframeAPIReady() {
+        new YT.Player('youtube-player', {
+          height: '360',
+          width: '100%',
+          playerVars: { listType: 'playlist', list: YT_PLAYLIST_ID, autoplay: 0 }
+        });
+      }
+      const tag = document.createElement('script');
+      tag.src = "https://www.youtube.com/iframe_api";
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+      setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
+    })();
+  </script>
+</body>
+</html>
