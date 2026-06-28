@@ -99,43 +99,9 @@
     .map-search { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .map-search input { flex: 1; padding: 0.7rem 1rem; border-radius: 12px; background: #0d1225; border: 1px solid #3a4660; color: #fff; }
     .map-search button { padding: 0.7rem 1.5rem; border-radius: 12px; background: #2f4b8c; border: none; color: white; font-weight: bold; cursor: pointer; }
-    
-    /* Радио */
-    .radio-stations {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.8rem;
-      margin: 1rem 0;
-    }
-    .station-btn {
-      background: #1c2541;
-      border: 1px solid #3f4b6b;
-      padding: 0.6rem 1.2rem;
-      border-radius: 20px;
-      color: #cfdbff;
-      cursor: pointer;
-      transition: 0.2s;
-    }
-    .station-btn.playing {
-      background: #2f4b8c;
-      border-color: #6b8cff;
-      box-shadow: 0 0 12px #2f4b8c;
-    }
-    .custom-stream-area {
-      margin-top: 1rem;
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-    }
-    .custom-stream-area input {
-      flex: 1;
-      padding: 0.6rem;
-      border-radius: 10px;
-      background: #0d1225;
-      border: 1px solid #3a4660;
-      color: white;
-    }
-
+    .radio-stations { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0; }
+    .station-btn { background: #1c2541; border: 1px solid #3f4b6b; padding: 0.6rem 1.2rem; border-radius: 20px; color: #cfdbff; cursor: pointer; }
+    .station-btn.playing { background: #2f4b8c; border-color: #6b8cff; box-shadow: 0 0 12px #2f4b8c; }
     .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
     .calc-display { grid-column: span 4; background: #0a0f1e; padding: 1rem; font-size: 2rem; text-align: right; border-radius: 16px; border: 1px solid #3a4660; margin-bottom: 0.5rem; }
     .calc-btn { padding: 1rem; font-size: 1.3rem; border-radius: 16px; background: #1e2744; border: 1px solid #3a4660; color: white; cursor: pointer; transition: 0.2s; }
@@ -145,11 +111,10 @@
     .cal-header button { background: #1e2744; border: none; color: white; padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; text-align: center; }
     .cal-day-name { color: #7f8bb3; font-weight: bold; }
-    .cal-day { padding: 0.8rem; background: #121a32; border-radius: 12px; cursor: default; }
+    .cal-day { padding: 0.8rem; background: #121a32; border-radius: 12px; }
     .cal-day.today { background: #2f4b8c; font-weight: bold; }
     .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
-    #youtube-player { border-radius: 20px; overflow: hidden; margin-top: 1rem; }
     .placeholder-icon { font-size: 3rem; margin-bottom: 1rem; }
   </style>
 </head>
@@ -183,26 +148,24 @@
       </div>
     </div>
 
-    <!-- Радио (ИСПРАВЛЕНО – рабочий HTML5 плеер) -->
+    <!-- Радио -->
     <div id="radio" class="section">
       <div class="card">
         <h2>📻 Радио — Прямые потоки</h2>
         <div class="radio-stations" id="radio-list"></div>
         <audio id="radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
-        <div class="custom-stream-area">
-          <input type="text" id="custom-stream" placeholder="Вставь URL своего потока...">
-          <button id="play-custom-stream" style="padding:0.6rem 1.2rem; background:#2f4b8c; border:none; color:white; border-radius:10px; cursor:pointer;">▶ Играть</button>
+        <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+          <input type="text" id="custom-stream" placeholder="URL своего потока..." style="flex:1; padding:0.6rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+          <button id="play-custom-stream" style="padding:0.6rem 1.2rem; background:#2f4b8c; border:none; color:white; border-radius:10px;">▶ Играть</button>
         </div>
-        <p style="margin-top:0.8rem; font-size:0.8rem; opacity:0.8;">Если поток не играет, возможно, он заблокирован браузером (Mixed Content). Используй HTTPS-потоки.</p>
       </div>
     </div>
 
-    <!-- Мессенджер заглушка -->
+    <!-- Мессенджер -->
     <div id="messenger" class="section">
-      <iframe src="skymessage.html"
-        allow="microphone; camera; modals"
-        style="width:100%; height:calc(100vh - 100px); border:none; border-radius:20px;">
-      </iframe>
+      <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
+        <iframe src="skymessage.html" allow="microphone; camera; modals" style="width:100%; height:100%; border:none;"></iframe>
+      </div>
     </div>
 
     <!-- Соцсеть заглушка -->
@@ -224,7 +187,7 @@
       </div>
     </div>
 
-    <!-- Спецобъявления -->
+    <!-- Объявления -->
     <div id="announce" class="section">
       <div class="card">
         <h2>📢 Специальные объявления (только от создателя)</h2>
@@ -278,12 +241,12 @@
     <!-- Погода -->
     <div id="weather" class="section">
       <div class="card">
-        <h2>☁️ Погода (через защищённый канал)</h2>
+        <h2>☁️ Погода</h2>
         <div style="display:flex; gap:1rem; margin-bottom:1rem;">
           <input type="text" id="city-input" placeholder="Город" value="Москва" style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
           <button id="weather-btn" style="background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">Узнать</button>
         </div>
-        <div id="weather-result">Введи город и нажми кнопку. Данные идут через шифрованный запрос ко второму сервису.</div>
+        <div id="weather-result">Введи город и нажми кнопку.</div>
       </div>
     </div>
 
@@ -377,20 +340,15 @@
         }
       });
 
-      // ========== РАДИО (полностью переработано) ==========
+      // ========== РАДИО ==========
       const stations = [
         { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
         { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
         { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
-        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' },
-        { name: 'Дорожное радио', url: 'https://dorognoe.hostingradio.ru/dorognoe96.aacp' },
-        { name: 'Юмор FM', url: 'https://humorfm.hostingradio.ru/humorfm96.aacp' },
-        { name: 'Relax FM', url: 'https://relax.hostingradio.ru/relax96.aacp' }
+        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
       ];
-
       const radioAudio = document.getElementById('radio-audio');
       const radioListDiv = document.getElementById('radio-list');
-
       function renderRadioButtons() {
         radioListDiv.innerHTML = '';
         stations.forEach(st => {
@@ -400,9 +358,7 @@
           btn.addEventListener('click', () => {
             radioAudio.src = st.url;
             radioAudio.load();
-            radioAudio.play().catch(err => {
-              alert('Не удалось воспроизвести: ' + st.name + '. Возможно, Mixed Content. Попробуй другую станцию.');
-            });
+            radioAudio.play().catch(e => alert('Не удалось воспроизвести ' + st.name));
             document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
             btn.classList.add('playing');
           });
@@ -410,13 +366,12 @@
         });
       }
       renderRadioButtons();
-
       document.getElementById('play-custom-stream').addEventListener('click', () => {
-        const customUrl = document.getElementById('custom-stream').value.trim();
-        if (customUrl) {
-          radioAudio.src = customUrl;
+        const url = document.getElementById('custom-stream').value.trim();
+        if (url) {
+          radioAudio.src = url;
           radioAudio.load();
-          radioAudio.play().catch(err => alert('Не удалось воспроизвести пользовательский поток. Проверь URL.'));
+          radioAudio.play().catch(e => alert('Ошибка потока'));
           document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
         }
       });
@@ -427,6 +382,7 @@
         iframe.src = iframe.src;
       }
       document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
+      setInterval(refreshNewsIframe, 5 * 60 * 1000);
 
       // ========== ОБЪЯВЛЕНИЯ ==========
       async function loadAnnouncements() {
@@ -499,11 +455,11 @@
         if (!city) return;
         resultDiv.textContent = 'Запрос через шифрованный канал...';
         try {
-          const SERVICE2_URL = 'https://skycitadel-service2.onrender.com/api/weather';
+          const SERVICE2_URL = 'https://serveratiuz.onrender.com/api/weather';
           const response = await secureFetch(SERVICE2_URL, { city });
           resultDiv.innerHTML = `🌡️ ${response.temp}°C, ${response.desc}<br>📍 ${response.city}`;
         } catch (e) {
-          resultDiv.textContent = 'Ошибка получения погоды. Возможно, сервис #2 не запущен.';
+          resultDiv.textContent = 'Ошибка получения погоды. Попробуйте позже.';
         }
       });
 
