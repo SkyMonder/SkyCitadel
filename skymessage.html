@@ -120,6 +120,10 @@
           if (activeChatId) openChat(activeChatId);
         } else if (msg.type === 'messages') {
           displayMessages(msg.messages);
+        } else if (msg.type === 'chat_created') {
+          activeChatId = msg.chatId;
+          sendServerMessage('get_chats', {});
+        }
         } else if (msg.type === 'user_search_result') {
           showSearchResults(msg.users);
         }
