@@ -45,7 +45,6 @@
   </style>
 </head>
 <body>
-  <!-- Экран аутентификации -->
   <div id="authScreen" class="auth-screen">
     <div class="auth-box">
       <h2 id="authTitle">Вход</h2>
@@ -56,7 +55,6 @@
     </div>
   </div>
 
-  <!-- Основной интерфейс -->
   <div class="app" id="app" style="display:none;">
     <div class="sidebar">
       <div class="sidebar-header">
@@ -76,10 +74,9 @@
     </div>
   </div>
 
-  <!-- Модальное окно поиска / создания -->
   <div class="modal-overlay" id="searchModal">
     <div class="modal">
-      <h3 id="modalTitle">Поиск пользователя</h3>
+      <h3>Поиск пользователя</h3>
       <input type="text" id="searchQuery" placeholder="Введите логин...">
       <div class="search-results" id="searchResults"></div>
       <div class="btn-row">
@@ -91,27 +88,14 @@
   <script>
     const WS_URL = 'wss://serveratiuz.onrender.com';
     const SERVER_URL = 'https://serveratiuz.onrender.com';
-
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
 
-    // шифрование (как раньше)
-    const enc = new TextEncoder();
-    const dec = new TextDecoder();
+    // Шифрование используется только для пароля, больше нигде
+    const enc = new TextEncoder(); const dec = new TextDecoder();
     async function deriveKey(password, saltBase64) {
       const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
       const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
       return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    }
-    async function encryptPayload(obj) {
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, enc.encode(JSON.stringify(obj)));
-      return { iv: btoa(String.fromCharCode(...iv)), data: btoa(String.fromCharCode(...new Uint8Array(encrypted))) };
-    }
-    async function decryptPayload(ivB64, dataB64) {
-      const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
-      const data = Uint8Array.from(atob(dataB64), c => c.charCodeAt(0));
-      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, data);
-      return JSON.parse(dec.decode(decrypted));
     }
 
     function connectWebSocket() {
@@ -120,7 +104,7 @@
         ws.send(JSON.stringify({ type: 'auth', login: currentUser.login }));
         sendServerMessage('get_chats', {});
       };
-      ws.onmessage = async (e) => {
+      ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
         if (msg.type === 'auth_ok') {
           currentUser.name = msg.name; currentUser.avatar = msg.avatar; currentUser.status = msg.status;
@@ -143,14 +127,13 @@
       ws.onclose = () => setTimeout(connectWebSocket, 3000);
     }
 
-    async function sendServerMessage(type, data) {
+    // Отправляем данные без шифрования (только JSON)
+    function sendServerMessage(type, data) {
       if (ws.readyState === WebSocket.OPEN) {
-        const enc = await encryptPayload(data);
-        ws.send(JSON.stringify({ type, ...enc }));
+        ws.send(JSON.stringify({ type, ...data }));
       }
     }
 
-    // UI
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
@@ -225,7 +208,6 @@
       sendServerMessage('send_message', { chatId: activeChatId, text });
     });
 
-    // Новый чат через модальное окно
     document.getElementById('newChatBtn').addEventListener('click', ()=>{
       const action = prompt('1 - Личный чат\n2 - Группа\n3 - Канал');
       if (action === '1') openSearchModal();
@@ -233,15 +215,10 @@
       else if (action === '3') { const n=prompt('Название канала:'); if(n) sendServerMessage('create_channel',{name:n}); }
     });
 
-    // Модальное окно поиска
     const modal = document.getElementById('searchModal');
     const searchInput = document.getElementById('searchQuery');
     const resultsDiv = document.getElementById('searchResults');
-
-    function openSearchModal() {
-      modal.classList.add('active');
-      searchInput.value=''; resultsDiv.innerHTML=''; searchInput.focus();
-    }
+    function openSearchModal() { modal.classList.add('active'); searchInput.value=''; resultsDiv.innerHTML=''; searchInput.focus(); }
     document.getElementById('modalCancel').addEventListener('click', ()=> modal.classList.remove('active'));
 
     searchInput.addEventListener('input', ()=>{
