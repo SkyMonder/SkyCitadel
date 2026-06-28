@@ -113,8 +113,8 @@
 
   <script>
     // ========== Конфигурация ==========
-    const WS_URL = 'wss://serveratiuz.onrender.com';          // WebSocket сервиса №2
-    const SERVER_URL = 'https://serveratiuz.onrender.com';    // REST API сервиса №2
+    const WS_URL = 'wss://serveratiuz.onrender.com';
+    const SERVER_URL = 'https://serveratiuz.onrender.com';   // REST API сервиса №2
 
     let ws;
     let currentUser = null;   // { login, name, avatar, status }
@@ -218,11 +218,15 @@
     document.getElementById('authBtn').addEventListener('click', async () => {
       const login = document.getElementById('loginInput').value.trim();
       const password = document.getElementById('passInput').value;
-      if (!login || !password) return alert('Заполни поля');
+      if (!login || !password) {
+        showStatusMessage('Заполни все поля');
+        return;
+      }
       const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
       try {
         if (isReg) {
-          const salt = crypto.getRandomValues(new Uint8Array(16));
+          // Регистрация
+          const salt = window.crypto.getRandomValues(new Uint8Array(16));
           const saltB64 = btoa(String.fromCharCode(...salt));
           cryptoKey = await deriveKey(password, saltB64);
           const res = await fetch(`${SERVER_URL}/register`, {
@@ -230,13 +234,20 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ login, salt: saltB64 })
           });
-          if (!res.ok) { alert('Ошибка регистрации'); return; }
-          alert('Аккаунт создан! Войдите.');
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка регистрации');
+          }
+          showStatusMessage('Аккаунт создан! Теперь войди.');
           document.getElementById('authTitle').textContent = 'Вход';
           document.getElementById('authBtn').textContent = 'Войти';
         } else {
+          // Вход
           const res = await fetch(`${SERVER_URL}/login_salt?login=${encodeURIComponent(login)}`);
-          if (!res.ok) { alert('Пользователь не найден'); return; }
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Пользователь не найден');
+          }
           const { salt: saltB64 } = await res.json();
           cryptoKey = await deriveKey(password, saltB64);
           currentUser = { login };
@@ -245,10 +256,16 @@
           connectWebSocket();
         }
       } catch(e) {
-        alert('Ошибка соединения с сервером');
+        showStatusMessage(e.message);
         console.error(e);
       }
     });
+
+    // Добавим функцию для показа статуса (вместо alert)
+    function showStatusMessage(text) {
+          // Простой вывод в верхней части экрана (можно заменить на alert пока)
+      alert(text);
+    }
 
     function showAuth(show) { document.getElementById('authScreen').style.display = show ? 'flex' : 'none'; }
     function showApp(show) { document.getElementById('app').style.display = show ? 'flex' : 'none'; }
