@@ -116,6 +116,7 @@
     .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
     .placeholder-icon { font-size: 3rem; margin-bottom: 1rem; }
+    .btn { background: var(--accent, #2f4b8c); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -126,12 +127,12 @@
     <button class="nav-btn" data-section="messenger">💬 Мессенджер</button>
     <button class="nav-btn" data-section="social">👥 Соцсеть</button>
     <button class="nav-btn" data-section="news">📰 Новости</button>
-    <button class="nav-btn" data-section="search">🔍 Браузер</button>
     <button class="nav-btn" data-section="announce">📢 Объявления</button>
     <button class="nav-btn" data-section="calendar">📅 Календарь</button>
     <button class="nav-btn" data-section="calculator">🧮 Калькулятор</button>
     <button class="nav-btn" data-section="weather">☁️ Погода</button>
     <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
+    <button class="nav-btn" data-section="search">🌐 Браузер</button>
     <div class="spacer"></div>
     <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
   </div>
@@ -251,16 +252,6 @@
       </div>
     </div>
 
-    <!-- Поисковик -->
-    <div id="search" class="section">
-      <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://duckduckgo.com/?kae=t&kax=v340-4&kak=-1&kaj=m&kam=osm&k5=1&kao=-1&kap=-1&kaq=-1"
-            style="width:100%; height:100%; border:none;"
-            allow="clipboard-write"
-            title="Поиск DuckDuckGo"></iframe>
-      </div>
-    </div>
-
     <!-- Музыкальный центр -->
     <div id="music" class="section">
       <div class="card">
@@ -274,6 +265,19 @@
             Твой браузер не поддерживает audio.
           </audio>
         </div>
+      </div>
+    </div>
+
+    <!-- Браузер -->
+    <div id="search" class="section">
+      <div class="card" style="height:calc(100vh - 150px); display:flex; flex-direction:column; padding:0.8rem;">
+        <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem;">
+          <button id="browser-back" class="btn" style="background:#2f4b8c;">◀</button>
+          <button id="browser-forward" class="btn" style="background:#2f4b8c;">▶</button>
+          <input type="text" id="browser-url" placeholder="Введите адрес или поисковый запрос..." style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+          <button id="browser-go" class="btn" style="background:#2f4b8c;">Перейти</button>
+        </div>
+        <iframe id="browser-frame" style="flex:1; width:100%; border:none; border-radius:12px; background:#fff;"></iframe>
       </div>
     </div>
   </div>
@@ -488,6 +492,64 @@
       const firstScriptTag = document.getElementsByTagName('script')[0];
       firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
       window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+
+      // ========== БРАУЗЕР (ПРОКСИ) ==========
+      const browserFrame = document.getElementById('browser-frame');
+      const browserUrlInput = document.getElementById('browser-url');
+      const backBtn = document.getElementById('browser-back');
+      const forwardBtn = document.getElementById('browser-forward');
+      const goBtn = document.getElementById('browser-go');
+
+      let browserHistory = [];
+      let historyIndex = -1;
+
+      function navigateTo(url, addToHistory = true) {
+        let targetUrl;
+        if (url.startsWith('http://') || url.startsWith('https://')) {
+          targetUrl = url;
+        } else {
+          targetUrl = `https://duckduckgo.com/?q=${encodeURIComponent(url)}`;
+        }
+        const proxyUrl = `https://serveratiuz.onrender.com/proxy?url=${encodeURIComponent(targetUrl)}`;
+        browserFrame.src = proxyUrl;
+        browserUrlInput.value = targetUrl;
+
+        if (addToHistory) {
+          browserHistory = browserHistory.slice(0, historyIndex + 1);
+          browserHistory.push(targetUrl);
+          historyIndex++;
+          updateBrowserButtons();
+        }
+      }
+
+      function updateBrowserButtons() {
+        backBtn.disabled = historyIndex <= 0;
+        forwardBtn.disabled = historyIndex >= browserHistory.length - 1;
+      }
+
+      backBtn.addEventListener('click', () => {
+        if (historyIndex > 0) {
+          historyIndex--;
+          const url = browserHistory[historyIndex];
+          navigateTo(url, false);
+        }
+      });
+      forwardBtn.addEventListener('click', () => {
+        if (historyIndex < browserHistory.length - 1) {
+          historyIndex++;
+          const url = browserHistory[historyIndex];
+          navigateTo(url, false);
+        }
+      });
+      goBtn.addEventListener('click', () => {
+        const input = browserUrlInput.value.trim();
+        if (input) navigateTo(input);
+      });
+      browserUrlInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') goBtn.click();
+      });
+
+      navigateTo('https://duckduckgo.com');
 
       setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
     })();
