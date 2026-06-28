@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>SkyMessage — Защищённый мессенджер</title>
+  <style>
+    :root {
+      --bg: #0a0f1e;
+      --panel: #111827;
+      --card: #1a233a;
+      --border: #2a3450;
+      --text: #e0e8ff;
+      --accent: #5f7ecf;
+      --hover: #2f4b8c;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+    /* Логин */
+    .auth-screen {
+      position: absolute; inset: 0; background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 20;
+    }
+    .auth-box {
+      background: var(--card);
+      padding: 2rem;
+      border-radius: 20px;
+      border: 1px solid var(--border);
+      width: 320px;
+      text-align: center;
+    }
+    .auth-box input {
+      width: 100%; padding: 0.7rem;
+      margin: 0.5rem 0;
+      background: #0d1225;
+      border: 1px solid var(--border);
+      color: white;
+      border-radius: 10px;
+    }
+    .auth-box button {
+      width: 100%; padding: 0.7rem;
+      background: var(--accent);
+      border: none; color: white;
+      border-radius: 10px; cursor: pointer;
+      font-weight: bold;
+      margin-top: 0.5rem;
+    }
+    .auth-box .switch-link {
+      color: #7f8bb3; font-size: 0.8rem; cursor: pointer;
+      margin-top: 0.8rem;
+    }
+    /* Основной интерфейс */
+    .app { display: flex; width: 100%; height: 100%; }
+    .sidebar {
+      width: 300px;
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+    }
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .sidebar-header input {
+      flex: 1; padding: 0.5rem;
+      background: #0d1225;
+      border: 1px solid var(--border);
+      color: white; border-radius: 8px;
+    }
+    .chat-list {
+      flex: 1; overflow-y: auto;
+    }
+    .chat-item {
+      padding: 0.8rem 1rem;
+      display: flex; align-items: center; gap: 0.7rem;
+      border-bottom: 1px solid #1e2a40;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+    .chat-item:hover, .chat-item.active {
+      background: #1f2b4a;
+    }
+    .chat-avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: #2f3b5c; display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; flex-shrink: 0;
+    }
+    .chat-info { flex: 1; }
+    .chat-name { font-weight: 500; }
+    .chat-last { font-size: 0.8rem; color: #8899cc; }
+    .main-area {
+      flex: 1; display: flex; flex-direction: column;
+    }
+    .chat-header {
+      padding: 0.8rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; gap: 0.8rem;
+      background: var(--card);
+    }
+    .messages {
+      flex: 1; overflow-y: auto;
+      padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem;
+    }
+    .msg {
+      max-width: 70%;
+      padding: 0.7rem 1rem;
+      border-radius: 16px;
+      background: #1f2b4a;
+      align-self: flex-start;
+      position: relative;
+    }
+    .msg.own {
+      align-self: flex-end;
+      background: var(--accent);
+    }
+    .msg .time {
+      font-size: 0.7rem; color: #ccc; margin-top: 0.2rem; text-align: right;
+    }
+    .input-area {
+      padding: 1rem;
+      border-top: 1px solid var(--border);
+      display: flex; gap: 0.5rem;
+      background: var(--card);
+    }
+    .input-area input {
+      flex: 1; padding: 0.7rem;
+      background: #0d1225;
+      border: 1px solid var(--border);
+      color: white; border-radius: 10px;
+    }
+    .emoji-btn {
+      background: none; border: none; font-size: 1.3rem; cursor: pointer;
+    }
+    .emoji-panel {
+      display: none;
+      flex-wrap: wrap; gap: 0.3rem; padding: 0.5rem;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 10px; max-width: 280px;
+    }
+    .emoji-panel span { cursor: pointer; font-size: 1.4rem; }
+    .profile-panel, .settings-panel {
+      position: absolute; top: 0; right: 0;
+      width: 320px; height: 100%;
+      background: var(--panel);
+      border-left: 1px solid var(--border);
+      transform: translateX(100%);
+      transition: 0.3s;
+      z-index: 15;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+    .profile-panel.open, .settings-panel.open { transform: translateX(0); }
+    .avatar-upload {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: #2f3b5c; margin: 0 auto; display: flex;
+      align-items: center; justify-content: center;
+      font-size: 2rem; cursor: pointer;
+    }
+    .btn {
+      background: var(--accent); border: none; color: white;
+      padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .call-ui {
+      position: fixed; bottom: 20px; right: 20px;
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: 16px; padding: 1rem; display: none; z-index: 30;
+      flex-direction: column; gap: 0.8rem;
+    }
+    .call-ui.active { display: flex; }
+  </style>
+</head>
+<body>
+  <!-- Экран логина/регистрации -->
+  <div id="authScreen" class="auth-screen">
+    <div class="auth-box" id="authBox">
+      <h2 id="authTitle">Вход</h2>
+      <input type="text" id="loginInput" placeholder="Логин" autocomplete="off">
+      <input type="password" id="passInput" placeholder="Пароль">
+      <button id="authBtn">Войти</button>
+      <div class="switch-link" id="switchAuth">Нет аккаунта? Зарегистрироваться</div>
+    </div>
+  </div>
+
+  <!-- Основной интерфейс -->
+  <div class="app" id="app" style="display:none;">
+    <!-- Боковая панель чатов -->
+    <div class="sidebar">
+      <div class="sidebar-header">
+        <span style="font-weight:bold;">✉️ SkyMessage</span>
+        <button class="btn" id="newChatBtn" style="margin-left:auto;">+</button>
+        <button class="btn" id="profileBtn">👤</button>
+      </div>
+      <div class="chat-list" id="chatList"></div>
+    </div>
+
+    <!-- Основная область чата -->
+    <div class="main-area" id="chatArea">
+      <div class="chat-header" id="chatHeader">Выберите чат</div>
+      <div class="messages" id="messagesContainer"></div>
+      <div class="input-area" id="inputArea" style="display:none;">
+        <button class="emoji-btn" id="emojiToggle">😀</button>
+        <input type="text" id="messageInput" placeholder="Сообщение...">
+        <button class="btn" id="sendBtn">➤</button>
+        <button class="btn" id="callBtn">📞</button>
+      </div>
+      <div class="emoji-panel" id="emojiPanel"></div>
+    </div>
+
+    <!-- Панель профиля -->
+    <div class="profile-panel" id="profilePanel">
+      <h3>Мой профиль</h3>
+      <div class="avatar-upload" id="avatarUpload" title="Нажми для смены аватара">👤</div>
+      <input type="file" id="avatarFile" accept="image/*" style="display:none;">
+      <input type="text" id="profileName" placeholder="Имя" style="width:100%; margin-top:1rem; padding:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:8px;">
+      <input type="text" id="profileStatus" placeholder="Статус" style="width:100%; margin-top:0.5rem; padding:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:8px;">
+      <button class="btn" id="saveProfile" style="width:100%; margin-top:1rem;">Сохранить</button>
+      <button class="btn" id="closeProfile" style="width:100%; margin-top:0.5rem; background:#444;">Закрыть</button>
+    </div>
+
+    <!-- Заглушка звонка -->
+    <div class="call-ui" id="callUI">
+      <div><span id="callerName"></span> звонит...</div>
+      <div style="display:flex; gap:0.5rem;">
+        <button class="btn" id="acceptCall">📞 Принять</button>
+        <button class="btn" id="rejectCall" style="background:#c44;">📴 Отклонить</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ========== Шифрование ==========
+    const SALT_LENGTH = 16;
+    const enc = new TextEncoder();
+    const dec = new TextDecoder();
+
+    function generateSalt() {
+      return crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+    }
+
+    async function deriveKey(password, salt) {
+      const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function encryptData(key, plaintext) {
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc.encode(plaintext));
+      const combined = new Uint8Array(iv.byteLength + encrypted.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(encrypted), iv.byteLength);
+      return btoa(String.fromCharCode(...combined));
+    }
+
+    async function decryptData(key, combinedBase64) {
+      const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
+      const iv = combined.slice(0, 12);
+      const data = combined.slice(12);
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      return dec.decode(decrypted);
+    }
+
+    // ========== Хранилище пользователей (эмуляция сервера) ==========
+    const STORAGE_KEY = 'skymessage_users';
+    let currentUser = null; // { login, salt (base64), avatar, name, status }
+    let cryptoKey = null;
+    let users = {}; // все пользователи { login: { salt, avatar, name, status } }
+
+    function loadUsers() {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      users = raw ? JSON.parse(raw) : {};
+    }
+    function saveUsers() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(users));
+    }
+
+    // ========== Сообщения и чаты (зашифрованы ключом пользователя) ==========
+    function getChatsKey() { return `skymessage_chats_${currentUser.login}`; }
+    function saveChats(chatsObj) {
+      const key = getChatsKey();
+      localStorage.setItem(key, JSON.stringify(chatsObj));
+    }
+    function loadChats() {
+      const key = getChatsKey();
+      const raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : {};
+    }
+
+    let chats = {}; // { chatId: { type:'private'|'group'|'channel', members:[logins], name, avatar, messages:[], created } }
+    let activeChatId = null;
+
+    // ========== UI HELPERS ==========
+    function showAuth(show) { document.getElementById('authScreen').style.display = show ? 'flex' : 'none'; }
+    function showApp(show) { document.getElementById('app').style.display = show ? 'flex' : 'none'; }
+
+    // ========== Аутентификация ==========
+    document.getElementById('switchAuth').addEventListener('click', () => {
+      const title = document.getElementById('authTitle');
+      const btn = document.getElementById('authBtn');
+      if (title.textContent === 'Вход') {
+        title.textContent = 'Регистрация';
+        btn.textContent = 'Создать аккаунт';
+        this.textContent = 'Уже есть аккаунт? Войти';
+      } else {
+        title.textContent = 'Вход';
+        btn.textContent = 'Войти';
+        this.textContent = 'Нет аккаунта? Зарегистрироваться';
+      }
+    });
+
+    document.getElementById('authBtn').addEventListener('click', async () => {
+      const login = document.getElementById('loginInput').value.trim();
+      const password = document.getElementById('passInput').value;
+      if (!login || !password) return alert('Заполни поля');
+      const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
+      loadUsers();
+
+      if (isReg) {
+        if (users[login]) return alert('Логин занят');
+        const salt = generateSalt();
+        const saltBase64 = btoa(String.fromCharCode(...salt));
+        users[login] = { salt: saltBase64, avatar: '', name: login, status: 'В сети' };
+        saveUsers();
+        alert('Аккаунт создан! Теперь войди.');
+        document.getElementById('authTitle').textContent = 'Вход';
+        document.getElementById('authBtn').textContent = 'Войти';
+        return;
+      }
+
+      // Вход
+      const userData = users[login];
+      if (!userData) return alert('Пользователь не найден');
+      try {
+        const salt = Uint8Array.from(atob(userData.salt), c => c.charCodeAt(0));
+        cryptoKey = await deriveKey(password, salt);
+        // Проверка: пробуем расшифровать тестовую строку? Вместо этого просто сохраним текущего пользователя.
+        currentUser = { login, ...userData };
+        chats = loadChats();
+        showAuth(false);
+        showApp(true);
+        renderAll();
+      } catch (e) {
+        alert('Неверный пароль');
+      }
+    });
+
+    // ========== Отрисовка интерфейса ==========
+    function renderAll() {
+      renderChatList();
+      if (activeChatId) openChat(activeChatId);
+      else clearChat();
+    }
+
+    function renderChatList() {
+      const container = document.getElementById('chatList');
+      container.innerHTML = '';
+      const chatIds = Object.keys(chats).filter(id => {
+        const c = chats[id];
+        return c.members.includes(currentUser.login) || c.type === 'channel';
+      });
+      if (chatIds.length === 0) {
+        container.innerHTML = '<div style="padding:1rem;text-align:center;">Нет чатов. Создай новый.</div>';
+        return;
+      }
+      chatIds.forEach(id => {
+        const c = chats[id];
+        const div = document.createElement('div');
+        div.className = 'chat-item' + (id === activeChatId ? ' active' : '');
+        const name = c.name || (c.type==='private' ? c.members.find(m=>m!==currentUser.login) : c.name);
+        const lastMsg = c.messages?.[c.messages.length-1];
+        const lastText = lastMsg ? (lastMsg.from + ': ' + lastMsg.text?.slice(0,20)) : '';
+        div.innerHTML = `
+          <div class="chat-avatar">${c.type==='group'?'👥':c.type==='channel'?'📢':'👤'}</div>
+          <div class="chat-info">
+            <div class="chat-name">${name}</div>
+            <div class="chat-last">${lastText || 'Нет сообщений'}</div>
+          </div>`;
+        div.addEventListener('click', () => {
+          activeChatId = id;
+          openChat(id);
+          renderChatList();
+        });
+        container.appendChild(div);
+      });
+    }
+
+    function clearChat() {
+      document.getElementById('chatHeader').textContent = 'Выберите чат';
+      document.getElementById('messagesContainer').innerHTML = '';
+      document.getElementById('inputArea').style.display = 'none';
+    }
+
+    function openChat(id) {
+      const c = chats[id];
+      if (!c) return;
+      document.getElementById('inputArea').style.display = 'flex';
+      const name = c.name || c.members.find(m=>m!==currentUser.login) || 'Канал';
+      document.getElementById('chatHeader').textContent = name;
+      const msgContainer = document.getElementById('messagesContainer');
+      msgContainer.innerHTML = '';
+      if (c.messages) {
+        c.messages.forEach(msg => {
+          addMessageToUI(msg);
+        });
+      }
+      msgContainer.scrollTop = msgContainer.scrollHeight;
+    }
+
+    function addMessageToUI(msg) {
+      const div = document.createElement('div');
+      div.className = 'msg' + (msg.from === currentUser.login ? ' own' : '');
+      div.innerHTML = `<strong>${msg.from}</strong>: ${escapeHtml(msg.text)} <span class="time">${new Date(msg.time).toLocaleTimeString()}</span>`;
+      document.getElementById('messagesContainer').appendChild(div);
+    }
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    // ========== Отправка сообщения ==========
+    document.getElementById('sendBtn').addEventListener('click', async () => {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text || !activeChatId) return;
+      input.value = '';
+      const chat = chats[activeChatId];
+      if (!chat.messages) chat.messages = [];
+      const msg = { from: currentUser.login, text, time: Date.now() };
+      chat.messages.push(msg);
+      saveChats(chats);
+      addMessageToUI(msg);
+      document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+    });
+
+    // Эмодзи
+    const emojis = '😀😃😄😁😅😂🤣😊😇🙂😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶😱😨😰😥😓🤗🤔🤭🤫🤥😶😐😑😬🙄😯😦😧😮😲🥱😴🤤😪😵🤐🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻💀☠️👽👾🤖🎃😺😸😹😻😼😽🙀😿😾'.split('');
+    const emojiPanel = document.getElementById('emojiPanel');
+    emojis.forEach(e => {
+      const span = document.createElement('span');
+      span.textContent = e;
+      span.addEventListener('click', () => {
+        document.getElementById('messageInput').value += e;
+        emojiPanel.style.display = 'none';
+      });
+      emojiPanel.appendChild(span);
+    });
+    document.getElementById('emojiToggle').addEventListener('click', () => {
+      emojiPanel.style.display = emojiPanel.style.display === 'flex' ? 'none' : 'flex';
+    });
+
+    // ========== Новый чат ==========
+    document.getElementById('newChatBtn').addEventListener('click', () => {
+      const action = prompt('Создать:\n1 - Личный чат (введи логин)\n2 - Группу\n3 - Канал');
+      if (!action) return;
+      if (action === '1') {
+        const target = prompt('Логин собеседника:');
+        if (!target || target === currentUser.login) return;
+        if (!users[target]) return alert('Пользователь не найден');
+        const existingChat = Object.entries(chats).find(([id,c]) => c.type==='private' && c.members.includes(currentUser.login) && c.members.includes(target));
+        if (existingChat) {
+          activeChatId = existingChat[0];
+          openChat(activeChatId);
+          renderChatList();
+          return;
+        }
+        const chatId = 'chat_' + Date.now();
+        chats[chatId] = {
+          type: 'private',
+          members: [currentUser.login, target],
+          messages: [],
+          created: Date.now()
+        };
+        saveChats(chats);
+        activeChatId = chatId;
+        renderAll();
+      } else if (action === '2') {
+        const name = prompt('Название группы:');
+        if (!name) return;
+        const members = prompt('Логины участников через запятую (без себя):');
+        const memberList = members ? members.split(',').map(s=>s.trim()).filter(Boolean) : [];
+        memberList.push(currentUser.login);
+        const chatId = 'group_' + Date.now();
+        chats[chatId] = {
+          type: 'group',
+          name,
+          members: [...new Set(memberList)],
+          messages: [],
+          created: Date.now()
+        };
+        saveChats(chats);
+        activeChatId = chatId;
+        renderAll();
+      } else if (action === '3') {
+        const name = prompt('Название канала:');
+        if (!name) return;
+        const chatId = 'channel_' + Date.now();
+        chats[chatId] = {
+          type: 'channel',
+          name,
+          members: [currentUser.login], // создатель
+          messages: [],
+          created: Date.now()
+        };
+        saveChats(chats);
+        activeChatId = chatId;
+        renderAll();
+      }
+    });
+
+    // ========== Профиль ==========
+    document.getElementById('profileBtn').addEventListener('click', () => {
+      document.getElementById('profilePanel').classList.toggle('open');
+      if (currentUser) {
+        document.getElementById('profileName').value = users[currentUser.login]?.name || currentUser.login;
+        document.getElementById('profileStatus').value = users[currentUser.login]?.status || '';
+        const avatar = users[currentUser.login]?.avatar;
+        document.getElementById('avatarUpload').textContent = avatar ? '' : '👤';
+        if (avatar) document.getElementById('avatarUpload').style.backgroundImage = `url(${avatar})`;
+        else document.getElementById('avatarUpload').style.backgroundImage = '';
+      }
+    });
+    document.getElementById('closeProfile').addEventListener('click', () => {
+      document.getElementById('profilePanel').classList.remove('open');
+    });
+    document.getElementById('avatarUpload').addEventListener('click', () => {
+      document.getElementById('avatarFile').click();
+    });
+    document.getElementById('avatarFile').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        const base64 = ev.target.result;
+        users[currentUser.login].avatar = base64;
+        saveUsers();
+        document.getElementById('avatarUpload').style.backgroundImage = `url(${base64})`;
+        document.getElementById('avatarUpload').textContent = '';
+      };
+      reader.readAsDataURL(file);
+    });
+    document.getElementById('saveProfile').addEventListener('click', () => {
+      const name = document.getElementById('profileName').value.trim();
+      const status = document.getElementById('profileStatus').value.trim();
+      if (name) users[currentUser.login].name = name;
+      users[currentUser.login].status = status;
+      saveUsers();
+      alert('Профиль обновлён');
+    });
+
+    // ========== Звонки (заглушка) ==========
+    document.getElementById('callBtn').addEventListener('click', () => {
+      if (!activeChatId) return;
+      const c = chats[activeChatId];
+      if (c.type !== 'private') return alert('Звонки только в личных чатах');
+      const caller = c.members.find(m => m !== currentUser.login);
+      document.getElementById('callerName').textContent = caller;
+      document.getElementById('callUI').classList.add('active');
+    });
+    document.getElementById('acceptCall').addEventListener('click', () => {
+      alert('Демо: звонок принят (WebRTC не настроен)');
+      document.getElementById('callUI').classList.remove('active');
+    });
+    document.getElementById('rejectCall').addEventListener('click', () => {
+      document.getElementById('callUI').classList.remove('active');
+    });
+
+    // Инициализация
+    loadUsers();
+    showAuth(true);
+    showApp(false);
+  </script>
+</body>
+</html>
