@@ -122,13 +122,11 @@
     // Конфигурация
     const WS_URL = 'wss://serveratiuz.onrender.com';
     const SERVER_URL = 'https://serveratiuz.onrender.com';
-    // Используем несколько STUN/TURN серверов для надёжности
     const ICE_SERVERS = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
         { urls: 'stun:stun2.l.google.com:19302' },
-        // Бесплатный TURN от Twilio (работает, но с ограничениями)
         {
           urls: 'turn:openrelay.metered.ca:80',
           username: 'openrelayproject',
@@ -139,8 +137,8 @@
 
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null;
-    let incomingCallInfo = null;   // для входящего
-    let outgoingCallInfo = null;   // для исходящего
+    let incomingCallInfo = null;
+    let outgoingCallInfo = null;
 
     // Шифрование (только для входа)
     const enc = new TextEncoder(); const dec = new TextDecoder();
@@ -174,7 +172,6 @@
           case 'chat_created': activeChatId = msg.chatId; sendServerMessage('get_chats', {}); break;
           case 'messages': displayMessages(msg.messages); break;
           case 'user_search_result': showSearchResults(msg.users); break;
-          // Звонки
           case 'call_offer': handleIncomingCall(msg); break;
           case 'call_answer': handleCallAccepted(msg); break;
           case 'ice_candidate': handleIceCandidate(msg); break;
@@ -338,7 +335,7 @@
       outgoingCallInfo = null;
     }
 
-    // Начать звонок (аудио/видео)
+    // Начать звонок
     async function startCall(callType) {
       if (!activeChatId) return;
       const chat = chats[activeChatId];
@@ -356,22 +353,18 @@
         createPeerConnection();
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        // Отправляем offer после установки локального описания, чтобы собрать все кандидаты
-        // (кандидаты отправляются в onicecandidate автоматически)
         sendServerMessage('call_offer', { chatId: activeChatId, sdp: peerConnection.localDescription, callType });
       } catch (e) {
         console.error('Ошибка при начале звонка:', e);
         alert('Не удалось начать звонок: ' + e.message);
         hideCallModal();
-        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-        if (peerConnection) { peerConnection.close(); peerConnection = null; }
+        cleanupCall();
       }
     }
 
     document.getElementById('audioCallBtn').addEventListener('click', () => startCall('audio'));
     document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
 
-    // Кнопка "Отклонить/Отменить" в модальном окне
     callModalRejectBtn.addEventListener('click', () => {
       const chatId = incomingCallInfo?.chatId || outgoingCallInfo?.chatId;
       if (chatId) sendServerMessage('call_end', { chatId });
@@ -384,13 +377,10 @@
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
           const chatId = incomingCallInfo?.chatId || outgoingCallInfo?.chatId;
-          if (chatId) {
-            sendServerMessage('ice_candidate', { chatId, candidate: event.candidate });
-          }
+          if (chatId) sendServerMessage('ice_candidate', { chatId, candidate: event.candidate });
         }
       };
       peerConnection.ontrack = (event) => {
-        console.log('Получен удалённый трек');
         document.getElementById('remoteVideo').srcObject = event.streams[0];
       };
       if (localStream) {
@@ -404,27 +394,45 @@
       showCallModal('Входящий ' + typeText, msg.from, '', true);
     }
 
-    // Кнопка "Принять" (только для входящего)
+    // Исправленный обработчик "Принять"
     callModalAcceptBtn.addEventListener('click', async () => {
-      if (!incomingCallInfo) return;
+      const currentIncoming = incomingCallInfo;
+      if (!currentIncoming) return;
+
+      // Сбрасываем глобальный флаг сразу
       hideCallModal();
+      incomingCallInfo = null;
+
       try {
-        const constraints = incomingCallInfo.callType === 'video' ? { audio: true, video: true } : { audio: true, video: false };
+        const constraints = currentIncoming.callType === 'video'
+          ? { audio: true, video: true }
+          : { audio: true, video: false };
+
+        if (localStream) {
+          localStream.getTracks().forEach(t => t.stop());
+          localStream = null;
+        }
+
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         document.getElementById('localVideo').srcObject = localStream;
         document.getElementById('currentCallUI').classList.add('active');
-        document.getElementById('localVideo').style.display = incomingCallInfo.callType === 'audio' ? 'none' : 'block';
+        document.getElementById('localVideo').style.display =
+          currentIncoming.callType === 'audio' ? 'none' : 'block';
 
         createPeerConnection();
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallInfo.sdp));
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(currentIncoming.sdp));
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
-        sendServerMessage('call_answer', { chatId: incomingCallInfo.chatId, sdp: peerConnection.localDescription });
-        incomingCallInfo = null;
+        sendServerMessage('call_answer', {
+          chatId: currentIncoming.chatId,
+          sdp: peerConnection.localDescription
+        });
       } catch (e) {
         console.error('Ошибка при принятии звонка:', e);
         alert('Не удалось принять звонок: ' + e.message);
         cleanupCall();
+        hideCallModal();
+        document.getElementById('currentCallUI').classList.remove('active');
       }
     });
 
