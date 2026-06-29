@@ -177,11 +177,21 @@
       }
     }
 
+    function handleIncomingMessage(msg) {
+      if (msg.from !== currentUser.login) {
+        if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
+        if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
+        chats[msg.chatId].messages.push({ from: msg.from, text: msg.text, time: msg.time });
+        if (activeChatId === msg.chatId) addMessageToUI(msg);
+        renderChatList();
+      }
+    }
+
     // UI
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
-    // Аутентификация (без изменений)
+    // Аутентификация
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -216,7 +226,7 @@
       } catch(e) { alert('Ошибка: '+e.message); }
     });
 
-    // Чаты (без изменений)
+    // Чаты
     function renderChatList() {
       const container = document.getElementById('chatList');
       container.innerHTML = '';
@@ -302,7 +312,7 @@
       });
     }
 
-    // ========== ЗВОНКИ (ПРОКАЧАННАЯ ВЕРСИЯ ИЗ SkyMessaging) ==========
+    // ========== ЗВОНКИ ==========
     const callModal = document.getElementById('callModal');
     const callModalTitle = document.getElementById('callModalTitle');
     const callModalName = document.getElementById('callModalName');
@@ -327,7 +337,6 @@
       callModal.classList.remove('active');
     }
 
-    // Очистка звонка
     function cleanupCall() {
       if (peerConnection) {
         peerConnection.close();
@@ -343,10 +352,8 @@
       activeCall = null;
     }
 
-    // Создание peer connection (упрощённая, но надёжная)
     async function createPeerConnection() {
       peerConnection = new RTCPeerConnection(ICE_SERVERS);
-
       peerConnection.onicecandidate = (event) => {
         if (event.candidate && activeCall) {
           sendServerMessage('ice_candidate', {
@@ -355,21 +362,17 @@
           });
         }
       };
-
       peerConnection.ontrack = (event) => {
         if (event.streams && event.streams[0]) {
           document.getElementById('remoteVideo').srcObject = event.streams[0];
         }
       };
-
       if (localStream) {
         localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
       }
-
       return peerConnection;
     }
 
-    // Начать звонок
     async function startCall(callType) {
       if (!activeChatId) return;
       const chat = chats[activeChatId];
@@ -421,7 +424,6 @@
       hideCallModalWindow();
     });
 
-    // Входящий звонок
     function handleCallOffer(msg) {
       if (activeCall) {
         sendServerMessage('call_end', { chatId: msg.chatId });
@@ -440,7 +442,6 @@
       showCallModalWindow('Входящий ' + typeText, msg.from, '', true);
     }
 
-    // Принять звонок
     callModalAcceptBtn.addEventListener('click', async () => {
       const callInfo = activeCall;
       if (!callInfo || !callInfo.incoming) return;
@@ -475,7 +476,6 @@
       }
     });
 
-    // Ответ на исходящий звонок
     function handleCallAnswer(msg) {
       if (!activeCall || activeCall.incoming) return;
 
@@ -488,7 +488,6 @@
       }
     }
 
-    // ICE кандидат
     function handleICECandidate(msg) {
       if (peerConnection && msg.candidate) {
         peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate))
@@ -496,7 +495,6 @@
       }
     }
 
-    // Завершение звонка
     endCallBtn.addEventListener('click', () => {
       if (activeCall) {
         sendServerMessage('call_end', { chatId: activeCall.chatId });
@@ -510,7 +508,6 @@
       hideCallModalWindow();
     }
 
-    // Микрофон / камера
     toggleMicBtn.addEventListener('click', () => {
       if (localStream) {
         const audioTrack = localStream.getAudioTracks()[0];
