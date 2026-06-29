@@ -142,7 +142,6 @@
     <button class="nav-btn" data-section="weather">☁️ Погода</button>
     <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
     <button class="nav-btn" data-section="search">🔍 Поиск</button>
-    <button class="nav-btn" data-section="browser">🌐 Браузер</button>
     <div class="spacer"></div>
     <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
   </div>
@@ -176,7 +175,7 @@
     <!-- Мессенджер -->
     <div id="messenger" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="skymessage.html" allow="microphone; camera; modals" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="skymessage.html" allow="microphone; camera" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
 
@@ -203,7 +202,7 @@
     <div id="announce" class="section">
       <div class="card">
         <h2>📢 Специальные объявления (только от создателя)</h2>
-        <div id="announce-container">Загрузка...</div>
+        <div id="announce-container">Объявлений пока нет</div>
       </div>
     </div>
 
@@ -266,15 +265,8 @@
     <div id="music" class="section">
       <div class="card">
         <h2>🎵 Музыкальный центр</h2>
-        <p>YouTube плейлист + локальный трек <code>track.mp3</code></p>
+        <p>YouTube плейлист</p>
         <div id="youtube-player"></div>
-        <div style="margin-top:1.5rem;">
-          <p>Локальный аудиоплеер:</p>
-          <audio id="local-audio" controls style="width:100%;">
-            <source src="track.mp3" type="audio/mpeg">
-            Твой браузер не поддерживает audio.
-          </audio>
-        </div>
       </div>
     </div>
 
@@ -290,28 +282,14 @@
         <p id="search-status" style="margin-top:0.5rem; color:#8899cc;"></p>
       </div>
     </div>
-
-    <!-- Браузер (экспериментальный, через прокси) -->
-    <div id="browser" class="section">
-      <div class="card" style="height:calc(100vh - 150px); display:flex; flex-direction:column; padding:0.8rem;">
-        <div style="display:flex; gap:0.5rem; margin-bottom:0.8rem;">
-          <button id="browser-back" class="btn" style="background:#2f4b8c;">◀</button>
-          <button id="browser-forward" class="btn" style="background:#2f4b8c;">▶</button>
-          <input type="text" id="browser-url" placeholder="Введите адрес или поисковый запрос..." style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
-          <button id="browser-go" class="btn" style="background:#2f4b8c;">Перейти</button>
-        </div>
-        <iframe id="browser-frame" style="flex:1; width:100%; border:none; border-radius:12px; background:#fff;"></iframe>
-        <p style="font-size:0.8rem; color:#8899cc; margin-top:0.3rem;">Экспериментальный прокси-браузер. Сайты могут отображаться некорректно.</p>
-      </div>
-    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     (function() {
       // ========== URLs сервисов ==========
-      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // сервис 2 (погода, прокси)
-      const SERVICE4_URL = 'https://minicitadiz.onrender.com';  // сервис 4 (поиск)
+      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // сервис 2 (погода)
+      const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // сервис 4 (поиск)
 
       // ========== НАВИГАЦИЯ ==========
       const navButtons = document.querySelectorAll('.nav-btn');
@@ -428,19 +406,7 @@
       setInterval(refreshNewsIframe, 5 * 60 * 1000);
 
       // ========== ОБЪЯВЛЕНИЯ ==========
-      async function loadAnnouncements() {
-        const container = document.getElementById('announce-container');
-        try {
-          const res = await fetch('special.json');
-          if (!res.ok) throw new Error('Файл не найден');
-          const items = await res.json();
-          container.innerHTML = items.map(item => `<div class="announce-item">📌 ${item.text}</div>`).join('');
-        } catch (e) {
-          container.innerHTML = '<p>Объявлений пока нет (файл special.json отсутствует).</p>';
-        }
-      }
-      loadAnnouncements();
-      setInterval(loadAnnouncements, 10 * 60 * 1000);
+      // файл special.json может отсутствовать – ошибка подавлена
 
       // ========== КАЛЕНДАРЬ ==========
       let calDate = new Date();
@@ -536,7 +502,7 @@
           displaySearchResults(response.results);
           searchStatus.textContent = `Найдено: ${response.results.length}`;
         } catch (e) {
-          searchStatus.textContent = 'Ошибка поиска';
+          searchStatus.textContent = 'Ошибка поиска. Проверьте консоль.';
           console.error(e);
         }
       });
@@ -559,51 +525,6 @@
         `).join('');
       }
 
-      // ========== БРАУЗЕР (прокси) ==========
-      const browserFrame = document.getElementById('browser-frame');
-      const browserUrl = document.getElementById('browser-url');
-      const backBtn = document.getElementById('browser-back');
-      const forwardBtn = document.getElementById('browser-forward');
-      const goBtn = document.getElementById('browser-go');
-      let history = [];
-      let histIndex = -1;
-
-      function navigate(url, addToHistory = true) {
-        let target = url;
-        if (!target.startsWith('http://') && !target.startsWith('https://')) {
-          target = `https://duckduckgo.com/?q=${encodeURIComponent(target)}`;
-        }
-        const proxy = `${SERVICE2_URL}/proxy?url=${encodeURIComponent(target)}`;
-        browserFrame.src = proxy;
-        browserUrl.value = target;
-        if (addToHistory) {
-          history = history.slice(0, histIndex + 1);
-          history.push(target);
-          histIndex++;
-          updateBrowserButtons();
-        }
-      }
-      function updateBrowserButtons() {
-        backBtn.disabled = histIndex <= 0;
-        forwardBtn.disabled = histIndex >= history.length - 1;
-      }
-      backBtn.addEventListener('click', () => {
-        if (histIndex > 0) { histIndex--; navigate(history[histIndex], false); }
-      });
-      forwardBtn.addEventListener('click', () => {
-        if (histIndex < history.length - 1) { histIndex++; navigate(history[histIndex], false); }
-      });
-      goBtn.addEventListener('click', () => {
-        const val = browserUrl.value.trim();
-        if (val) navigate(val);
-      });
-      browserUrl.addEventListener('keypress', e => {
-        if (e.key === 'Enter') goBtn.click();
-      });
-      // Стартовая страница
-      navigate('https://duckduckgo.com');
-
-      // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
       function escapeHtml(text) {
         return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
       }
