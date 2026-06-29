@@ -38,7 +38,7 @@
     .modal-overlay.active { display: flex; }
     .modal { background: var(--card); border-radius: 16px; padding: 1.5rem; width: 320px; border: 1px solid var(--border); }
     .modal input { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
-    .modal .btn-row { display: flex; gap: 0.5rem; justify-content: flex-end; }
+    .modal .btn-row { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
     .search-results { max-height: 200px; overflow-y: auto; margin: 0.5rem 0; }
     .search-result-item { padding: 0.5rem; cursor: pointer; border-radius: 8px; }
     .search-result-item:hover { background: #1f2b4a; }
@@ -93,14 +93,15 @@
     </div>
   </div>
 
-  <!-- Входящий звонок -->
-  <div class="modal-overlay" id="incomingCallModal">
+  <!-- Модальное окно вызова (входящий / исходящий) -->
+  <div class="modal-overlay" id="callModal">
     <div class="modal">
-      <h3 id="incomingCallTitle">Входящий звонок</h3>
-      <p id="incomingCallerName"></p>
-      <div class="btn-row" style="display:flex; gap:0.5rem; justify-content:center;">
-        <button class="btn" id="acceptCallBtn">Принять</button>
-        <button class="btn" id="rejectCallBtn" style="background:#c44;">Отклонить</button>
+      <h3 id="callModalTitle">Вызов</h3>
+      <p id="callModalName"></p>
+      <p id="callModalStatus" style="color:#8899cc;"></p>
+      <div class="btn-row" id="callModalActions">
+        <button class="btn" id="callModalAcceptBtn" style="display:none;">Принять</button>
+        <button class="btn" id="callModalRejectBtn" style="background:#c44;">Отклонить</button>
       </div>
     </div>
   </div>
@@ -125,8 +126,8 @@
 
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null;
-    let incomingCallInfo = null; // { chatId, from, sdp, callType }
-    let currentCallType = null; // 'audio' | 'video'
+    let incomingCallInfo = null;   // для входящего
+    let outgoingCallInfo = null;   // для исходящего (chatId, callType)
 
     // Шифрование (только для входа)
     const enc = new TextEncoder(); const dec = new TextDecoder();
@@ -301,7 +302,31 @@
       });
     }
 
-    // Звонки
+    // ========== Звонки ==========
+    const callModal = document.getElementById('callModal');
+    const callModalTitle = document.getElementById('callModalTitle');
+    const callModalName = document.getElementById('callModalName');
+    const callModalStatus = document.getElementById('callModalStatus');
+    const callModalActions = document.getElementById('callModalActions');
+    const callModalAcceptBtn = document.getElementById('callModalAcceptBtn');
+    const callModalRejectBtn = document.getElementById('callModalRejectBtn');
+
+    function showCallModal(title, name, status, showAccept) {
+      callModalTitle.textContent = title;
+      callModalName.textContent = name;
+      callModalStatus.textContent = status || '';
+      callModalAcceptBtn.style.display = showAccept ? 'inline-block' : 'none';
+      callModalRejectBtn.textContent = showAccept ? 'Отклонить' : 'Отменить';
+      callModal.classList.add('active');
+    }
+
+    function hideCallModal() {
+      callModal.classList.remove('active');
+      incomingCallInfo = null;
+      outgoingCallInfo = null;
+    }
+
+    // Начать звонок (аудио/видео)
     async function startCall(callType) {
       if (!activeChatId) return;
       const chat = chats[activeChatId];
@@ -310,15 +335,11 @@
         const constraints = callType === 'video' ? { audio: true, video: true } : { audio: true, video: false };
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         document.getElementById('localVideo').srcObject = localStream;
-        document.getElementById('currentCallUI').classList.add('active');
-        currentCallType = callType;
-        document.getElementById('callStatus').textContent = callType === 'video' ? 'Видеозвонок' : 'Аудиозвонок';
-        // Скрываем локальное видео, если аудио (или показываем)
-        if (callType === 'audio') {
-          document.getElementById('localVideo').style.display = 'none';
-        } else {
-          document.getElementById('localVideo').style.display = 'block';
-        }
+        // Показываем плашку "Идёт вызов..."
+        const targetName = chat.name; // имя собеседника
+        showCallModal('Идёт вызов', targetName, callType === 'video' ? 'Видеозвонок' : 'Аудиозвонок', false);
+
+        outgoingCallInfo = { chatId: activeChatId, callType };
 
         createPeerConnection();
         const offer = await peerConnection.createOffer();
@@ -326,44 +347,59 @@
         sendServerMessage('call_offer', { chatId: activeChatId, sdp: peerConnection.localDescription, callType });
       } catch (e) {
         alert('Ошибка доступа к медиа: ' + e.message);
+        hideCallModal();
       }
     }
 
     document.getElementById('audioCallBtn').addEventListener('click', () => startCall('audio'));
     document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
 
+    // Кнопка "Отклонить/Отменить" в модальном окне
+    callModalRejectBtn.addEventListener('click', () => {
+      if (incomingCallInfo) {
+        sendServerMessage('call_end', { chatId: incomingCallInfo.chatId });
+      } else if (outgoingCallInfo) {
+        sendServerMessage('call_end', { chatId: outgoingCallInfo.chatId });
+        // Останавливаем локальный стрим
+        if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+        if (peerConnection) { peerConnection.close(); peerConnection = null; }
+      }
+      hideCallModal();
+      document.getElementById('currentCallUI').classList.remove('active');
+    });
+
     function createPeerConnection() {
       peerConnection = new RTCPeerConnection(STUN_SERVERS);
       peerConnection.onicecandidate = (event) => {
         if (event.candidate) {
-          sendServerMessage('ice_candidate', { chatId: activeChatId, candidate: event.candidate });
+          const chatId = incomingCallInfo?.chatId || outgoingCallInfo?.chatId;
+          if (chatId) sendServerMessage('ice_candidate', { chatId, candidate: event.candidate });
         }
       };
       peerConnection.ontrack = (event) => {
         document.getElementById('remoteVideo').srcObject = event.streams[0];
       };
-      localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      if (localStream) {
+        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+      }
     }
 
     function handleIncomingCall(msg) {
       incomingCallInfo = { chatId: msg.chatId, from: msg.from, sdp: msg.sdp, callType: msg.callType || 'video' };
       const typeText = incomingCallInfo.callType === 'audio' ? 'Аудиозвонок' : 'Видеозвонок';
-      document.getElementById('incomingCallTitle').textContent = 'Входящий ' + typeText;
-      document.getElementById('incomingCallerName').textContent = msg.from;
-      document.getElementById('incomingCallModal').classList.add('active');
+      showCallModal('Входящий ' + typeText, msg.from, '', true);
     }
 
-    document.getElementById('acceptCallBtn').addEventListener('click', async () => {
+    // Кнопка "Принять" (показывается только для входящего)
+    callModalAcceptBtn.addEventListener('click', async () => {
       if (!incomingCallInfo) return;
-      document.getElementById('incomingCallModal').classList.remove('active');
+      hideCallModal();
       try {
         const constraints = incomingCallInfo.callType === 'video' ? { audio: true, video: true } : { audio: true, video: false };
         localStream = await navigator.mediaDevices.getUserMedia(constraints);
         document.getElementById('localVideo').srcObject = localStream;
         document.getElementById('currentCallUI').classList.add('active');
-        currentCallType = incomingCallInfo.callType;
-        document.getElementById('callStatus').textContent = currentCallType === 'video' ? 'Видеозвонок' : 'Аудиозвонок';
-        if (currentCallType === 'audio') {
+        if (incomingCallInfo.callType === 'audio') {
           document.getElementById('localVideo').style.display = 'none';
         } else {
           document.getElementById('localVideo').style.display = 'block';
@@ -378,18 +414,19 @@
       } catch (e) { alert('Ошибка: ' + e.message); }
     });
 
-    document.getElementById('rejectCallBtn').addEventListener('click', () => {
-      if (incomingCallInfo) {
-        sendServerMessage('call_end', { chatId: incomingCallInfo.chatId });
-        document.getElementById('incomingCallModal').classList.remove('active');
-        incomingCallInfo = null;
-      }
-    });
-
     function handleCallAccepted(msg) {
+      // Это для звонящего: скрываем модальное окно, показываем интерфейс звонка
+      hideCallModal();
+      document.getElementById('currentCallUI').classList.add('active');
+      if (outgoingCallInfo?.callType === 'audio') {
+        document.getElementById('localVideo').style.display = 'none';
+      } else {
+        document.getElementById('localVideo').style.display = 'block';
+      }
       if (peerConnection) {
         peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
       }
+      outgoingCallInfo = null;
     }
 
     function handleIceCandidate(msg) {
@@ -399,17 +436,20 @@
     }
 
     document.getElementById('endCallBtn').addEventListener('click', () => {
-      sendServerMessage('call_end', { chatId: activeChatId });
+      const chatId = incomingCallInfo?.chatId || outgoingCallInfo?.chatId || activeChatId;
+      sendServerMessage('call_end', { chatId });
       handleCallEnded();
     });
 
     function handleCallEnded() {
+      hideCallModal();
       if (peerConnection) { peerConnection.close(); peerConnection = null; }
       if (localStream) { localStream.getTracks().forEach(track => track.stop()); localStream = null; }
       document.getElementById('currentCallUI').classList.remove('active');
       document.getElementById('localVideo').srcObject = null;
       document.getElementById('remoteVideo').srcObject = null;
-      currentCallType = null;
+      incomingCallInfo = null;
+      outgoingCallInfo = null;
     }
 
     document.getElementById('toggleMic').addEventListener('click', () => {
