@@ -33,7 +33,7 @@
     .msg.own { align-self: flex-end; background: var(--accent); }
     .input-area { padding: 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; background: var(--card); }
     .input-area input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
-    .btn { background: var(--accent); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+    .btn { background: var(--accent); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 50; }
     .modal-overlay.active { display: flex; }
     .modal { background: var(--card); border-radius: 16px; padding: 1.5rem; width: 320px; border: 1px solid var(--border); }
@@ -75,7 +75,8 @@
       <div class="input-area" id="inputArea" style="display:none;">
         <input type="text" id="messageInput" placeholder="Сообщение...">
         <button class="btn" id="sendBtn">➤</button>
-        <button class="btn" id="callBtn">📞</button>
+        <button class="btn" id="audioCallBtn" title="Аудиозвонок">📞</button>
+        <button class="btn" id="videoCallBtn" title="Видеозвонок">📹</button>
       </div>
     </div>
   </div>
@@ -95,7 +96,7 @@
   <!-- Входящий звонок -->
   <div class="modal-overlay" id="incomingCallModal">
     <div class="modal">
-      <h3>Входящий звонок</h3>
+      <h3 id="incomingCallTitle">Входящий звонок</h3>
       <p id="incomingCallerName"></p>
       <div class="btn-row" style="display:flex; gap:0.5rem; justify-content:center;">
         <button class="btn" id="acceptCallBtn">Принять</button>
@@ -108,6 +109,7 @@
   <div class="call-ui" id="currentCallUI">
     <video id="localVideo" autoplay muted></video>
     <video id="remoteVideo" autoplay></video>
+    <div id="callStatus" style="font-size:0.9rem; color:#8899cc;"></div>
     <div style="display:flex; gap:0.5rem;">
       <button class="btn" id="toggleMic">🎤 Mic</button>
       <button class="btn" id="toggleCam">📷 Cam</button>
@@ -123,7 +125,8 @@
 
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null;
-    let incomingCallInfo = null; // { chatId, from, sdp }
+    let incomingCallInfo = null; // { chatId, from, sdp, callType }
+    let currentCallType = null; // 'audio' | 'video'
 
     // Шифрование (только для входа)
     const enc = new TextEncoder(); const dec = new TextDecoder();
@@ -299,22 +302,35 @@
     }
 
     // Звонки
-    document.getElementById('callBtn').addEventListener('click', async () => {
+    async function startCall(callType) {
       if (!activeChatId) return;
       const chat = chats[activeChatId];
       if (chat.type !== 'private') return alert('Звонки только в личных чатах');
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const constraints = callType === 'video' ? { audio: true, video: true } : { audio: true, video: false };
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
         document.getElementById('localVideo').srcObject = localStream;
         document.getElementById('currentCallUI').classList.add('active');
+        currentCallType = callType;
+        document.getElementById('callStatus').textContent = callType === 'video' ? 'Видеозвонок' : 'Аудиозвонок';
+        // Скрываем локальное видео, если аудио (или показываем)
+        if (callType === 'audio') {
+          document.getElementById('localVideo').style.display = 'none';
+        } else {
+          document.getElementById('localVideo').style.display = 'block';
+        }
+
         createPeerConnection();
         const offer = await peerConnection.createOffer();
         await peerConnection.setLocalDescription(offer);
-        sendServerMessage('call_offer', { chatId: activeChatId, sdp: peerConnection.localDescription });
+        sendServerMessage('call_offer', { chatId: activeChatId, sdp: peerConnection.localDescription, callType });
       } catch (e) {
-        alert('Ошибка доступа к камере/микрофону: ' + e.message);
+        alert('Ошибка доступа к медиа: ' + e.message);
       }
-    });
+    }
+
+    document.getElementById('audioCallBtn').addEventListener('click', () => startCall('audio'));
+    document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
 
     function createPeerConnection() {
       peerConnection = new RTCPeerConnection(STUN_SERVERS);
@@ -330,7 +346,9 @@
     }
 
     function handleIncomingCall(msg) {
-      incomingCallInfo = { chatId: msg.chatId, from: msg.from, sdp: msg.sdp };
+      incomingCallInfo = { chatId: msg.chatId, from: msg.from, sdp: msg.sdp, callType: msg.callType || 'video' };
+      const typeText = incomingCallInfo.callType === 'audio' ? 'Аудиозвонок' : 'Видеозвонок';
+      document.getElementById('incomingCallTitle').textContent = 'Входящий ' + typeText;
       document.getElementById('incomingCallerName').textContent = msg.from;
       document.getElementById('incomingCallModal').classList.add('active');
     }
@@ -339,9 +357,18 @@
       if (!incomingCallInfo) return;
       document.getElementById('incomingCallModal').classList.remove('active');
       try {
-        localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        const constraints = incomingCallInfo.callType === 'video' ? { audio: true, video: true } : { audio: true, video: false };
+        localStream = await navigator.mediaDevices.getUserMedia(constraints);
         document.getElementById('localVideo').srcObject = localStream;
         document.getElementById('currentCallUI').classList.add('active');
+        currentCallType = incomingCallInfo.callType;
+        document.getElementById('callStatus').textContent = currentCallType === 'video' ? 'Видеозвонок' : 'Аудиозвонок';
+        if (currentCallType === 'audio') {
+          document.getElementById('localVideo').style.display = 'none';
+        } else {
+          document.getElementById('localVideo').style.display = 'block';
+        }
+
         createPeerConnection();
         await peerConnection.setRemoteDescription(new RTCSessionDescription(incomingCallInfo.sdp));
         const answer = await peerConnection.createAnswer();
@@ -382,6 +409,7 @@
       document.getElementById('currentCallUI').classList.remove('active');
       document.getElementById('localVideo').srcObject = null;
       document.getElementById('remoteVideo').srcObject = null;
+      currentCallType = null;
     }
 
     document.getElementById('toggleMic').addEventListener('click', () => {
