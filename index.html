@@ -143,6 +143,7 @@
     <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
     <button class="nav-btn" data-section="search">🔍 Поиск</button>
     <button class="nav-btn" data-section="skyid">🆔 SkyID</button>
+    <button class="nav-btn" data-section="notes">📝 Заметки</button>
     <div class="spacer"></div>
     <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
   </div>
@@ -180,7 +181,6 @@
       </div>
     </div>
 
-    <!-- Соцсеть заглушка -->
     <!-- Соцсеть -->
     <div id="social" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
@@ -202,7 +202,7 @@
     <div id="announce" class="section">
       <div class="card">
         <h2>📢 Специальные объявления (только от создателя)</h2>
-        <div id="announce-container">Объявлений пока нет</div>
+        <div id="announce-container">Загрузка...</div>
       </div>
     </div>
 
@@ -261,12 +261,17 @@
       </div>
     </div>
 
-    <!-- Музыкальный центр -->
+    <!-- Музыкальный центр (без YouTube) -->
     <div id="music" class="section">
       <div class="card">
         <h2>🎵 Музыкальный центр</h2>
-        <p>YouTube плейлист</p>
-        <div id="youtube-player"></div>
+        <p>Локальный трек + радиостанции</p>
+        <audio id="local-audio" controls style="width:100%; margin-bottom:1rem;">
+          <source src="track.mp3" type="audio/mpeg">
+          Твой браузер не поддерживает audio.
+        </audio>
+        <div class="radio-stations" id="music-radio-list"></div>
+        <audio id="music-radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
       </div>
     </div>
 
@@ -304,15 +309,22 @@
         <div id="skyid-result" style="margin-top:1rem; padding:1rem; background:#151e36; border-radius:10px;"></div>
       </div>
     </div>
+
+    <!-- Заметки (iframe) -->
+    <div id="notes" class="section">
+      <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
+        <iframe src="https://skynotes-n17c.onrender.com/" style="width:100%; height:100%; border:none;"></iframe>
+      </div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script>
     (function() {
       // ========== URLs сервисов ==========
-      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // сервис 2 (погода)
+      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // сервис 2 (погода, объявления, прокси)
       const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // сервис 4 (поиск)
-      const SKYID_URL = 'https://sky-id.onrender.com';          // замени на свой URL сервиса №5
+      const SKYID_URL = 'https://sky-id.onrender.com';          // сервис 5 (SkyID)
 
       // ========== НАВИГАЦИЯ ==========
       const navButtons = document.querySelectorAll('.nav-btn');
@@ -327,6 +339,7 @@
           if (targetId === 'maps') setTimeout(() => map.invalidateSize(), 100);
           if (targetId === 'calendar') renderCalendar();
           if (targetId === 'news') refreshNewsIframe();
+          if (targetId === 'announce') loadAnnouncements();
         });
       });
 
@@ -393,23 +406,23 @@
       ];
       const radioAudio = document.getElementById('radio-audio');
       const radioListDiv = document.getElementById('radio-list');
-      function renderRadioButtons() {
-        radioListDiv.innerHTML = '';
+      function renderRadioButtons(container, audio) {
+        container.innerHTML = '';
         stations.forEach(st => {
           const btn = document.createElement('button');
           btn.className = 'station-btn';
           btn.textContent = st.name;
           btn.addEventListener('click', () => {
-            radioAudio.src = st.url;
-            radioAudio.load();
-            radioAudio.play().catch(e => alert('Не удалось воспроизвести ' + st.name));
-            document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
+            audio.src = st.url;
+            audio.load();
+            audio.play().catch(e => alert('Не удалось воспроизвести ' + st.name));
+            container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
             btn.classList.add('playing');
           });
-          radioListDiv.appendChild(btn);
+          container.appendChild(btn);
         });
       }
-      renderRadioButtons();
+      renderRadioButtons(radioListDiv, radioAudio);
       document.getElementById('play-custom-stream').addEventListener('click', () => {
         const url = document.getElementById('custom-stream').value.trim();
         if (url) {
@@ -420,6 +433,11 @@
         }
       });
 
+      // ========== МУЗЫКАЛЬНЫЙ ЦЕНТР ==========
+      const musicRadioListDiv = document.getElementById('music-radio-list');
+      const musicRadioAudio = document.getElementById('music-radio-audio');
+      renderRadioButtons(musicRadioListDiv, musicRadioAudio);
+
       // ========== НОВОСТИ ==========
       function refreshNewsIframe() {
         const iframe = document.getElementById('news-iframe');
@@ -429,7 +447,21 @@
       setInterval(refreshNewsIframe, 5 * 60 * 1000);
 
       // ========== ОБЪЯВЛЕНИЯ ==========
-      // статично, файл special.json не загружается
+      async function loadAnnouncements() {
+        const container = document.getElementById('announce-container');
+        try {
+          const res = await fetch(`${SERVICE2_URL}/announcements`);
+          const items = await res.json();
+          if (!items.length) {
+            container.innerHTML = '<p>Объявлений пока нет</p>';
+            return;
+          }
+          container.innerHTML = items.map(item => `<div class="announce-item">📌 ${escapeHtml(item.text)}</div>`).join('');
+        } catch (e) {
+          container.innerHTML = '<p>Ошибка загрузки объявлений</p>';
+        }
+      }
+      loadAnnouncements(); // загружаем при старте
 
       // ========== КАЛЕНДАРЬ ==========
       let calDate = new Date();
@@ -493,21 +525,6 @@
           resultDiv.textContent = 'Ошибка получения погоды. Попробуйте позже.';
         }
       });
-
-      // ========== МУЗЫКАЛЬНЫЙ ЦЕНТР (YouTube) ==========
-      const YT_PLAYLIST_ID = 'PLrAXtmS8DZzy3W8U2wJ5HyBQd1bw2Jh6v';
-      function onYouTubeIframeAPIReady() {
-        new YT.Player('youtube-player', {
-          height: '360',
-          width: '100%',
-          playerVars: { listType: 'playlist', list: YT_PLAYLIST_ID, autoplay: 0 }
-        });
-      }
-      const tag = document.createElement('script');
-      tag.src = "https://www.youtube.com/iframe_api";
-      const firstScriptTag = document.getElementsByTagName('script')[0];
-      firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
-      window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
 
       // ========== ПОИСК (SkySearch) ==========
       const searchQuery = document.getElementById('search-query');
