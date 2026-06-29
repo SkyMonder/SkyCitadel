@@ -5,10 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SkySocial</title>
   <style>
-    :root {
-      --bg: #0a0f1e; --panel: #111827; --card: #1a233a;
-      --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf;
-    }
+    :root { --bg: #0a0f1e; --panel: #111827; --card: #1a233a; --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     .login-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
@@ -24,12 +21,12 @@
     .post-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; }
     .post-author { font-weight: bold; }
     .post-text { margin-bottom: 0.5rem; }
-    .post-actions { display: flex; gap: 0.5rem; font-size: 0.85rem; align-items: center; }
+    .post-actions { display: flex; gap: 0.5rem; font-size: 0.85rem; align-items: center; flex-wrap: wrap; }
     .btn { background: var(--accent); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; }
     .btn-danger { background: #c44; }
     .new-post { display: flex; gap: 0.5rem; padding: 0.5rem; background: var(--card); border-radius: 12px; }
     .new-post textarea { flex: 1; padding: 0.5rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 8px; resize: vertical; min-height: 60px; }
-    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; }
+    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; margin-top: 1rem; }
     .comment-section { margin-top: 0.5rem; margin-left: 1rem; border-left: 2px solid #2f3b5c; padding-left: 0.8rem; }
     .comment { margin-bottom: 0.5rem; }
     .comment-actions { display: flex; gap: 0.3rem; font-size: 0.75rem; align-items: center; }
@@ -63,34 +60,54 @@
         <button class="btn" id="sendPost">➤</button>
       </div>
       <div id="postsContainer"></div>
-    </div>
-    <div class="profile-panel" id="profilePanel" style="display:none;">
-      <h3>Мой профиль</h3>
-      <input type="text" id="profileName" placeholder="Имя" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
-      <input type="text" id="profileBio" placeholder="О себе" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
-      <button class="btn" id="saveProfile" style="width:100%; margin-top:0.5rem;">Сохранить</button>
-      <button class="btn" id="closeProfile" style="width:100%; margin-top:0.3rem; background:#444;">Закрыть</button>
+      <div class="profile-panel" id="profilePanel" style="display:none;">
+        <h3>Мой профиль</h3>
+        <input type="text" id="profileName" placeholder="Имя" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
+        <input type="text" id="profileBio" placeholder="О себе" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
+        <button class="btn" id="saveProfile" style="width:100%; margin-top:0.5rem;">Сохранить</button>
+        <button class="btn" id="closeProfile" style="width:100%; margin-top:0.3rem; background:#444;">Закрыть</button>
+      </div>
     </div>
   </div>
 
   <script>
-    const SKYID_URL = 'https://sky-id.onrender.com';   // замени на свой
-    const SOCIAL_API = 'https://skysocial-5w2g.onrender.com'; // замени на свой
+    // ⚠️ Замени на реальный URL твоего SkyID-сервиса!
+    const SKYID_URL = 'https://sky-id.onrender.com';
+    const SOCIAL_API = 'https://skysocial.onrender.com';
 
     let token = localStorage.getItem('skysocial_token') || null;
+    let currentUserSkyID = null;
+    let isAdmin = false;
+
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
+    function hideApp() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
 
     // Автологин
     (async () => {
       if (token) {
         try {
           const res = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-          if (res.ok) { showApp(); loadPosts(); }
-          else { token = null; localStorage.removeItem('skysocial_token'); }
+          if (res.ok) {
+            const me = await res.json();
+            currentUserSkyID = me.skyid;
+            isAdmin = (me.login === 'SkyMonder');
+            showApp();
+            await loadPosts();
+          } else {
+            token = null;
+            localStorage.removeItem('skysocial_token');
+          }
         } catch (e) {}
       }
     })();
 
-    // Логин
+    // Вход
     document.getElementById('loginBtn').addEventListener('click', async () => {
       const login = document.getElementById('loginInput').value.trim();
       const password = document.getElementById('passInput').value;
@@ -106,7 +123,12 @@
         if (!res.ok) throw new Error(data.error || 'Ошибка входа');
         token = data.token;
         localStorage.setItem('skysocial_token', token);
-        showApp(); loadPosts();
+        const meRes = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const me = await meRes.json();
+        currentUserSkyID = me.skyid;
+        isAdmin = (me.login === 'SkyMonder');
+        showApp();
+        loadPosts();
       } catch (e) { errorDiv.textContent = e.message; }
     });
 
@@ -127,42 +149,25 @@
       } catch (e) { document.getElementById('loginError').textContent = e.message; }
     });
 
-    function showApp() {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-    }
-    function hideApp() {
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
     document.getElementById('logoutBtn').addEventListener('click', () => {
-      token = null; localStorage.removeItem('skysocial_token'); hideApp();
+      token = null; localStorage.removeItem('skysocial_token');
+      currentUserSkyID = null; isAdmin = false;
+      hideApp();
     });
 
-    // Загрузка постов
     async function loadPosts() {
       const container = document.getElementById('postsContainer');
       try {
-        const res = await fetch(`${SOCIAL_API}/posts`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        const res = await fetch(`${SOCIAL_API}/posts`, { headers: { Authorization: `Bearer ${token}` } });
         const posts = await res.json();
         container.innerHTML = posts.map(post => renderPost(post)).join('');
       } catch (e) { container.innerHTML = '<p>Ошибка загрузки</p>'; }
     }
 
-    // Рендер одного поста
     function renderPost(post) {
-      const isAdmin = localStorage.getItem('skysocial_admin') === 'true'; // получим из профиля
-      // Определим, админ ли текущий пользователь (будем брать из ответа /me)
-      // Здесь упростим: сохраним isAdmin при логине (из ответа сервера можно не получить, поэтому сделаем доп.запрос)
-      // Но чтобы не усложнять, будем считать, что админ определяется по наличию кнопок. Сделаем через доп. API /profile или просто доверимся серверным ошибкам.
-      // Временно скроем кнопку бана, если логин не SkyMonder (получим через переменную)
-      const deleteBtn = (post.skyid === currentUserSkyID || window.isAdmin) ?
+      const deleteBtn = (post.skyid === currentUserSkyID || isAdmin) ?
         `<button class="btn btn-danger" onclick="deletePost('${post.id}')">Удалить</button>` : '';
-      const banBtn = window.isAdmin ?
-        `<button class="btn btn-danger" onclick="banUser('${post.skyid}')">🔨 Бан</button>` : '';
-
+      const banBtn = isAdmin ? `<button class="btn btn-danger" onclick="banUser('${post.skyid}')">🔨 Бан</button>` : '';
       return `
         <div class="post">
           <div class="post-header">
@@ -187,75 +192,6 @@
         </div>`;
     }
 
-    // Переменные для текущего пользователя
-    let currentUserSkyID = null;
-    let isAdmin = false;
-
-    // При успешном логине получим данные
-    async function fetchProfile() {
-      try {
-        const res = await fetch(`${SOCIAL_API}/profile`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const profile = await res.json();
-        currentUserSkyID = profile.skyid;
-        // Проверим админа по логину (можно хранить в profile.isAdmin или сделать доп.запрос)
-        // Здесь пока просто сравним с 'SkyMonder' из ответа (но профиль не возвращает login, лучше запросить /me)
-        const meRes = await fetch(`${SKYID_URL}/me`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const me = await meRes.json();
-        window.isAdmin = (me.login === 'SkyMonder');
-        loadPosts(); // перерендерим, чтобы появились кнопки
-      } catch (e) { console.error(e); }
-    }
-
-    // После успешного входа вызываем fetchProfile
-    const originalLogin = document.getElementById('loginBtn').addEventListener('click', async () => { ... });
-    // Перепишем логику: после получения токена вызываем fetchProfile.
-    // Лучше модифицировать код, добавив вызов fetchProfile в цепочку.
-    // Обновим вход и регистрацию:
-
-    async function doLogin(login, password) {
-      const res = await fetch(`${SKYID_URL}/login`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ login, password })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Ошибка входа');
-      token = data.token;
-      localStorage.setItem('skysocial_token', token);
-      showApp();
-      await fetchProfile();
-      loadPosts();
-    }
-
-    // Перепишем обработчики
-    document.getElementById('loginBtn').onclick = async () => {
-      const login = document.getElementById('loginInput').value.trim();
-      const password = document.getElementById('passInput').value;
-      if (!login || !password) return document.getElementById('loginError').textContent = 'Заполни поля';
-      try { await doLogin(login, password); }
-      catch (e) { document.getElementById('loginError').textContent = e.message; }
-    };
-
-    // Автологин при загрузке
-    (async () => {
-      if (token) {
-        try {
-          const res = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-          if (res.ok) {
-            showApp();
-            await fetchProfile();
-            loadPosts();
-          } else {
-            token = null; localStorage.removeItem('skysocial_token');
-          }
-        } catch (e) {}
-      }
-    })();
-
-    // Создание поста
     document.getElementById('sendPost').addEventListener('click', async () => {
       const text = document.getElementById('postText').value.trim();
       if (!text) return;
@@ -267,7 +203,6 @@
       loadPosts();
     });
 
-    // Лайки / дизлайки
     window.likePost = async (id) => {
       await fetch(`${SOCIAL_API}/posts/${id}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       loadPosts();
@@ -282,7 +217,6 @@
       loadPosts();
     };
 
-    // Комментарии
     window.toggleComments = async (postId) => {
       const block = document.getElementById('comments-' + postId);
       if (block.style.display === 'none' || !block.style.display) {
@@ -296,14 +230,11 @@
             <div class="comment-actions">
               <button class="btn" onclick="likeComment('${postId}','${c.id}')">👍 ${c.likes.length}</button>
               <button class="btn" onclick="dislikeComment('${postId}','${c.id}')">👎 ${c.dislikes.length}</button>
-              ${(c.skyid === currentUserSkyID || window.isAdmin) ? `<button class="btn btn-danger" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
+              ${(c.skyid === currentUserSkyID || isAdmin) ? `<button class="btn btn-danger" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
             </div>
           </div>`).join('');
-      } else {
-        block.style.display = 'none';
-      }
+      } else { block.style.display = 'none'; }
     };
-
     window.addComment = async (postId) => {
       const input = document.getElementById('comment-input-' + postId);
       const text = input.value.trim();
@@ -329,10 +260,9 @@
       window.toggleComments(postId);
     };
 
-    // Бан (только для админа)
     window.banUser = async (skyid) => {
-      if (!window.isAdmin) return;
-      if (!confirm(`Забанить пользователя ${skyid}?`)) return;
+      if (!isAdmin) return;
+      if (!confirm(`Забанить ${skyid}?`)) return;
       await fetch(`${SOCIAL_API}/admin/ban`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ skyid })
@@ -341,7 +271,6 @@
       loadPosts();
     };
 
-    // Профиль
     document.getElementById('profileBtn').addEventListener('click', async () => {
       const panel = document.getElementById('profilePanel');
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -352,9 +281,7 @@
         document.getElementById('profileBio').value = profile.bio || '';
       }
     });
-    document.getElementById('closeProfile').addEventListener('click', () => {
-      document.getElementById('profilePanel').style.display = 'none';
-    });
+    document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profilePanel').style.display = 'none');
     document.getElementById('saveProfile').addEventListener('click', async () => {
       const name = document.getElementById('profileName').value.trim();
       const bio = document.getElementById('profileBio').value.trim();
