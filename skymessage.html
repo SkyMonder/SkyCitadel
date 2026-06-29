@@ -139,6 +139,7 @@
     let localStream = null, peerConnection = null;
     let incomingCallInfo = null;
     let outgoingCallInfo = null;
+    let acceptingCall = false; // защита от двойного нажатия
 
     // Шифрование (только для входа)
     const enc = new TextEncoder(); const dec = new TextDecoder();
@@ -394,17 +395,20 @@
       showCallModal('Входящий ' + typeText, msg.from, '', true);
     }
 
-    // Исправленный обработчик "Принять"
+    // Надёжный обработчик "Принять"
     callModalAcceptBtn.addEventListener('click', async () => {
-      const currentIncoming = incomingCallInfo;
-      if (!currentIncoming) return;
+      if (acceptingCall) return;               // защита от двойного клика
+      const callInfo = incomingCallInfo;        // сохраняем до сброса
+      if (!callInfo) return;                   // нечего принимать
 
-      // Сбрасываем глобальный флаг сразу
-      hideCallModal();
-      incomingCallInfo = null;
+      acceptingCall = true;
+      callModalAcceptBtn.disabled = true;
+
+      // Прячем модальное окно, но НЕ сбрасываем incomingCallInfo здесь — мы работаем с callInfo
+      callModal.classList.remove('active');
 
       try {
-        const constraints = currentIncoming.callType === 'video'
+        const constraints = callInfo.callType === 'video'
           ? { audio: true, video: true }
           : { audio: true, video: false };
 
@@ -417,22 +421,29 @@
         document.getElementById('localVideo').srcObject = localStream;
         document.getElementById('currentCallUI').classList.add('active');
         document.getElementById('localVideo').style.display =
-          currentIncoming.callType === 'audio' ? 'none' : 'block';
+          callInfo.callType === 'audio' ? 'none' : 'block';
 
         createPeerConnection();
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(currentIncoming.sdp));
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(callInfo.sdp));
         const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         sendServerMessage('call_answer', {
-          chatId: currentIncoming.chatId,
+          chatId: callInfo.chatId,
           sdp: peerConnection.localDescription
         });
+
+        // Успешно — сбрасываем флаг входящего
+        incomingCallInfo = null;
       } catch (e) {
         console.error('Ошибка при принятии звонка:', e);
         alert('Не удалось принять звонок: ' + e.message);
         cleanupCall();
-        hideCallModal();
         document.getElementById('currentCallUI').classList.remove('active');
+      } finally {
+        acceptingCall = false;
+        callModalAcceptBtn.disabled = false;
+        // Если модальное окно всё ещё открыто (при ошибке), скрываем его
+        callModal.classList.remove('active');
       }
     });
 
