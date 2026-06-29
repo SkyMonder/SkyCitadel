@@ -327,7 +327,7 @@
     <!-- Заметки -->
     <div id="notes" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://skynotes-n17c.onrender.com/" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="https://your-notes-project.com" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
   </div>
@@ -337,9 +337,9 @@
   <script>
     (function() {
       // ========== URLs сервисов ==========
-      const SERVICE2_URL = 'https://serveratiuz-8a8k.onrender.com'; // погода, объявления
-      const SERVICE4_URL = 'https://minicitadiz-9nr1.onrender.com'; // поиск
-      const SKYID_URL = 'https://skybiduid.onrender.com';       // SkyID
+      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // погода, объявления
+      const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // поиск
+      const SKYID_URL = 'https://sky-id.onrender.com';       // SkyID
 
       // ========== НАВИГАЦИЯ ==========
       const navButtons = document.querySelectorAll('.nav-btn');
@@ -354,6 +354,7 @@
           if (targetId === 'maps') setTimeout(() => map.invalidateSize(), 100);
           if (targetId === 'calendar') { renderCalendar(); updateSelectedDate(); }
           if (targetId === 'news') refreshNewsIframe();
+          if (targetId === 'announce') loadAnnouncements();
         });
       });
 
@@ -485,20 +486,22 @@
       document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
       setInterval(refreshNewsIframe, 5 * 60 * 1000);
 
-      // ========== ОБЪЯВЛЕНИЯ ==========
+      // ========== ОБЪЯВЛЕНИЯ (шифрованные) ==========
       async function loadAnnouncements() {
         const container = document.getElementById('announce-container');
         try {
           const res = await fetch(`${SERVICE2_URL}/announcements`);
-          const items = await res.json();
+          const json = await res.json();
+          if (!json.data) throw new Error('No data');
+          const items = await decryptPayload(json.data);
           container.innerHTML = items.length ? items.map(item => `<div class="announce-item">📌 ${escapeHtml(item.text)}</div>`).join('') : '<p>Объявлений пока нет</p>';
-        } catch (e) { container.innerHTML = '<p>Ошибка</p>'; }
+        } catch (e) { container.innerHTML = '<p>Ошибка загрузки объявлений</p>'; }
       }
       loadAnnouncements();
 
       // ========== КАЛЕНДАРЬ С СОБЫТИЯМИ ==========
       let calDate = new Date();
-      let selectedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      let selectedDate = new Date().toISOString().split('T')[0];
       let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
 
       function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
@@ -506,7 +509,7 @@
       function renderCalendar() {
         const year = calDate.getFullYear();
         const month = calDate.getMonth();
-        const firstDay = new Date(year, month, 1).getDay() || 7; // Пн=1..Вс=7
+        const firstDay = new Date(year, month, 1).getDay() || 7;
         const daysInMonth = new Date(year, month+1, 0).getDate();
         document.getElementById('cal-month-year').textContent = 
           calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -713,19 +716,25 @@
         `).join('');
       }
 
-      // ========== SkyID ==========
+      // ========== SkyID (шифрованные регистрация и вход) ==========
       document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
         const login = document.getElementById('skyid-reg-login').value.trim();
         const password = document.getElementById('skyid-reg-password').value;
         if (!login || !password) return alert('Заполни поля');
         try {
+          const payload = await encryptPayload({ login, password });
           const res = await fetch(`${SKYID_URL}/register`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login, password })
+            body: JSON.stringify({ data: payload })
           });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Ошибка');
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка');
+          }
+          const json = await res.json();
+          if (!json.data) throw new Error('No data');
+          const data = await decryptPayload(json.data);
           document.getElementById('skyid-result').innerHTML = `
             <p style="color:#7ebc6f;">✅ Регистрация успешна!</p>
             <p><strong>SkyID:</strong> ${data.skyid}</p>
@@ -741,13 +750,19 @@
         const password = document.getElementById('skyid-login-password').value;
         if (!login || !password) return alert('Заполни поля');
         try {
+          const payload = await encryptPayload({ login, password });
           const res = await fetch(`${SKYID_URL}/login`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ login, password })
+            body: JSON.stringify({ data: payload })
           });
-          const data = await res.json();
-          if (!res.ok) throw new Error(data.error || 'Ошибка');
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка');
+          }
+          const json = await res.json();
+          if (!json.data) throw new Error('No data');
+          const data = await decryptPayload(json.data);
           document.getElementById('skyid-result').innerHTML = `
             <p style="color:#7ebc6f;">✅ Вход выполнен!</p>
             <p><strong>SkyID:</strong> ${data.skyid}</p>
