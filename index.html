@@ -3,699 +3,782 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>SkyMessage</title>
+  <title>SkyCitadel — Цифровая крепость</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
   <style>
-    :root {
-      --bg: #0a0f1e; --panel: #111827; --card: #1a233a;
-      --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf;
-    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
-    .auth-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
-    .auth-box { background: var(--card); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 320px; text-align: center; }
-    .auth-box input { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
-    .auth-box button { width: 100%; padding: 0.7rem; background: var(--accent); border: none; color: white; border-radius: 10px; cursor: pointer; font-weight: bold; margin-top: 0.5rem; }
-    .switch-link { color: #7f8bb3; font-size: 0.8rem; cursor: pointer; margin-top: 0.8rem; }
-    .app { display: flex; width: 100%; height: 100%; }
-    .sidebar { width: 300px; background: var(--panel); border-right: 1px solid var(--border); display: flex; flex-direction: column; }
-    .sidebar-header { padding: 1rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.5rem; }
-    .chat-list { flex: 1; overflow-y: auto; }
-    .chat-item { padding: 0.8rem 1rem; display: flex; align-items: center; gap: 0.7rem; border-bottom: 1px solid #1e2a40; cursor: pointer; position: relative; }
-    .chat-item:hover, .chat-item.active { background: #1f2b4a; }
-    .chat-avatar { width: 40px; height: 40px; border-radius: 50%; background: #2f3b5c; display: flex; align-items: center; justify-content: center; font-size: 1.3rem; flex-shrink: 0; }
-    .chat-info { flex: 1; }
-    .chat-name { font-weight: 500; }
-    .chat-last { font-size: 0.8rem; color: #8899cc; }
-    .chat-actions { display: none; position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 0.3rem; z-index: 5; }
-    .chat-item:hover .chat-actions { display: flex; gap: 0.3rem; }
-    .main-area { flex: 1; display: flex; flex-direction: column; }
-    .chat-header { padding: 0.8rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 0.8rem; background: var(--card); }
-    .messages { flex: 1; overflow-y: auto; padding: 1rem; display: flex; flex-direction: column; gap: 0.5rem; }
-    .msg { max-width: 70%; padding: 0.7rem 1rem; border-radius: 16px; background: #1f2b4a; align-self: flex-start; }
-    .msg.own { align-self: flex-end; background: var(--accent); }
-    .msg .time { font-size: 0.7rem; color: #ccc; margin-top: 0.2rem; text-align: right; }
-    .msg img, .msg video { max-width: 200px; border-radius: 8px; margin: 0.3rem 0; }
-    .input-area { padding: 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; background: var(--card); }
-    .input-area input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
-    .btn { background: var(--accent); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
-    .btn-danger { background: #c44; }
-    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 50; }
-    .modal-overlay.active { display: flex; }
-    .modal { background: var(--card); border-radius: 16px; padding: 1.5rem; width: 320px; border: 1px solid var(--border); }
-    .modal input { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
-    .modal .btn-row { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
-    .search-results { max-height: 200px; overflow-y: auto; margin: 0.5rem 0; }
-    .search-result-item { padding: 0.5rem; cursor: pointer; border-radius: 8px; }
-    .search-result-item:hover { background: #1f2b4a; }
-    .call-ui { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; display: none; z-index: 30; flex-direction: column; gap: 0.8rem; }
-    .call-ui.active { display: flex; }
-    video { width: 200px; border-radius: 8px; background: #000; }
-    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; margin-top: 1rem; }
-    .profile-panel input { margin-bottom: 0.5rem; }
-    .avatar-upload { width: 80px; height: 80px; border-radius: 50%; background: #2f3b5c; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; cursor: pointer; background-size: cover; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0f1e;
+      color: #e0e8ff;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .sidebar {
+      width: 260px;
+      background: linear-gradient(180deg, #0d1425 0%, #131b2f 100%);
+      border-right: 1px solid #2a3450;
+      display: flex;
+      flex-direction: column;
+      padding: 1.2rem 0.8rem;
+      box-shadow: 4px 0 20px rgba(0,0,0,0.6);
+      z-index: 10;
+    }
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #b5ceff, #5f7ecf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 2rem;
+      text-align: center;
+      text-shadow: 0 0 12px #2f4b8c;
+    }
+    .nav-btn {
+      background: transparent;
+      border: 1px solid #2f3b5c;
+      color: #cbd5ff;
+      padding: 0.9rem 1.2rem;
+      margin: 0.3rem 0;
+      border-radius: 12px;
+      font-size: 1rem;
+      font-weight: 500;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 0.7rem;
+      backdrop-filter: blur(4px);
+    }
+    .nav-btn i { font-style: normal; font-size: 1.2rem; }
+    .nav-btn:hover, .nav-btn.active {
+      background: #1f2b4a;
+      border-color: #5f7ecf;
+      box-shadow: 0 0 15px #2f4b8c;
+      color: #ffffff;
+    }
+    .spacer { flex: 1; }
+    .status-line {
+      margin-top: 1rem;
+      font-size: 0.8rem;
+      color: #6b7b9e;
+      border-top: 1px solid #2a3450;
+      padding-top: 0.8rem;
+    }
+    .main {
+      flex: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      background: radial-gradient(circle at 20% 20%, #121a30, #080d1a);
+    }
+    .section { display: none; animation: fadeIn 0.3s ease; }
+    .section.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .card {
+      background: rgba(20, 28, 50, 0.8);
+      backdrop-filter: blur(16px);
+      border: 1px solid #2e3b5c;
+      border-radius: 24px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+    h2 {
+      font-weight: 600;
+      font-size: 1.8rem;
+      margin-bottom: 1.2rem;
+      color: #b7ceff;
+      border-left: 4px solid #5f7ecf;
+      padding-left: 1rem;
+    }
+    #map { height: 500px; border-radius: 20px; border: 1px solid #3f4b6b; }
+    .map-search { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .map-search input { flex: 1; padding: 0.7rem 1rem; border-radius: 12px; background: #0d1225; border: 1px solid #3a4660; color: #fff; }
+    .map-search button { padding: 0.7rem 1.5rem; border-radius: 12px; background: #2f4b8c; border: none; color: white; font-weight: bold; cursor: pointer; }
+    .radio-stations { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0; }
+    .station-btn { background: #1c2541; border: 1px solid #3f4b6b; padding: 0.6rem 1.2rem; border-radius: 20px; color: #cfdbff; cursor: pointer; }
+    .station-btn.playing { background: #2f4b8c; border-color: #6b8cff; box-shadow: 0 0 12px #2f4b8c; }
+    .btn { background: var(--accent, #2f4b8c); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+    .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+    /* Календарь */
+    .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; text-align: center; }
+    .cal-day-name { color: #7f8bb3; font-weight: bold; }
+    .cal-day { padding: 0.8rem; background: #121a32; border-radius: 12px; cursor: pointer; position: relative; }
+    .cal-day.today { background: #2f4b8c; font-weight: bold; }
+    .cal-day.has-events::after { content: '•'; color: #ffb347; position: absolute; top: 2px; right: 5px; }
+    .event-list { margin-top: 1rem; }
+    .event-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #151e36; border-radius: 8px; margin-bottom: 0.4rem; }
+
+    /* Калькулятор */
+    .calc-container { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .calc-panel { flex: 2; min-width: 280px; }
+    .history-panel { flex: 1; min-width: 200px; background: #111827; border-radius: 12px; padding: 0.8rem; max-height: 400px; overflow-y: auto; }
+    .calc-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+    .calc-display { grid-column: span 5; background: #0a0f1e; padding: 1rem; font-size: 2rem; text-align: right; border-radius: 16px; border: 1px solid #3a4660; margin-bottom: 0.5rem; }
+    .calc-btn { padding: 0.9rem; font-size: 1.2rem; border-radius: 12px; background: #1e2744; border: 1px solid #3a4660; color: white; cursor: pointer; transition: 0.2s; }
+    .calc-btn.operator { background: #2f3b5c; }
+    .calc-btn.equal { background: #3f62b0; }
+    .calc-btn.func { background: #2f4b4a; }
+
+    /* Навигатор */
+    .route-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .route-controls input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid #3a4660; color: white; border-radius: 10px; }
+
+    .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
+    .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
+    .search-result-item {
+      background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf;
+    }
   </style>
 </head>
 <body>
-  <!-- Экран входа -->
-  <div id="authScreen" class="auth-screen">
-    <div class="auth-box">
-      <h2 id="authTitle">Вход</h2>
-      <input type="text" id="loginInput" placeholder="Логин" autocomplete="off">
-      <input type="password" id="passInput" placeholder="Пароль">
-      <button id="authBtn">Войти</button>
-      <div class="switch-link" id="switchAuth">Нет аккаунта? Зарегистрироваться</div>
-    </div>
+  <div class="sidebar">
+    <div class="logo">🛡️ SkyCitadel</div>
+    <button class="nav-btn active" data-section="maps">🗺️ Карты</button>
+    <button class="nav-btn" data-section="radio">📻 Радио</button>
+    <button class="nav-btn" data-section="messenger">💬 Мессенджер</button>
+    <button class="nav-btn" data-section="social">👥 Соцсеть</button>
+    <button class="nav-btn" data-section="news">📰 Новости</button>
+    <button class="nav-btn" data-section="announce">📢 Объявления</button>
+    <button class="nav-btn" data-section="calendar">📅 Календарь</button>
+    <button class="nav-btn" data-section="calculator">🧮 Калькулятор</button>
+    <button class="nav-btn" data-section="weather">☁️ Погода</button>
+    <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
+    <button class="nav-btn" data-section="search">🔍 Поиск</button>
+    <button class="nav-btn" data-section="skyid">🆔 SkyID</button>
+    <button class="nav-btn" data-section="notes">📝 Заметки</button>
+    <div class="spacer"></div>
+    <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
   </div>
 
-  <!-- Основной интерфейс -->
-  <div class="app" id="app" style="display:none;">
-    <div class="sidebar">
-      <div class="sidebar-header">
-        <span>✉️ SkyMessage</span>
-        <button class="btn" id="newChatBtn">+</button>
-        <button class="btn" id="findGroupsBtn">🔍</button>
-        <button class="btn" id="profileBtn">👤</button>
-      </div>
-      <div class="chat-list" id="chatList"></div>
-    </div>
-    <div class="main-area">
-      <div class="chat-header" id="chatHeader">Выберите чат</div>
-      <div class="messages" id="messagesContainer"></div>
-      <div class="input-area" id="inputArea" style="display:none;">
-        <input type="text" id="messageInput" placeholder="Сообщение...">
-        <button class="btn" id="attachBtn">📎</button>
-        <input type="file" id="fileInput" style="display:none;" multiple>
-        <button class="btn" id="sendBtn">➤</button>
-        <button class="btn" id="audioCallBtn" title="Аудиозвонок">📞</button>
-        <button class="btn" id="videoCallBtn" title="Видеозвонок">📹</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Модальное окно поиска пользователей -->
-  <div class="modal-overlay" id="searchModal">
-    <div class="modal">
-      <h3>Поиск пользователя</h3>
-      <input type="text" id="searchQuery" placeholder="Введите логин...">
-      <div class="search-results" id="searchResults"></div>
-      <div class="btn-row">
-        <button class="btn" id="modalCancel" style="background:#444;">Отмена</button>
+  <div class="main">
+    <!-- Карты -->
+    <div id="maps" class="section active">
+      <div class="card">
+        <h2>🗺️ Интерактивная карта</h2>
+        <div class="map-search">
+          <input type="text" id="map-search-input" placeholder="Поиск места...">
+          <button id="map-search-btn">Искать</button>
+        </div>
+        <div class="route-controls">
+          <input type="text" id="route-start" placeholder="Откуда (адрес)">
+          <input type="text" id="route-end" placeholder="Куда (адрес)">
+          <button id="route-go" class="btn">Проложить маршрут</button>
+        </div>
+        <div id="map"></div>
       </div>
     </div>
-  </div>
 
-  <!-- Модальное окно поиска групп/каналов -->
-  <div class="modal-overlay" id="groupsModal">
-    <div class="modal">
-      <h3>Поиск групп и каналов</h3>
-      <input type="text" id="groupSearchQuery" placeholder="Название...">
-      <div class="search-results" id="groupSearchResults"></div>
-      <div class="btn-row">
-        <button class="btn" id="groupsModalCancel" style="background:#444;">Закрыть</button>
+    <!-- Радио -->
+    <div id="radio" class="section">
+      <div class="card">
+        <h2>📻 Радио — Прямые потоки</h2>
+        <div class="radio-stations" id="radio-list"></div>
+        <audio id="radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
+        <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+          <input type="text" id="custom-stream" placeholder="URL своего потока..." style="flex:1; padding:0.6rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+          <button id="play-custom-stream" style="padding:0.6rem 1.2rem; background:#2f4b8c; border:none; color:white; border-radius:10px;">▶ Играть</button>
+        </div>
       </div>
     </div>
-  </div>
 
-  <!-- Модальное окно вызова -->
-  <div class="modal-overlay" id="callModal">
-    <div class="modal">
-      <h3 id="callModalTitle">Вызов</h3>
-      <p id="callModalName"></p>
-      <p id="callModalStatus" style="color:#8899cc;"></p>
-      <div class="btn-row" id="callModalActions">
-        <button class="btn" id="callModalAcceptBtn" style="display:none;">Принять</button>
-        <button class="btn" id="callModalRejectBtn" style="background:#c44;">Отклонить</button>
+    <!-- Мессенджер -->
+    <div id="messenger" class="section">
+      <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
+        <iframe src="skymessage.html" allow="microphone; camera" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
-  </div>
 
-  <!-- Текущий звонок -->
-  <div class="call-ui" id="currentCallUI">
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-    <div id="callStatus" style="font-size:0.9rem; color:#8899cc;"></div>
-    <div style="display:flex; gap:0.5rem;">
-      <button class="btn" id="toggleMic">🎤 Mic</button>
-      <button class="btn" id="toggleCam">📷 Cam</button>
-      <button class="btn" id="endCallBtn" style="background:#c44;">Завершить</button>
-    </div>
-  </div>
-
-  <!-- Панель профиля -->
-  <div class="modal-overlay" id="profileModal">
-    <div class="modal">
-      <h3>Мой профиль</h3>
-      <div class="avatar-upload" id="avatarUpload" title="Сменить аватар">👤</div>
-      <input type="file" id="avatarFileInput" accept="image/*" style="display:none;">
-      <input type="text" id="profileName" placeholder="Имя">
-      <input type="text" id="profileStatus" placeholder="Статус">
-      <div class="btn-row">
-        <button class="btn" id="saveProfileBtn">Сохранить</button>
-        <button class="btn" id="closeProfileBtn" style="background:#444;">Закрыть</button>
+    <!-- Соцсеть -->
+    <div id="social" class="section">
+      <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
+        <iframe src="socnet.html" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
-  </div>
 
-  <script>
-    // Конфигурация
-    const WS_URL = 'wss://serveratiuz.onrender.com';
-    const SERVER_URL = 'https://serveratiuz.onrender.com';
-    const ICE_SERVERS = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: 'turn:openrelay.metered.ca:80',
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
-      ]
-    };
+    <!-- Новости -->
+    <div id="news" class="section">
+      <div class="card">
+        <h2>📰 Автообновляемая газета</h2>
+        <p style="margin-bottom:0.8rem;">Источник: РИА Новости</p>
+        <iframe id="news-iframe" class="news-frame" src="gazeta.html"></iframe>
+        <button id="refresh-news" style="margin-top:0.7rem; background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">🔄 Обновить</button>
+      </div>
+    </div>
 
-    let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
-    let localStream = null, peerConnection = null;
-    let activeCall = null;
-    let pendingFiles = [];
+    <!-- Объявления -->
+    <div id="announce" class="section">
+      <div class="card">
+        <h2>📢 Специальные объявления (только от создателя)</h2>
+        <div id="announce-container">Загрузка...</div>
+      </div>
+    </div>
 
-    // Шифрование (только для входа)
-    const enc = new TextEncoder(); const dec = new TextDecoder();
-    async function deriveKey(password, saltBase64) {
-      const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
-      const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    }
-
-    // WebSocket
-    function connectWebSocket() {
-      ws = new WebSocket(WS_URL);
-      ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'auth', login: currentUser.login }));
-        sendServerMessage('get_chats', {});
-      };
-      ws.onmessage = (e) => {
-        const msg = JSON.parse(e.data);
-        switch (msg.type) {
-          case 'auth_ok': currentUser = { ...currentUser, ...msg }; break;
-          case 'message': handleIncomingMessage(msg); break;
-          case 'chat_list': chats = msg.chats; renderChatList(); if (activeChatId) openChat(activeChatId); break;
-          case 'chat_created': activeChatId = msg.chatId; sendServerMessage('get_chats', {}); break;
-          case 'messages': displayMessages(msg.messages); break;
-          case 'user_search_result': showSearchResults(msg.users, 'user'); break;
-          case 'call_offer': handleCallOffer(msg); break;
-          case 'call_answer': handleCallAnswer(msg); break;
-          case 'ice_candidate': handleICECandidate(msg); break;
-          case 'call_end': handleCallEnded(); break;
-          case 'profile_updated': updateLocalProfile(msg.profile); break;
-        }
-      };
-      ws.onclose = () => setTimeout(connectWebSocket, 3000);
-    }
-
-    function sendServerMessage(type, data = {}) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, ...data }));
-      }
-    }
-    // ========== UI-переменные ==========
-    function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
-    function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
-
-    // ========== Аутентификация ==========
-    document.getElementById('switchAuth').addEventListener('click', function() {
-      const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
-      if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
-      else { t.textContent='Вход'; b.textContent='Войти'; this.textContent='Нет аккаунта? Зарегистрироваться'; }
-    });
-
-    document.getElementById('authBtn').addEventListener('click', async () => {
-      const login = document.getElementById('loginInput').value.trim();
-      const password = document.getElementById('passInput').value;
-      if (!login || !password) return alert('Заполни поля');
-      const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
-      try {
-        if (isReg) {
-          const salt = window.crypto.getRandomValues(new Uint8Array(16));
-          const saltB64 = btoa(String.fromCharCode(...salt));
-          cryptoKey = await deriveKey(password, saltB64);
-          const res = await fetch(`${SERVER_URL}/register`, {
-            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
-          });
-          if (!res.ok) { alert('Ошибка регистрации'); return; }
-          alert('Аккаунт создан! Войдите.');
-          document.getElementById('authTitle').textContent='Вход';
-          document.getElementById('authBtn').textContent='Войти';
-        } else {
-          const res = await fetch(`${SERVER_URL}/login_salt?login=${encodeURIComponent(login)}`);
-          if (!res.ok) { alert('Пользователь не найден'); return; }
-          const { salt: saltB64 } = await res.json();
-          cryptoKey = await deriveKey(password, saltB64);
-          currentUser = { login };
-          showAuth(false); showApp(true); connectWebSocket();
-        }
-      } catch(e) { alert('Ошибка: '+e.message); }
-    });
-
-    // ========== Рендер чатов ==========
-    function renderChatList() {
-      const container = document.getElementById('chatList');
-      container.innerHTML = '';
-      Object.entries(chats).forEach(([id, chat]) => {
-        const div = document.createElement('div');
-        div.className = 'chat-item' + (id === activeChatId ? ' active' : '');
-        div.innerHTML = `
-          <div class="chat-avatar">${chat.type==='group'?'👥':chat.type==='channel'?'📢':'👤'}</div>
-          <div class="chat-info">
-            <div class="chat-name">${escapeHtml(chat.name)}${chat.blocked ? ' (заблокирован)' : ''}</div>
-            <div class="chat-last">${chat.lastMsg || ''}</div>
+    <!-- Календарь с мероприятиями -->
+    <div id="calendar" class="section">
+      <div class="card">
+        <h2>📅 Календарь</h2>
+        <div class="cal-header">
+          <button id="cal-prev" class="btn">◀</button>
+          <span id="cal-month-year" style="font-size:1.3rem;"></span>
+          <button id="cal-next" class="btn">▶</button>
+        </div>
+        <div class="cal-grid" id="cal-days"></div>
+        <div class="event-list" id="event-list">
+          <h3>События на <span id="selected-date"></span></h3>
+          <div id="events-container"></div>
+          <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+            <input type="text" id="event-text" placeholder="Новое событие" style="flex:1; padding:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:8px;">
+            <input type="date" id="event-date" style="padding:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:8px;">
+            <button id="add-event" class="btn">Добавить</button>
           </div>
-          <div class="chat-actions">
-            ${chat.type !== 'private' ? `<button class="btn btn-sm leave-btn" data-id="${id}">🚪</button>` : ''}
-            <button class="btn btn-sm delete-btn" data-id="${id}">🗑️</button>
-            ${chat.blocked ? `<button class="btn btn-sm unblock-btn" data-id="${id}">🔓</button>` : `<button class="btn btn-sm block-btn" data-id="${id}">🚫</button>`}
-          </div>`;
-        div.addEventListener('click', (e) => {
-          if (e.target.closest('.chat-actions')) return;
-          activeChatId = id;
-          openChat(id);
-          renderChatList();
+        </div>
+      </div>
+    </div>
+
+    <!-- Калькулятор инженерный -->
+    <div id="calculator" class="section">
+      <div class="card">
+        <h2>🧮 Инженерный калькулятор</h2>
+        <div class="calc-container">
+          <div class="calc-panel">
+            <div class="calc-display" id="calc-display">0</div>
+            <div class="calc-grid" id="calc-buttons">
+              <!-- Кнопки генерируются JS -->
+            </div>
+            <button id="toggle-mode" class="btn" style="margin-top:0.5rem;">Обычный / Инженерный</button>
+          </div>
+          <div class="history-panel">
+            <h4>История</h4>
+            <div id="calc-history"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Погода -->
+    <div id="weather" class="section">
+      <div class="card">
+        <h2>☁️ Погода</h2>
+        <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+          <input type="text" id="city-input" placeholder="Город" value="Москва" style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+          <button id="weather-btn" class="btn">Узнать</button>
+        </div>
+        <div id="weather-result">Введи город и нажми кнопку.</div>
+      </div>
+    </div>
+
+    <!-- Музыкальный центр -->
+    <div id="music" class="section">
+      <div class="card">
+        <h2>🎵 Музыкальный центр</h2>
+        <p>Локальный трек + радиостанции</p>
+        <audio id="local-audio" controls style="width:100%; margin-bottom:1rem;">
+          <source src="track.mp3" type="audio/mpeg">
+          Твой браузер не поддерживает audio.
+        </audio>
+        <div class="radio-stations" id="music-radio-list"></div>
+        <audio id="music-radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
+      </div>
+    </div>
+
+    <!-- Поиск -->
+    <div id="search" class="section">
+      <div class="card">
+        <h2>🔍 SkySearch – Умный поиск</h2>
+        <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
+          <input type="text" id="search-query" placeholder="Введите запрос..." style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+          <button id="search-btn" class="btn">Найти</button>
+        </div>
+        <div id="search-results" style="max-height:70vh; overflow-y:auto;"></div>
+        <p id="search-status" style="margin-top:0.5rem; color:#8899cc;"></p>
+      </div>
+    </div>
+
+    <!-- SkyID -->
+    <div id="skyid" class="section">
+      <div class="card">
+        <h2>🆔 SkyID — Единый идентификатор</h2>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <div style="flex:1; min-width:250px;">
+            <h3>Регистрация</h3>
+            <input type="text" id="skyid-reg-login" placeholder="Логин" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <input type="password" id="skyid-reg-password" placeholder="Пароль" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <button id="skyid-reg-btn" class="btn" style="width:100%;">Зарегистрировать SkyID</button>
+          </div>
+          <div style="flex:1; min-width:250px;">
+            <h3>Вход</h3>
+            <input type="text" id="skyid-login-login" placeholder="Логин" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <input type="password" id="skyid-login-password" placeholder="Пароль" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <button id="skyid-login-btn" class="btn" style="width:100%;">Войти</button>
+          </div>
+        </div>
+        <div id="skyid-result" style="margin-top:1rem; padding:1rem; background:#151e36; border-radius:10px;"></div>
+      </div>
+    </div>
+
+    <!-- Заметки -->
+    <div id="notes" class="section">
+      <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
+        <iframe src="https://your-notes-project.com" style="width:100%; height:100%; border:none;"></iframe>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <script>
+    (function() {
+      // ========== URLs сервисов ==========
+      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // погода, объявления
+      const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // поиск
+      const SKYID_URL = 'https://sky-id.onrender.com';       // SkyID
+
+      // ========== НАВИГАЦИЯ ==========
+      const navButtons = document.querySelectorAll('.nav-btn');
+      const sections = document.querySelectorAll('.section');
+      navButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          navButtons.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const targetId = btn.getAttribute('data-section');
+          sections.forEach(sec => sec.classList.remove('active'));
+          document.getElementById(targetId).classList.add('active');
+          if (targetId === 'maps') setTimeout(() => map.invalidateSize(), 100);
+          if (targetId === 'calendar') { renderCalendar(); updateSelectedDate(); }
+          if (targetId === 'news') refreshNewsIframe();
+          if (targetId === 'announce') loadAnnouncements();
         });
-        container.appendChild(div);
       });
 
-      // Навешиваем обработчики на кнопки
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          if (confirm('Удалить чат?')) sendServerMessage('delete_chat', { chatId: id });
+      // ========== ШИФРОВАНИЕ ==========
+      const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
+      async function getKey() {
+        const keyBytes = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+        return await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+      }
+      async function encryptPayload(plainObj) {
+        const key = await getKey();
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
+        const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+        const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
+        combined.set(iv, 0);
+        combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
+        return btoa(String.fromCharCode(...combined));
+      }
+      async function decryptPayload(combinedBase64) {
+        const key = await getKey();
+        const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
+        const iv = combined.slice(0, 12);
+        const data = combined.slice(12);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        return JSON.parse(new TextDecoder().decode(decrypted));
+      }
+      async function secureFetch(endpoint, payload) {
+        const encrypted = await encryptPayload(payload);
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: encrypted })
         });
-      });
-      document.querySelectorAll('.block-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          sendServerMessage('block_chat', { chatId: id });
-        });
-      });
-      document.querySelectorAll('.unblock-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          sendServerMessage('unblock_chat', { chatId: id });
-        });
-      });
-      document.querySelectorAll('.leave-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          const id = btn.dataset.id;
-          if (confirm('Покинуть группу/канал?')) sendServerMessage('leave_group', { chatId: id });
-        });
-      });
-    }
+        if (!response.ok) throw new Error(`Ошибка ${response.status}`);
+        const json = await response.json();
+        if (!json.data) throw new Error('Нет зашифрованного ответа');
+        return await decryptPayload(json.data);
+      }
 
-    function openChat(id) {
-      document.getElementById('inputArea').style.display = 'flex';
-      document.getElementById('chatHeader').textContent = chats[id]?.name || '';
-      sendServerMessage('get_messages', { chatId: id });
-    }
+      // ========== КАРТЫ + НАВИГАТОР ==========
+      const map = L.map('map').setView([55.751244, 37.618423], 10);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(map);
 
-    function displayMessages(msgs) {
-      const cont = document.getElementById('messagesContainer');
-      cont.innerHTML = '';
-      msgs.forEach(m => addMessageToUI(m));
-      cont.scrollTop = cont.scrollHeight;
-    }
+      let routingControl = null;
 
-    function addMessageToUI(msg) {
-      const div = document.createElement('div');
-      div.className = 'msg' + (msg.from === currentUser.login ? ' own' : '');
-      let content = `<strong>${escapeHtml(msg.from)}</strong>: `;
-      if (msg.text) content += escapeHtml(msg.text);
-      if (msg.file) {
-        const { name, type, data, size } = msg.file;
-        if (type.startsWith('image/')) {
-          content += `<br><img src="${data}" alt="${name}" title="${name} (${formatSize(size)})">`;
-        } else if (type.startsWith('video/')) {
-          content += `<br><video controls src="${data}" title="${name} (${formatSize(size)})"></video>`;
-        } else {
-          content += `<br><a href="${data}" download="${name}" style="color:#aac0ff;">📎 ${name} (${formatSize(size)})</a>`;
+      document.getElementById('map-search-btn').addEventListener('click', async () => {
+        const query = document.getElementById('map-search-input').value.trim();
+        if (!query) return;
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
+        const data = await res.json();
+        if (data && data.length > 0) {
+          const { lat, lon } = data[0];
+          map.setView([lat, lon], 13);
+          L.marker([lat, lon]).addTo(map).bindPopup(query).openPopup();
         }
-      }
-      content += `<div class="time">${new Date(msg.time).toLocaleTimeString()}</div>`;
-      div.innerHTML = content;
-      document.getElementById('messagesContainer').appendChild(div);
-    }
+      });
 
-    function handleIncomingMessage(msg) {
-      if (msg.from === currentUser.login) return;
-      if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
-      if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
-      chats[msg.chatId].messages.push({ from: msg.from, text: msg.text, time: msg.time, file: msg.file });
-      if (activeChatId === msg.chatId) {
-        addMessageToUI(msg);
-        document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
-      }
-      renderChatList();
-    }
+      document.getElementById('route-go').addEventListener('click', async () => {
+        const startInput = document.getElementById('route-start').value.trim();
+        const endInput = document.getElementById('route-end').value.trim();
+        if (!startInput || !endInput) return alert('Укажите начало и конец маршрута');
 
-    // ========== Отправка сообщений и файлов ==========
-    document.getElementById('sendBtn').addEventListener('click', () => {
-      const text = document.getElementById('messageInput').value.trim();
-      if (!activeChatId) return;
-      if (pendingFiles.length > 0) {
-        sendFilesAndText(text);
-      } else {
-        if (!text) return;
-        sendServerMessage('send_message', { chatId: activeChatId, text });
-        document.getElementById('messageInput').value = '';
-      }
-    });
-
-    document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('fileInput').click());
-    document.getElementById('fileInput').addEventListener('change', (e) => {
-      const files = Array.from(e.target.files);
-      if (files.length === 0) return;
-      pendingFiles = files;
-      document.getElementById('messageInput').placeholder = `Готово к отправке ${files.length} файлов...`;
-    });
-
-    async function sendFilesAndText(text) {
-      for (const file of pendingFiles) {
-        const reader = new FileReader();
-        reader.onload = (ev) => {
-          sendServerMessage('file_message', {
-            chatId: activeChatId,
-            text: text || '',
-            file: {
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              data: ev.target.result
-            }
-          });
+        const geocode = async (address) => {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+          const data = await res.json();
+          if (data && data.length > 0) return L.latLng(data[0].lat, data[0].lon);
+          throw new Error('Адрес не найден');
         };
-        reader.readAsDataURL(file);
-      }
-      pendingFiles = [];
-      document.getElementById('messageInput').value = '';
-      document.getElementById('messageInput').placeholder = 'Сообщение...';
-    }
 
-    // ========== Поиск пользователей и групп ==========
-    document.getElementById('newChatBtn').addEventListener('click', () => {
-      const action = prompt('1 - Личный чат\n2 - Создать группу\n3 - Создать канал');
-      if (action === '1') openSearchModal('user');
-      else if (action === '2') { const n = prompt('Название группы:'); if (n) sendServerMessage('create_group', { name: n }); }
-      else if (action === '3') { const n = prompt('Название канала:'); if (n) sendServerMessage('create_channel', { name: n }); }
-    });
-
-    document.getElementById('findGroupsBtn').addEventListener('click', () => openSearchModal('group'));
-
-    function openSearchModal(type) {
-      if (type === 'user') {
-        document.getElementById('searchModal').classList.add('active');
-        document.getElementById('searchQuery').value = '';
-        document.getElementById('searchResults').innerHTML = '';
-        document.getElementById('searchQuery').focus();
-      } else {
-        document.getElementById('groupsModal').classList.add('active');
-        document.getElementById('groupSearchQuery').value = '';
-        document.getElementById('groupSearchResults').innerHTML = '';
-        document.getElementById('groupSearchQuery').focus();
-      }
-    }
-
-    document.getElementById('modalCancel').addEventListener('click', () => document.getElementById('searchModal').classList.remove('active'));
-    document.getElementById('groupsModalCancel').addEventListener('click', () => document.getElementById('groupsModal').classList.remove('active'));
-
-    document.getElementById('searchQuery').addEventListener('input', () => {
-      const q = document.getElementById('searchQuery').value.trim();
-      if (q.length === 0) { document.getElementById('searchResults').innerHTML = ''; return; }
-      sendServerMessage('search_user', { query: q });
-    });
-
-    document.getElementById('groupSearchQuery').addEventListener('input', async () => {
-      const q = document.getElementById('groupSearchQuery').value.trim();
-      if (q.length === 0) { document.getElementById('groupSearchResults').innerHTML = ''; return; }
-      const res = await fetch(`${SERVER_URL}/search_groups?q=${encodeURIComponent(q)}`);
-      const groups = await res.json();
-      showSearchResults(groups, 'group');
-    });
-
-    function showSearchResults(items, type) {
-      const container = type === 'user' ? document.getElementById('searchResults') : document.getElementById('groupSearchResults');
-      container.innerHTML = '';
-      if (!items.length) { container.innerHTML = '<div>Ничего не найдено</div>'; return; }
-      items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'search-result-item';
-        if (type === 'user') {
-          div.textContent = item.login;
-          div.addEventListener('click', () => {
-            sendServerMessage('create_private_chat', { target: item.login });
-            document.getElementById('searchModal').classList.remove('active');
-          });
-        } else {
-          div.innerHTML = `${escapeHtml(item.name)} (${item.type === 'group' ? 'Группа' : 'Канал'}, ${item.membersCount} уч.) <button class="btn btn-sm join-btn" data-id="${item.id}">Вступить</button>`;
-          div.querySelector('.join-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            sendServerMessage('join_group', { chatId: item.id });
-            document.getElementById('groupsModal').classList.remove('active');
-          });
+        try {
+          const start = await geocode(startInput);
+          const end = await geocode(endInput);
+          if (routingControl) map.removeControl(routingControl);
+          routingControl = L.Routing.control({
+            waypoints: [start, end],
+            routeWhileDragging: true,
+            lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] }
+          }).addTo(map);
+        } catch (e) {
+          alert('Ошибка: ' + e.message);
         }
-        container.appendChild(div);
       });
-    }
 
-    // ========== Профиль ==========
-    document.getElementById('profileBtn').addEventListener('click', () => {
-      document.getElementById('profileModal').classList.add('active');
-      document.getElementById('profileName').value = currentUser.name || '';
-      document.getElementById('profileStatus').value = currentUser.status || '';
-      const av = document.getElementById('avatarUpload');
-      av.style.backgroundImage = currentUser.avatar ? `url(${currentUser.avatar})` : '';
-      av.textContent = currentUser.avatar ? '' : '👤';
-    });
-
-    document.getElementById('closeProfileBtn').addEventListener('click', () => document.getElementById('profileModal').classList.remove('active'));
-    document.getElementById('avatarUpload').addEventListener('click', () => document.getElementById('avatarFileInput').click());
-    document.getElementById('avatarFileInput').addEventListener('change', function(e) {
-      const file = e.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = ev => {
-        const base64 = ev.target.result;
-        currentUser.avatar = base64;
-        document.getElementById('avatarUpload').style.backgroundImage = `url(${base64})`;
-        document.getElementById('avatarUpload').textContent = '';
-        sendServerMessage('update_profile', { avatar: base64 });
-      };
-      reader.readAsDataURL(file);
-    });
-
-    document.getElementById('saveProfileBtn').addEventListener('click', () => {
-      const name = document.getElementById('profileName').value.trim();
-      const status = document.getElementById('profileStatus').value.trim();
-      if (name) currentUser.name = name;
-      currentUser.status = status;
-      sendServerMessage('update_profile', { name, status });
-      document.getElementById('profileModal').classList.remove('active');
-    });
-
-    function updateLocalProfile(profile) {
-      if (profile.name) currentUser.name = profile.name;
-      if (profile.status) currentUser.status = profile.status;
-      if (profile.avatar) currentUser.avatar = profile.avatar;
-    }
-
-    // ========== Звонки (стабильная версия) ==========
-    const callModal = document.getElementById('callModal');
-    const callModalTitle = document.getElementById('callModalTitle');
-    const callModalName = document.getElementById('callModalName');
-    const callModalStatus = document.getElementById('callModalStatus');
-    const callModalAcceptBtn = document.getElementById('callModalAcceptBtn');
-    const callModalRejectBtn = document.getElementById('callModalRejectBtn');
-    const currentCallUI = document.getElementById('currentCallUI');
-
-    function showCallModalWindow(title, name, status, showAccept) {
-      callModalTitle.textContent = title;
-      callModalName.textContent = name;
-      callModalStatus.textContent = status || '';
-      callModalAcceptBtn.style.display = showAccept ? 'inline-block' : 'none';
-      callModalRejectBtn.textContent = showAccept ? 'Отклонить' : 'Отменить';
-      callModal.classList.add('active');
-    }
-
-    function hideCallModalWindow() {
-      callModal.classList.remove('active');
-    }
-
-    function cleanupCall() {
-      if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
+      // ========== РАДИО ==========
+      const stations = [
+        { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
+        { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
+        { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
+        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
+      ];
+      function renderRadioButtons(container, audioElement) {
+        container.innerHTML = '';
+        stations.forEach(st => {
+          const btn = document.createElement('button');
+          btn.className = 'station-btn';
+          btn.textContent = st.name;
+          btn.addEventListener('click', () => {
+            audioElement.src = st.url;
+            audioElement.load();
+            audioElement.play().catch(e => alert('Ошибка ' + st.name));
+            container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
+            btn.classList.add('playing');
+          });
+          container.appendChild(btn);
+        });
       }
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      document.getElementById('localVideo').srcObject = null;
-      document.getElementById('remoteVideo').srcObject = null;
-      currentCallUI.classList.remove('active');
-      activeCall = null;
-    }
-
-    async function createPeerConnection() {
-      peerConnection = new RTCPeerConnection(ICE_SERVERS);
-      peerConnection.onicecandidate = (event) => {
-        if (event.candidate && activeCall) {
-          sendServerMessage('ice_candidate', { chatId: activeCall.chatId, candidate: event.candidate });
+      const radioAudio = document.getElementById('radio-audio');
+      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
+      document.getElementById('play-custom-stream').addEventListener('click', () => {
+        const url = document.getElementById('custom-stream').value.trim();
+        if (url) {
+          radioAudio.src = url;
+          radioAudio.load();
+          radioAudio.play().catch(e => alert('Ошибка потока'));
         }
-      };
-      peerConnection.ontrack = (event) => {
-        if (event.streams && event.streams[0]) {
-          document.getElementById('remoteVideo').srcObject = event.streams[0];
+      });
+
+      const musicRadioAudio = document.getElementById('music-radio-audio');
+      renderRadioButtons(document.getElementById('music-radio-list'), musicRadioAudio);
+
+      // ========== НОВОСТИ ==========
+      function refreshNewsIframe() {
+        const iframe = document.getElementById('news-iframe');
+        iframe.src = iframe.src;
+      }
+      document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
+      setInterval(refreshNewsIframe, 5 * 60 * 1000);
+
+      // ========== ОБЪЯВЛЕНИЯ (шифрованные) ==========
+      async function loadAnnouncements() {
+        const container = document.getElementById('announce-container');
+        try {
+          const res = await fetch(`${SERVICE2_URL}/announcements`);
+          const json = await res.json();
+          if (!json.data) throw new Error('No data');
+          const items = await decryptPayload(json.data);
+          container.innerHTML = items.length ? items.map(item => `<div class="announce-item">📌 ${escapeHtml(item.text)}</div>`).join('') : '<p>Объявлений пока нет</p>';
+        } catch (e) { container.innerHTML = '<p>Ошибка загрузки объявлений</p>'; }
+      }
+      loadAnnouncements();
+
+      // ========== КАЛЕНДАРЬ С СОБЫТИЯМИ ==========
+      let calDate = new Date();
+      let selectedDate = new Date().toISOString().split('T')[0];
+      let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
+
+      function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
+
+      function renderCalendar() {
+        const year = calDate.getFullYear();
+        const month = calDate.getMonth();
+        const firstDay = new Date(year, month, 1).getDay() || 7;
+        const daysInMonth = new Date(year, month+1, 0).getDate();
+        document.getElementById('cal-month-year').textContent = 
+          calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+        const grid = document.getElementById('cal-days');
+        grid.innerHTML = '';
+        const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
+        dayNames.forEach(d => { const div = document.createElement('div'); div.className='cal-day-name'; div.textContent=d; grid.appendChild(div); });
+        for (let i = 1; i < firstDay; i++) { grid.appendChild(document.createElement('div')); }
+        const today = new Date();
+        for (let d = 1; d <= daysInMonth; d++) {
+          const div = document.createElement('div');
+          div.className = 'cal-day';
+          div.textContent = d;
+          const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          if (events[dateStr] && events[dateStr].length > 0) div.classList.add('has-events');
+          if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) div.classList.add('today');
+          div.addEventListener('click', () => {
+            selectedDate = dateStr;
+            document.querySelectorAll('.cal-day').forEach(el => el.style.background = '');
+            div.style.background = '#3f62b0';
+            updateSelectedDate();
+          });
+          grid.appendChild(div);
         }
+        if (selectedDate.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) {
+          const day = parseInt(selectedDate.split('-')[2]);
+          const cells = grid.querySelectorAll('.cal-day');
+          const targetCell = cells[firstDay - 1 + day];
+          if (targetCell) targetCell.style.background = '#3f62b0';
+        }
+      }
+
+      function updateSelectedDate() {
+        document.getElementById('selected-date').textContent = selectedDate;
+        const container = document.getElementById('events-container');
+        const dayEvents = events[selectedDate] || [];
+        container.innerHTML = dayEvents.map(ev => `
+          <div class="event-item">
+            <span>${escapeHtml(ev.text)}</span>
+            <button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button>
+          </div>
+        `).join('');
+        document.getElementById('event-date').value = selectedDate;
+      }
+
+      document.getElementById('add-event').addEventListener('click', () => {
+        const text = document.getElementById('event-text').value.trim();
+        if (!text) return;
+        const date = document.getElementById('event-date').value || selectedDate;
+        if (!events[date]) events[date] = [];
+        events[date].push({ id: Date.now().toString(), text });
+        saveEvents();
+        document.getElementById('event-text').value = '';
+        renderCalendar();
+        updateSelectedDate();
+      });
+
+      window.deleteEvent = (id) => {
+        for (const date in events) {
+          events[date] = events[date].filter(ev => ev.id !== id);
+          if (events[date].length === 0) delete events[date];
+        }
+        saveEvents();
+        renderCalendar();
+        updateSelectedDate();
       };
-      if (localStream) {
-        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+      document.getElementById('cal-prev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
+      document.getElementById('cal-next').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
+      renderCalendar();
+      updateSelectedDate();
+
+      // ========== ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР ==========
+      let calcExpression = '';
+      let calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]');
+      let isEngineerMode = false;
+
+      const basicLayout = [
+        ['C', '(', ')', '/'],
+        ['7', '8', '9', '*'],
+        ['4', '5', '6', '-'],
+        ['1', '2', '3', '+'],
+        ['0', '.', '⌫', '=']
+      ];
+      const engineerLayout = [
+        ['C', '(', ')', 'sin', 'cos'],
+        ['7', '8', '9', 'tan', 'log'],
+        ['4', '5', '6', 'sqrt', '^'],
+        ['1', '2', '3', 'EXP', 'PI'],
+        ['0', '.', '⌫', '+', '=']
+      ];
+
+      function buildCalcButtons(layout) {
+        const container = document.getElementById('calc-buttons');
+        container.innerHTML = '';
+        layout.forEach(row => {
+          row.forEach(key => {
+            const btn = document.createElement('button');
+            btn.className = 'calc-btn';
+            if ('C(/*-+='.includes(key) || 'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator');
+            if (key === '=') btn.classList.add('equal');
+            btn.textContent = key;
+            btn.addEventListener('click', () => handleCalcInput(key));
+            container.appendChild(btn);
+          });
+        });
       }
-      return peerConnection;
-    }
+      buildCalcButtons(basicLayout);
 
-    async function startCall(callType) {
-      if (!activeChatId) return;
-      const chat = chats[activeChatId];
-      if (!chat || chat.type !== 'private') return alert('Звонки только в личных чатах');
-      if (activeCall) return alert('Уже есть активный звонок');
-
-      try {
-        const constraints = callType === 'video'
-          ? { audio: true, video: { width: 640, height: 480 } }
-          : { audio: true, video: false };
-
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        document.getElementById('localVideo').srcObject = localStream;
-        document.getElementById('localVideo').style.display = callType === 'audio' ? 'none' : 'block';
-
-        activeCall = { chatId: activeChatId, callType, incoming: false };
-        showCallModalWindow('Идёт вызов', chat.name, callType === 'video' ? 'Видеозвонок' : 'Аудиозвонок', false);
-
-        await createPeerConnection();
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        sendServerMessage('call_offer', { chatId: activeChatId, sdp: peerConnection.localDescription, callType });
-      } catch (e) {
-        console.error('Ошибка начала звонка:', e);
-        alert('Не удалось начать звонок: ' + e.message);
-        cleanupCall();
-        hideCallModalWindow();
+      function handleCalcInput(key) {
+        if (key === 'C') { calcExpression = ''; }
+        else if (key === '⌫') { calcExpression = calcExpression.slice(0, -1); }
+        else if (key === '=') {
+          try {
+            let result;
+            if (isEngineerMode) {
+              const expr = calcExpression
+                .replace(/sin/g, 'Math.sin')
+                .replace(/cos/g, 'Math.cos')
+                .replace(/tan/g, 'Math.tan')
+                .replace(/log/g, 'Math.log10')
+                .replace(/sqrt/g, 'Math.sqrt')
+                .replace(/\^/g, '**')
+                .replace(/EXP/g, '*10**')
+                .replace(/PI/g, 'Math.PI');
+              result = eval(expr);
+            } else {
+              result = eval(calcExpression);
+            }
+            const historyEntry = `${calcExpression} = ${result}`;
+            calcHistory.unshift(historyEntry);
+            if (calcHistory.length > 10) calcHistory.pop();
+            localStorage.setItem('calc_history', JSON.stringify(calcHistory));
+            renderHistory();
+            calcExpression = result.toString();
+          } catch { calcExpression = 'Ошибка'; }
+        } else {
+          calcExpression += key;
+        }
+        document.getElementById('calc-display').textContent = calcExpression || '0';
       }
-    }
 
-    document.getElementById('audioCallBtn').addEventListener('click', () => startCall('audio'));
-    document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
-
-    callModalRejectBtn.addEventListener('click', () => {
-      if (activeCall) {
-        sendServerMessage('call_end', { chatId: activeCall.chatId });
-        cleanupCall();
+      function renderHistory() {
+        const container = document.getElementById('calc-history');
+        container.innerHTML = calcHistory.map(h => `<div style="font-size:0.9rem; padding:0.2rem 0;">${h}</div>`).join('');
       }
-      hideCallModalWindow();
-    });
+      renderHistory();
 
-    function handleCallOffer(msg) {
-      if (activeCall) {
-        sendServerMessage('call_end', { chatId: msg.chatId });
-        return;
+      document.getElementById('toggle-mode').addEventListener('click', () => {
+        isEngineerMode = !isEngineerMode;
+        buildCalcButtons(isEngineerMode ? engineerLayout : basicLayout);
+        document.getElementById('toggle-mode').textContent = isEngineerMode ? 'Обычный' : 'Инженерный';
+      });
+
+      // ========== ПОГОДА ==========
+      document.getElementById('weather-btn').addEventListener('click', async () => {
+        const city = document.getElementById('city-input').value.trim();
+        const resultDiv = document.getElementById('weather-result');
+        if (!city) return;
+        resultDiv.textContent = 'Запрос...';
+        try {
+          const response = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
+          resultDiv.innerHTML = `🌡️ ${response.temp}°C, ${response.desc}<br>📍 ${response.city}`;
+        } catch (e) {
+          resultDiv.textContent = 'Ошибка получения погоды.';
+        }
+      });
+
+      // ========== ПОИСК ==========
+      const searchQuery = document.getElementById('search-query');
+      const searchBtn = document.getElementById('search-btn');
+      const searchResults = document.getElementById('search-results');
+      const searchStatus = document.getElementById('search-status');
+
+      searchBtn.addEventListener('click', async () => {
+        const query = searchQuery.value.trim();
+        if (!query) return;
+        searchStatus.textContent = 'Поиск...';
+        searchResults.innerHTML = '';
+        try {
+          const response = await secureFetch(`${SERVICE4_URL}/api/search`, { query });
+          displaySearchResults(response.results);
+          searchStatus.textContent = `Найдено: ${response.results.length}`;
+        } catch (e) {
+          searchStatus.textContent = 'Ошибка поиска.';
+        }
+      });
+      searchQuery.addEventListener('keypress', e => {
+        if (e.key === 'Enter') searchBtn.click();
+      });
+
+      function displaySearchResults(results) {
+        if (!results.length) {
+          searchResults.innerHTML = '<p>Ничего не найдено</p>';
+          return;
+        }
+        searchResults.innerHTML = results.map(r => `
+          <div class="search-result-item">
+            <div style="font-size:0.8rem; color:#5f7ecf;">${r.source}</div>
+            <a href="${r.url || '#'}" target="_blank" rel="noopener" style="color:#cfdbff; font-weight:bold; text-decoration:none;">${escapeHtml(r.title)}</a>
+            <p style="font-size:0.85rem; color:#b0c0e0; margin-top:0.3rem;">${escapeHtml(r.text || '')}</p>
+            ${r.icon ? `<img src="${r.icon}" style="max-height:40px; margin-top:0.3rem;">` : ''}
+          </div>
+        `).join('');
       }
-      activeCall = {
-        chatId: msg.chatId,
-        callType: msg.callType || 'video',
-        incoming: true,
-        from: msg.from,
-        sdp: msg.sdp
-      };
-      const typeText = activeCall.callType === 'audio' ? 'Аудиозвонок' : 'Видеозвонок';
-      showCallModalWindow('Входящий ' + typeText, msg.from, '', true);
-    }
 
-    callModalAcceptBtn.addEventListener('click', async () => {
-      const callInfo = activeCall;
-      if (!callInfo || !callInfo.incoming) return;
-      hideCallModalWindow();
+      // ========== SkyID (шифрованные регистрация и вход) ==========
+      document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
+        const login = document.getElementById('skyid-reg-login').value.trim();
+        const password = document.getElementById('skyid-reg-password').value;
+        if (!login || !password) return alert('Заполни поля');
+        try {
+          const payload = await encryptPayload({ login, password });
+          const res = await fetch(`${SKYID_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка');
+          }
+          const json = await res.json();
+          if (!json.data) throw new Error('No data');
+          const data = await decryptPayload(json.data);
+          document.getElementById('skyid-result').innerHTML = `
+            <p style="color:#7ebc6f;">✅ Регистрация успешна!</p>
+            <p><strong>SkyID:</strong> ${data.skyid}</p>
+            <p><strong>Токен:</strong> ${data.token}</p>
+          `;
+        } catch (e) {
+          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+        }
+      });
 
-      try {
-        const constraints = callInfo.callType === 'video'
-          ? { audio: true, video: { width: 640, height: 480 } }
-          : { audio: true, video: false };
+      document.getElementById('skyid-login-btn').addEventListener('click', async () => {
+        const login = document.getElementById('skyid-login-login').value.trim();
+        const password = document.getElementById('skyid-login-password').value;
+        if (!login || !password) return alert('Заполни поля');
+        try {
+          const payload = await encryptPayload({ login, password });
+          const res = await fetch(`${SKYID_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка');
+          }
+          const json = await res.json();
+          if (!json.data) throw new Error('No data');
+          const data = await decryptPayload(json.data);
+          document.getElementById('skyid-result').innerHTML = `
+            <p style="color:#7ebc6f;">✅ Вход выполнен!</p>
+            <p><strong>SkyID:</strong> ${data.skyid}</p>
+            <p><strong>Токен:</strong> ${data.token}</p>
+          `;
+        } catch (e) {
+          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+        }
+      });
 
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        document.getElementById('localVideo').srcObject = localStream;
-        document.getElementById('localVideo').style.display = callInfo.callType === 'audio' ? 'none' : 'block';
-        currentCallUI.classList.add('active');
-
-        await createPeerConnection();
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(callInfo.sdp));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        sendServerMessage('call_answer', { chatId: callInfo.chatId, sdp: peerConnection.localDescription });
-      } catch (e) {
-        console.error('Ошибка принятия звонка:', e);
-        alert('Не удалось принять звонок: ' + e.message);
-        cleanupCall();
-        hideCallModalWindow();
+      function escapeHtml(text) {
+        return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
       }
-    });
 
-    function handleCallAnswer(msg) {
-      if (!activeCall || activeCall.incoming) return;
-      hideCallModalWindow();
-      currentCallUI.classList.add('active');
-      if (peerConnection) {
-        peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp)).catch(e => console.error(e));
-      }
-    }
-
-    function handleICECandidate(msg) {
-      if (peerConnection && msg.candidate) {
-        peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate)).catch(e => console.error(e));
-      }
-    }
-
-    document.getElementById('endCallBtn').addEventListener('click', () => {
-      if (activeCall) sendServerMessage('call_end', { chatId: activeCall.chatId });
-      cleanupCall();
-      hideCallModalWindow();
-    });
-
-    function handleCallEnded() {
-      cleanupCall();
-      hideCallModalWindow();
-    }
-
-    document.getElementById('toggleMic').addEventListener('click', () => {
-      if (localStream) {
-        const audioTrack = localStream.getAudioTracks()[0];
-        if (audioTrack) audioTrack.enabled = !audioTrack.enabled;
-      }
-    });
-    document.getElementById('toggleCam').addEventListener('click', () => {
-      if (localStream) {
-        const videoTrack = localStream.getVideoTracks()[0];
-        if (videoTrack) videoTrack.enabled = !videoTrack.enabled;
-      }
-    });
-
-    // Вспомогательные функции
-    function escapeHtml(text) {
-      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
-    }
-    function formatSize(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / 1048576).toFixed(1) + ' MB';
-    }
+      setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
+    })();
   </script>
 </body>
 </html>
