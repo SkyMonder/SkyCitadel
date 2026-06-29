@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>SkyCitadel — Цифровая крепость</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -102,30 +103,39 @@
     .radio-stations { display: flex; flex-wrap: wrap; gap: 0.8rem; margin: 1rem 0; }
     .station-btn { background: #1c2541; border: 1px solid #3f4b6b; padding: 0.6rem 1.2rem; border-radius: 20px; color: #cfdbff; cursor: pointer; }
     .station-btn.playing { background: #2f4b8c; border-color: #6b8cff; box-shadow: 0 0 12px #2f4b8c; }
-    .calc-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.8rem; }
-    .calc-display { grid-column: span 4; background: #0a0f1e; padding: 1rem; font-size: 2rem; text-align: right; border-radius: 16px; border: 1px solid #3a4660; margin-bottom: 0.5rem; }
-    .calc-btn { padding: 1rem; font-size: 1.3rem; border-radius: 16px; background: #1e2744; border: 1px solid #3a4660; color: white; cursor: pointer; transition: 0.2s; }
-    .calc-btn.operator { background: #2f3b5c; }
-    .calc-btn.equal { background: #3f62b0; }
+    .btn { background: var(--accent, #2f4b8c); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
+    .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
+
+    /* Календарь */
     .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
-    .cal-header button { background: #1e2744; border: none; color: white; padding: 0.5rem 1rem; border-radius: 10px; cursor: pointer; }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; text-align: center; }
     .cal-day-name { color: #7f8bb3; font-weight: bold; }
-    .cal-day { padding: 0.8rem; background: #121a32; border-radius: 12px; }
+    .cal-day { padding: 0.8rem; background: #121a32; border-radius: 12px; cursor: pointer; position: relative; }
     .cal-day.today { background: #2f4b8c; font-weight: bold; }
+    .cal-day.has-events::after { content: '•'; color: #ffb347; position: absolute; top: 2px; right: 5px; }
+    .event-list { margin-top: 1rem; }
+    .event-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #151e36; border-radius: 8px; margin-bottom: 0.4rem; }
+
+    /* Калькулятор */
+    .calc-container { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .calc-panel { flex: 2; min-width: 280px; }
+    .history-panel { flex: 1; min-width: 200px; background: #111827; border-radius: 12px; padding: 0.8rem; max-height: 400px; overflow-y: auto; }
+    .calc-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; }
+    .calc-display { grid-column: span 5; background: #0a0f1e; padding: 1rem; font-size: 2rem; text-align: right; border-radius: 16px; border: 1px solid #3a4660; margin-bottom: 0.5rem; }
+    .calc-btn { padding: 0.9rem; font-size: 1.2rem; border-radius: 12px; background: #1e2744; border: 1px solid #3a4660; color: white; cursor: pointer; transition: 0.2s; }
+    .calc-btn.operator { background: #2f3b5c; }
+    .calc-btn.equal { background: #3f62b0; }
+    .calc-btn.func { background: #2f4b4a; }
+
+    /* Навигатор */
+    .route-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
+    .route-controls input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid #3a4660; color: white; border-radius: 10px; }
+
     .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
-    .placeholder-icon { font-size: 3rem; margin-bottom: 1rem; }
-    .btn { background: var(--accent, #2f4b8c); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
     .search-result-item {
-      background: #151e36;
-      padding: 0.8rem;
-      margin-bottom: 0.6rem;
-      border-radius: 10px;
-      border-left: 3px solid #5f7ecf;
-      transition: background 0.2s;
+      background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf;
     }
-    .search-result-item:hover { background: #1e2a4a; }
   </style>
 </head>
 <body>
@@ -156,6 +166,11 @@
         <div class="map-search">
           <input type="text" id="map-search-input" placeholder="Поиск места...">
           <button id="map-search-btn">Искать</button>
+        </div>
+        <div class="route-controls">
+          <input type="text" id="route-start" placeholder="Откуда (адрес)">
+          <input type="text" id="route-end" placeholder="Куда (адрес)">
+          <button id="route-go" class="btn">Проложить маршрут</button>
         </div>
         <div id="map"></div>
       </div>
@@ -192,9 +207,9 @@
     <div id="news" class="section">
       <div class="card">
         <h2>📰 Автообновляемая газета</h2>
-        <p style="margin-bottom:0.8rem;">Источник: РИА Новости (обновляется каждый час)</p>
+        <p style="margin-bottom:0.8rem;">Источник: РИА Новости</p>
         <iframe id="news-iframe" class="news-frame" src="gazeta.html"></iframe>
-        <button id="refresh-news" style="margin-top:0.7rem; background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">🔄 Обновить сейчас</button>
+        <button id="refresh-news" style="margin-top:0.7rem; background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">🔄 Обновить</button>
       </div>
     </div>
 
@@ -206,45 +221,44 @@
       </div>
     </div>
 
-    <!-- Календарь -->
+    <!-- Календарь с мероприятиями -->
     <div id="calendar" class="section">
       <div class="card">
         <h2>📅 Календарь</h2>
         <div class="cal-header">
-          <button id="cal-prev">◀</button>
-          <span id="cal-month-year"></span>
-          <button id="cal-next">▶</button>
+          <button id="cal-prev" class="btn">◀</button>
+          <span id="cal-month-year" style="font-size:1.3rem;"></span>
+          <button id="cal-next" class="btn">▶</button>
         </div>
         <div class="cal-grid" id="cal-days"></div>
+        <div class="event-list" id="event-list">
+          <h3>События на <span id="selected-date"></span></h3>
+          <div id="events-container"></div>
+          <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
+            <input type="text" id="event-text" placeholder="Новое событие" style="flex:1; padding:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:8px;">
+            <input type="date" id="event-date" style="padding:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:8px;">
+            <button id="add-event" class="btn">Добавить</button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- Калькулятор -->
+    <!-- Калькулятор инженерный -->
     <div id="calculator" class="section">
       <div class="card">
-        <h2>🧮 Калькулятор</h2>
-        <div class="calc-grid">
-          <div class="calc-display" id="calc-display">0</div>
-          <button class="calc-btn" data-action="clear">C</button>
-          <button class="calc-btn operator" data-action="(">(</button>
-          <button class="calc-btn operator" data-action=")">)</button>
-          <button class="calc-btn operator" data-action="/">÷</button>
-          <button class="calc-btn" data-action="7">7</button>
-          <button class="calc-btn" data-action="8">8</button>
-          <button class="calc-btn" data-action="9">9</button>
-          <button class="calc-btn operator" data-action="*">×</button>
-          <button class="calc-btn" data-action="4">4</button>
-          <button class="calc-btn" data-action="5">5</button>
-          <button class="calc-btn" data-action="6">6</button>
-          <button class="calc-btn operator" data-action="-">−</button>
-          <button class="calc-btn" data-action="1">1</button>
-          <button class="calc-btn" data-action="2">2</button>
-          <button class="calc-btn" data-action="3">3</button>
-          <button class="calc-btn operator" data-action="+">+</button>
-          <button class="calc-btn" data-action="0">0</button>
-          <button class="calc-btn" data-action=".">.</button>
-          <button class="calc-btn" data-action="back">⌫</button>
-          <button class="calc-btn equal" data-action="=">=</button>
+        <h2>🧮 Инженерный калькулятор</h2>
+        <div class="calc-container">
+          <div class="calc-panel">
+            <div class="calc-display" id="calc-display">0</div>
+            <div class="calc-grid" id="calc-buttons">
+              <!-- Кнопки генерируются JS -->
+            </div>
+            <button id="toggle-mode" class="btn" style="margin-top:0.5rem;">Обычный / Инженерный</button>
+          </div>
+          <div class="history-panel">
+            <h4>История</h4>
+            <div id="calc-history"></div>
+          </div>
         </div>
       </div>
     </div>
@@ -255,13 +269,13 @@
         <h2>☁️ Погода</h2>
         <div style="display:flex; gap:1rem; margin-bottom:1rem;">
           <input type="text" id="city-input" placeholder="Город" value="Москва" style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
-          <button id="weather-btn" style="background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">Узнать</button>
+          <button id="weather-btn" class="btn">Узнать</button>
         </div>
         <div id="weather-result">Введи город и нажми кнопку.</div>
       </div>
     </div>
 
-    <!-- Музыкальный центр (без YouTube) -->
+    <!-- Музыкальный центр -->
     <div id="music" class="section">
       <div class="card">
         <h2>🎵 Музыкальный центр</h2>
@@ -275,13 +289,13 @@
       </div>
     </div>
 
-    <!-- Поиск (SkySearch) -->
+    <!-- Поиск -->
     <div id="search" class="section">
       <div class="card">
         <h2>🔍 SkySearch – Умный поиск</h2>
         <div style="display:flex; gap:0.5rem; margin-bottom:1rem;">
           <input type="text" id="search-query" placeholder="Введите запрос..." style="flex:1; padding:0.7rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
-          <button id="search-btn" style="background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">Найти</button>
+          <button id="search-btn" class="btn">Найти</button>
         </div>
         <div id="search-results" style="max-height:70vh; overflow-y:auto;"></div>
         <p id="search-status" style="margin-top:0.5rem; color:#8899cc;"></p>
@@ -310,21 +324,22 @@
       </div>
     </div>
 
-    <!-- Заметки (iframe) -->
+    <!-- Заметки -->
     <div id="notes" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://skynotes-n17c.onrender.com/" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="https://your-notes-project.com" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
   <script>
     (function() {
       // ========== URLs сервисов ==========
-      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // сервис 2 (погода, объявления, прокси)
-      const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // сервис 4 (поиск)
-      const SKYID_URL = 'https://sky-id.onrender.com';          // сервис 5 (SkyID)
+      const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // погода, объявления
+      const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // поиск
+      const SKYID_URL = 'https://sky-id.onrender.com';       // SkyID
 
       // ========== НАВИГАЦИЯ ==========
       const navButtons = document.querySelectorAll('.nav-btn');
@@ -337,13 +352,12 @@
           sections.forEach(sec => sec.classList.remove('active'));
           document.getElementById(targetId).classList.add('active');
           if (targetId === 'maps') setTimeout(() => map.invalidateSize(), 100);
-          if (targetId === 'calendar') renderCalendar();
+          if (targetId === 'calendar') { renderCalendar(); updateSelectedDate(); }
           if (targetId === 'news') refreshNewsIframe();
-          if (targetId === 'announce') loadAnnouncements();
         });
       });
 
-      // ========== ШИФРОВАНИЕ AES-256-GCM ==========
+      // ========== ШИФРОВАНИЕ ==========
       const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
       async function getKey() {
         const keyBytes = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
@@ -380,11 +394,14 @@
         return await decryptPayload(json.data);
       }
 
-      // ========== КАРТЫ ==========
+      // ========== КАРТЫ + НАВИГАТОР ==========
       const map = L.map('map').setView([55.751244, 37.618423], 10);
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '© OpenStreetMap'
       }).addTo(map);
+
+      let routingControl = null;
+
       document.getElementById('map-search-btn').addEventListener('click', async () => {
         const query = document.getElementById('map-search-input').value.trim();
         if (!query) return;
@@ -397,6 +414,32 @@
         }
       });
 
+      document.getElementById('route-go').addEventListener('click', async () => {
+        const startInput = document.getElementById('route-start').value.trim();
+        const endInput = document.getElementById('route-end').value.trim();
+        if (!startInput || !endInput) return alert('Укажите начало и конец маршрута');
+
+        const geocode = async (address) => {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
+          const data = await res.json();
+          if (data && data.length > 0) return L.latLng(data[0].lat, data[0].lon);
+          throw new Error('Адрес не найден');
+        };
+
+        try {
+          const start = await geocode(startInput);
+          const end = await geocode(endInput);
+          if (routingControl) map.removeControl(routingControl);
+          routingControl = L.Routing.control({
+            waypoints: [start, end],
+            routeWhileDragging: true,
+            lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] }
+          }).addTo(map);
+        } catch (e) {
+          alert('Ошибка: ' + e.message);
+        }
+      });
+
       // ========== РАДИО ==========
       const stations = [
         { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
@@ -404,39 +447,35 @@
         { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
         { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
       ];
-      const radioAudio = document.getElementById('radio-audio');
-      const radioListDiv = document.getElementById('radio-list');
-      function renderRadioButtons(container, audio) {
+      function renderRadioButtons(container, audioElement) {
         container.innerHTML = '';
         stations.forEach(st => {
           const btn = document.createElement('button');
           btn.className = 'station-btn';
           btn.textContent = st.name;
           btn.addEventListener('click', () => {
-            audio.src = st.url;
-            audio.load();
-            audio.play().catch(e => alert('Не удалось воспроизвести ' + st.name));
+            audioElement.src = st.url;
+            audioElement.load();
+            audioElement.play().catch(e => alert('Ошибка ' + st.name));
             container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
             btn.classList.add('playing');
           });
           container.appendChild(btn);
         });
       }
-      renderRadioButtons(radioListDiv, radioAudio);
+      const radioAudio = document.getElementById('radio-audio');
+      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
       document.getElementById('play-custom-stream').addEventListener('click', () => {
         const url = document.getElementById('custom-stream').value.trim();
         if (url) {
           radioAudio.src = url;
           radioAudio.load();
           radioAudio.play().catch(e => alert('Ошибка потока'));
-          document.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
         }
       });
 
-      // ========== МУЗЫКАЛЬНЫЙ ЦЕНТР ==========
-      const musicRadioListDiv = document.getElementById('music-radio-list');
       const musicRadioAudio = document.getElementById('music-radio-audio');
-      renderRadioButtons(musicRadioListDiv, musicRadioAudio);
+      renderRadioButtons(document.getElementById('music-radio-list'), musicRadioAudio);
 
       // ========== НОВОСТИ ==========
       function refreshNewsIframe() {
@@ -452,23 +491,22 @@
         try {
           const res = await fetch(`${SERVICE2_URL}/announcements`);
           const items = await res.json();
-          if (!items.length) {
-            container.innerHTML = '<p>Объявлений пока нет</p>';
-            return;
-          }
-          container.innerHTML = items.map(item => `<div class="announce-item">📌 ${escapeHtml(item.text)}</div>`).join('');
-        } catch (e) {
-          container.innerHTML = '<p>Ошибка загрузки объявлений</p>';
-        }
+          container.innerHTML = items.length ? items.map(item => `<div class="announce-item">📌 ${escapeHtml(item.text)}</div>`).join('') : '<p>Объявлений пока нет</p>';
+        } catch (e) { container.innerHTML = '<p>Ошибка</p>'; }
       }
-      loadAnnouncements(); // загружаем при старте
+      loadAnnouncements();
 
-      // ========== КАЛЕНДАРЬ ==========
+      // ========== КАЛЕНДАРЬ С СОБЫТИЯМИ ==========
       let calDate = new Date();
+      let selectedDate = new Date().toISOString().split('T')[0]; // YYYY-MM-DD
+      let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
+
+      function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
+
       function renderCalendar() {
         const year = calDate.getFullYear();
         const month = calDate.getMonth();
-        const firstDay = new Date(year, month, 1).getDay() || 7;
+        const firstDay = new Date(year, month, 1).getDay() || 7; // Пн=1..Вс=7
         const daysInMonth = new Date(year, month+1, 0).getDate();
         document.getElementById('cal-month-year').textContent = 
           calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
@@ -482,34 +520,145 @@
           const div = document.createElement('div');
           div.className = 'cal-day';
           div.textContent = d;
-          if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) {
-            div.classList.add('today');
-          }
+          const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          if (events[dateStr] && events[dateStr].length > 0) div.classList.add('has-events');
+          if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) div.classList.add('today');
+          div.addEventListener('click', () => {
+            selectedDate = dateStr;
+            document.querySelectorAll('.cal-day').forEach(el => el.style.background = '');
+            div.style.background = '#3f62b0';
+            updateSelectedDate();
+          });
           grid.appendChild(div);
         }
+        if (selectedDate.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) {
+          const day = parseInt(selectedDate.split('-')[2]);
+          const cells = grid.querySelectorAll('.cal-day');
+          const targetCell = cells[firstDay - 1 + day];
+          if (targetCell) targetCell.style.background = '#3f62b0';
+        }
       }
+
+      function updateSelectedDate() {
+        document.getElementById('selected-date').textContent = selectedDate;
+        const container = document.getElementById('events-container');
+        const dayEvents = events[selectedDate] || [];
+        container.innerHTML = dayEvents.map(ev => `
+          <div class="event-item">
+            <span>${escapeHtml(ev.text)}</span>
+            <button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button>
+          </div>
+        `).join('');
+        document.getElementById('event-date').value = selectedDate;
+      }
+
+      document.getElementById('add-event').addEventListener('click', () => {
+        const text = document.getElementById('event-text').value.trim();
+        if (!text) return;
+        const date = document.getElementById('event-date').value || selectedDate;
+        if (!events[date]) events[date] = [];
+        events[date].push({ id: Date.now().toString(), text });
+        saveEvents();
+        document.getElementById('event-text').value = '';
+        renderCalendar();
+        updateSelectedDate();
+      });
+
+      window.deleteEvent = (id) => {
+        for (const date in events) {
+          events[date] = events[date].filter(ev => ev.id !== id);
+          if (events[date].length === 0) delete events[date];
+        }
+        saveEvents();
+        renderCalendar();
+        updateSelectedDate();
+      };
+
       document.getElementById('cal-prev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
       document.getElementById('cal-next').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
       renderCalendar();
+      updateSelectedDate();
 
-      // ========== КАЛЬКУЛЯТОР ==========
-      const calcDisplay = document.getElementById('calc-display');
-      let calcInput = '';
-      function updateCalcDisplay() { calcDisplay.textContent = calcInput || '0'; }
-      document.querySelectorAll('.calc-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const action = btn.getAttribute('data-action');
-          if (action === 'clear') { calcInput = ''; }
-          else if (action === 'back') { calcInput = calcInput.slice(0, -1); }
-          else if (action === '=') {
-            try { calcInput = eval(calcInput.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-')).toString(); }
-            catch { calcInput = 'Ошибка'; }
-          } else {
-            const symbols = { '×':'*', '÷':'/', '−':'-' };
-            calcInput += symbols[action] || action;
-          }
-          updateCalcDisplay();
+      // ========== ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР ==========
+      let calcExpression = '';
+      let calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]');
+      let isEngineerMode = false;
+
+      const basicLayout = [
+        ['C', '(', ')', '/'],
+        ['7', '8', '9', '*'],
+        ['4', '5', '6', '-'],
+        ['1', '2', '3', '+'],
+        ['0', '.', '⌫', '=']
+      ];
+      const engineerLayout = [
+        ['C', '(', ')', 'sin', 'cos'],
+        ['7', '8', '9', 'tan', 'log'],
+        ['4', '5', '6', 'sqrt', '^'],
+        ['1', '2', '3', 'EXP', 'PI'],
+        ['0', '.', '⌫', '+', '=']
+      ];
+
+      function buildCalcButtons(layout) {
+        const container = document.getElementById('calc-buttons');
+        container.innerHTML = '';
+        layout.forEach(row => {
+          row.forEach(key => {
+            const btn = document.createElement('button');
+            btn.className = 'calc-btn';
+            if ('C(/*-+='.includes(key) || 'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator');
+            if (key === '=') btn.classList.add('equal');
+            btn.textContent = key;
+            btn.addEventListener('click', () => handleCalcInput(key));
+            container.appendChild(btn);
+          });
         });
+      }
+      buildCalcButtons(basicLayout);
+
+      function handleCalcInput(key) {
+        if (key === 'C') { calcExpression = ''; }
+        else if (key === '⌫') { calcExpression = calcExpression.slice(0, -1); }
+        else if (key === '=') {
+          try {
+            let result;
+            if (isEngineerMode) {
+              const expr = calcExpression
+                .replace(/sin/g, 'Math.sin')
+                .replace(/cos/g, 'Math.cos')
+                .replace(/tan/g, 'Math.tan')
+                .replace(/log/g, 'Math.log10')
+                .replace(/sqrt/g, 'Math.sqrt')
+                .replace(/\^/g, '**')
+                .replace(/EXP/g, '*10**')
+                .replace(/PI/g, 'Math.PI');
+              result = eval(expr);
+            } else {
+              result = eval(calcExpression);
+            }
+            const historyEntry = `${calcExpression} = ${result}`;
+            calcHistory.unshift(historyEntry);
+            if (calcHistory.length > 10) calcHistory.pop();
+            localStorage.setItem('calc_history', JSON.stringify(calcHistory));
+            renderHistory();
+            calcExpression = result.toString();
+          } catch { calcExpression = 'Ошибка'; }
+        } else {
+          calcExpression += key;
+        }
+        document.getElementById('calc-display').textContent = calcExpression || '0';
+      }
+
+      function renderHistory() {
+        const container = document.getElementById('calc-history');
+        container.innerHTML = calcHistory.map(h => `<div style="font-size:0.9rem; padding:0.2rem 0;">${h}</div>`).join('');
+      }
+      renderHistory();
+
+      document.getElementById('toggle-mode').addEventListener('click', () => {
+        isEngineerMode = !isEngineerMode;
+        buildCalcButtons(isEngineerMode ? engineerLayout : basicLayout);
+        document.getElementById('toggle-mode').textContent = isEngineerMode ? 'Обычный' : 'Инженерный';
       });
 
       // ========== ПОГОДА ==========
@@ -517,16 +666,16 @@
         const city = document.getElementById('city-input').value.trim();
         const resultDiv = document.getElementById('weather-result');
         if (!city) return;
-        resultDiv.textContent = 'Запрос через шифрованный канал...';
+        resultDiv.textContent = 'Запрос...';
         try {
           const response = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
           resultDiv.innerHTML = `🌡️ ${response.temp}°C, ${response.desc}<br>📍 ${response.city}`;
         } catch (e) {
-          resultDiv.textContent = 'Ошибка получения погоды. Попробуйте позже.';
+          resultDiv.textContent = 'Ошибка получения погоды.';
         }
       });
 
-      // ========== ПОИСК (SkySearch) ==========
+      // ========== ПОИСК ==========
       const searchQuery = document.getElementById('search-query');
       const searchBtn = document.getElementById('search-btn');
       const searchResults = document.getElementById('search-results');
@@ -542,8 +691,7 @@
           displaySearchResults(response.results);
           searchStatus.textContent = `Найдено: ${response.results.length}`;
         } catch (e) {
-          searchStatus.textContent = 'Ошибка поиска. Проверьте консоль.';
-          console.error(e);
+          searchStatus.textContent = 'Ошибка поиска.';
         }
       });
       searchQuery.addEventListener('keypress', e => {
