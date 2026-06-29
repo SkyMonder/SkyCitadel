@@ -142,6 +142,7 @@
     <button class="nav-btn" data-section="weather">☁️ Погода</button>
     <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
     <button class="nav-btn" data-section="search">🔍 Поиск</button>
+    <button class="nav-btn" data-section="skyid">🆔 SkyID</button>
     <div class="spacer"></div>
     <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
   </div>
@@ -184,7 +185,7 @@
       <div class="card" style="text-align:center; padding:3rem;">
         <div class="placeholder-icon">👥</div>
         <h2>Социальная сеть</h2>
-        <p>Лента, профили, посты — всё с шифрованием.<br>Будет интегрирована через второй сервис.</p>
+        <p>Скоро здесь будет SkySocial.<br>Авторизация через SkyID уже готова.</p>
       </div>
     </div>
 
@@ -282,6 +283,28 @@
         <p id="search-status" style="margin-top:0.5rem; color:#8899cc;"></p>
       </div>
     </div>
+
+    <!-- SkyID -->
+    <div id="skyid" class="section">
+      <div class="card">
+        <h2>🆔 SkyID — Единый идентификатор</h2>
+        <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <div style="flex:1; min-width:250px;">
+            <h3>Регистрация</h3>
+            <input type="text" id="skyid-reg-login" placeholder="Логин" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <input type="password" id="skyid-reg-password" placeholder="Пароль" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <button id="skyid-reg-btn" class="btn" style="width:100%;">Зарегистрировать SkyID</button>
+          </div>
+          <div style="flex:1; min-width:250px;">
+            <h3>Вход</h3>
+            <input type="text" id="skyid-login-login" placeholder="Логин" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <input type="password" id="skyid-login-password" placeholder="Пароль" style="width:100%; padding:0.7rem; margin-bottom:0.5rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
+            <button id="skyid-login-btn" class="btn" style="width:100%;">Войти</button>
+          </div>
+        </div>
+        <div id="skyid-result" style="margin-top:1rem; padding:1rem; background:#151e36; border-radius:10px;"></div>
+      </div>
+    </div>
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -290,6 +313,7 @@
       // ========== URLs сервисов ==========
       const SERVICE2_URL = 'https://serveratiuz.onrender.com'; // сервис 2 (погода)
       const SERVICE4_URL = 'https://minicitadiz.onrender.com'; // сервис 4 (поиск)
+      const SKYID_URL = 'https://sky-id.onrender.com';          // замени на свой URL сервиса №5
 
       // ========== НАВИГАЦИЯ ==========
       const navButtons = document.querySelectorAll('.nav-btn');
@@ -406,7 +430,7 @@
       setInterval(refreshNewsIframe, 5 * 60 * 1000);
 
       // ========== ОБЪЯВЛЕНИЯ ==========
-      // файл special.json может отсутствовать – ошибка подавлена
+      // статично, файл special.json не загружается
 
       // ========== КАЛЕНДАРЬ ==========
       let calDate = new Date();
@@ -524,6 +548,51 @@
           </div>
         `).join('');
       }
+
+      // ========== SkyID ==========
+      document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
+        const login = document.getElementById('skyid-reg-login').value.trim();
+        const password = document.getElementById('skyid-reg-password').value;
+        if (!login || !password) return alert('Заполни поля');
+        try {
+          const res = await fetch(`${SKYID_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Ошибка');
+          document.getElementById('skyid-result').innerHTML = `
+            <p style="color:#7ebc6f;">✅ Регистрация успешна!</p>
+            <p><strong>SkyID:</strong> ${data.skyid}</p>
+            <p><strong>Токен:</strong> ${data.token}</p>
+          `;
+        } catch (e) {
+          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+        }
+      });
+
+      document.getElementById('skyid-login-btn').addEventListener('click', async () => {
+        const login = document.getElementById('skyid-login-login').value.trim();
+        const password = document.getElementById('skyid-login-password').value;
+        if (!login || !password) return alert('Заполни поля');
+        try {
+          const res = await fetch(`${SKYID_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ login, password })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Ошибка');
+          document.getElementById('skyid-result').innerHTML = `
+            <p style="color:#7ebc6f;">✅ Вход выполнен!</p>
+            <p><strong>SkyID:</strong> ${data.skyid}</p>
+            <p><strong>Токен:</strong> ${data.token}</p>
+          `;
+        } catch (e) {
+          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+        }
+      });
 
       function escapeHtml(text) {
         return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
