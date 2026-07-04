@@ -783,15 +783,6 @@
 
   <!-- Счётчик посещений SkyCounter -->
   <!-- Счётчик посещений SkyCounter (динамический пиксель) -->
-  <script>
-  // Укажите точное имя отслеживаемого домена
-    var SITE_NAME = 'skycitadel.onrender.com';
-
-  // Создаём невидимый элемент img, браузер загрузит его src и отправит GET-запрос
-    var img = new Image();
-    img.src = 'https://skycounter.onrender.com/checkvizit?site=' + encodeURIComponent(SITE_NAME);
-    img.style.display = 'none';          // скрываем, пользователь не увидит
-    document.body.appendChild(img);      // добавляем в DOM, чтобы запрос ушёл
-  </script>
+  <script src="https://skycounter.onrender.com/visit.js"></script>
 </body>
 </html>
