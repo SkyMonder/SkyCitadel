@@ -153,7 +153,6 @@
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null;
     let activeCall = null;
-    let pendingFiles = [];
     let uploadToken = null;
 
     const enc = new TextEncoder(); const dec = new TextDecoder();
@@ -189,9 +188,7 @@
     }
 
     function sendServerMessage(type, data = {}) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, ...data }));
-      }
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...data }));
     }
 
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
@@ -291,13 +288,9 @@
       if (msg.file) {
         const { name, type, size, url, data } = msg.file;
         const fileUrl = url || data;
-        if (type.startsWith('image/')) {
-          content += `<br><img src="${fileUrl}" alt="${name}" title="${name} (${formatSize(size)})" loading="lazy">`;
-        } else if (type.startsWith('video/')) {
-          content += `<br><video controls src="${fileUrl}" title="${name} (${formatSize(size)})" preload="metadata"></video>`;
-        } else {
-          content += `<br><a href="${fileUrl}" download="${name}" style="color:#aac0ff;">📎 ${name} (${formatSize(size)})</a>`;
-        }
+        if (type.startsWith('image/')) content += `<br><img src="${fileUrl}" alt="${name}" title="${name} (${formatSize(size)})" loading="lazy">`;
+        else if (type.startsWith('video/')) content += `<br><video controls src="${fileUrl}" title="${name} (${formatSize(size)})" preload="metadata"></video>`;
+        else content += `<br><a href="${fileUrl}" download="${name}" style="color:#aac0ff;">📎 ${name} (${formatSize(size)})</a>`;
       }
       content += `<div class="time">${new Date(msg.time).toLocaleTimeString()}</div>`;
       div.innerHTML = content;
@@ -428,14 +421,7 @@
       });
     }
 
-    document.getElementById('profileBtn').addEventListener('click', () => {
-      document.getElementById('profileModal').classList.add('active');
-      document.getElementById('profileName').value = currentUser.name || '';
-      document.getElementById('profileStatus').value = currentUser.status || '';
-      const av = document.getElementById('avatarUpload');
-      av.style.backgroundImage = currentUser.avatar ? `url(${currentUser.avatar})` : '';
-      av.textContent = currentUser.avatar ? '' : '👤';
-    });
+    document.getElementById('profileBtn').addEventListener('click', () => { alert('Профиль пока в разработке'); });
 
     // Звонки
     const callModal = document.getElementById('callModal');
