@@ -783,6 +783,37 @@
 
   <!-- Счётчик посещений SkyCounter -->
   <!-- Счётчик посещений SkyCounter (динамический пиксель) -->
-  <script src="https://skycounter.onrender.com/visit.js"></script>
+    <!-- Надёжный счётчик SkyCounter с обратной связью -->
+  <script>
+    (function() {
+      var SITE_NAME = 'skycitadel.onrender.com'; // Ваш домен (должен быть в списке SITES на сервере)
+
+      // Генерируем или получаем device_id
+      var deviceId = localStorage.getItem('skycounter_device_id');
+      if (!deviceId) {
+        deviceId = 'dev_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+        localStorage.setItem('skycounter_device_id', deviceId);
+      }
+
+      // Формируем URL для счётчика
+      var url = 'https://skycounter.onrender.com/checkvizit?site=' + encodeURIComponent(SITE_NAME) + '&device_id=' + deviceId;
+
+      // Отправляем запрос через невидимый Image (обходит CORS)
+      var img = new Image();
+      img.onload = function() {
+        console.log('✅ Визит зарегистрирован: ' + SITE_NAME);
+        // Можно показать сообщение на странице (для отладки)
+        var msg = document.createElement('div');
+        msg.style.cssText = 'position:fixed; bottom:20px; right:20px; background:#4caf50; color:white; padding:8px 16px; border-radius:8px; z-index:9999; font-size:14px;';
+        msg.textContent = '✅ Визит учтён';
+        document.body.appendChild(msg);
+        setTimeout(function() { msg.remove(); }, 3000);
+      };
+      img.onerror = function() {
+        console.error('❌ Ошибка регистрации визита. Проверьте сервер счётчика.');
+      };
+      img.src = url;
+    })();
+  </script>
 </body>
 </html>
