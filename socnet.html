@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SkySocial</title>
   <style>
-    :root { --bg: #0a0f1e; --panel: #111827; --card: #1a233a; --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf; }
+    :root {
+      --bg: #0a0f1e; --panel: #111827; --card: #1a233a;
+      --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     .login-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
@@ -21,15 +24,11 @@
     .post-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--accent); display: flex; align-items: center; justify-content: center; }
     .post-author { font-weight: bold; }
     .post-text { margin-bottom: 0.5rem; }
-    .post-actions { display: flex; gap: 0.5rem; font-size: 0.85rem; align-items: center; flex-wrap: wrap; }
+    .post-actions { display: flex; gap: 0.5rem; font-size: 0.85rem; }
     .btn { background: var(--accent); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; }
-    .btn-danger { background: #c44; }
     .new-post { display: flex; gap: 0.5rem; padding: 0.5rem; background: var(--card); border-radius: 12px; }
     .new-post textarea { flex: 1; padding: 0.5rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 8px; resize: vertical; min-height: 60px; }
-    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; margin-top: 1rem; }
-    .comment-section { margin-top: 0.5rem; margin-left: 1rem; border-left: 2px solid #2f3b5c; padding-left: 0.8rem; }
-    .comment { margin-bottom: 0.5rem; }
-    .comment-actions { display: flex; gap: 0.3rem; font-size: 0.75rem; align-items: center; }
+    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; }
   </style>
 </head>
 <body>
@@ -60,49 +59,54 @@
         <button class="btn" id="sendPost">➤</button>
       </div>
       <div id="postsContainer"></div>
-      <div class="profile-panel" id="profilePanel" style="display:none;">
-        <h3>Мой профиль</h3>
-        <input type="text" id="profileName" placeholder="Имя" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
-        <input type="text" id="profileBio" placeholder="О себе" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
-        <button class="btn" id="saveProfile" style="width:100%; margin-top:0.5rem;">Сохранить</button>
-        <button class="btn" id="closeProfile" style="width:100%; margin-top:0.3rem; background:#444;">Закрыть</button>
-      </div>
+    </div>
+    <div class="profile-panel" id="profilePanel" style="display:none;">
+      <h3>Мой профиль</h3>
+      <input type="text" id="profileName" placeholder="Имя" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
+      <input type="text" id="profileBio" placeholder="О себе" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
+      <button class="btn" id="saveProfile" style="width:100%; margin-top:0.5rem;">Сохранить</button>
+      <button class="btn" id="closeProfile" style="width:100%; margin-top:0.3rem; background:#444;">Закрыть</button>
     </div>
   </div>
 
   <script>
-    // ⚠️ Замени на реальный URL твоего SkyID-сервиса!
-    const SKYID_URL = 'https://skybiduid.onrender.com';
-    const SOCIAL_API = 'https://skysocial-128o.onrender.com';
+    const SKYID_URL = 'https://skybiduid.onrender.com';   // SkyID
+    const SOCIAL_API = 'https://skysocial-128o.onrender.com'; // соцсеть
+
+    // ========== Функции шифрования (как в index.html) ==========
+    const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
+    async function getKey() {
+      const keyBytes = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+      return await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    }
+    async function encryptPayload(plainObj) {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
+      const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+      const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
+      combined.set(iv, 0);
+      combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
+      return btoa(String.fromCharCode(...combined));
+    }
+    async function decryptPayload(combinedBase64) {
+      const key = await getKey();
+      const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
+      const iv = combined.slice(0, 12);
+      const data = combined.slice(12);
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      return JSON.parse(new TextDecoder().decode(decrypted));
+    }
 
     let token = localStorage.getItem('skysocial_token') || null;
-    let currentUserSkyID = null;
-    let isAdmin = false;
 
-    function showApp() {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-    }
-    function hideApp() {
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
-
-    // Автологин
+    // Автологин при наличии токена
     (async () => {
       if (token) {
         try {
           const res = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-          if (res.ok) {
-            const me = await res.json();
-            currentUserSkyID = me.skyid;
-            isAdmin = (me.login === 'SkyMonder');
-            showApp();
-            await loadPosts();
-          } else {
-            token = null;
-            localStorage.removeItem('skysocial_token');
-          }
+          if (res.ok) { showApp(); loadPosts(); }
+          else { token = null; localStorage.removeItem('skysocial_token'); }
         } catch (e) {}
       }
     })();
@@ -115,18 +119,22 @@
       errorDiv.textContent = '';
       if (!login || !password) return errorDiv.textContent = 'Заполни поля';
       try {
+        // Шифруем запрос
+        const encrypted = await encryptPayload({ login, password });
         const res = await fetch(`${SKYID_URL}/login`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login, password })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: encrypted })
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Ошибка входа');
+        }
+        const json = await res.json();
+        if (!json.data) throw new Error('Нет зашифрованного ответа');
+        const data = await decryptPayload(json.data);
         token = data.token;
         localStorage.setItem('skysocial_token', token);
-        const meRes = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-        const me = await meRes.json();
-        currentUserSkyID = me.skyid;
-        isAdmin = (me.login === 'SkyMonder');
         showApp();
         loadPosts();
       } catch (e) { errorDiv.textContent = e.message; }
@@ -139,20 +147,36 @@
       const password = document.getElementById('passInput').value;
       if (!login || !password) return document.getElementById('loginError').textContent = 'Введите логин и пароль';
       try {
+        const encrypted = await encryptPayload({ login, password });
         const res = await fetch(`${SKYID_URL}/register`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login, password })
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: encrypted })
         });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
-        alert('Регистрация успешна! Теперь войдите.');
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Ошибка регистрации');
+        }
+        const json = await res.json();
+        if (!json.data) throw new Error('Нет зашифрованного ответа');
+        const data = await decryptPayload(json.data);
+        alert('Регистрация успешна! Ваш SkyID: ' + data.skyid + '\nТеперь войдите.');
+        document.getElementById('loginInput').value = '';
+        document.getElementById('passInput').value = '';
       } catch (e) { document.getElementById('loginError').textContent = e.message; }
     });
 
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
+    function hideApp() {
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    }
+
     document.getElementById('logoutBtn').addEventListener('click', () => {
-      token = null; localStorage.removeItem('skysocial_token');
-      currentUserSkyID = null; isAdmin = false;
-      hideApp();
+      token = null; localStorage.removeItem('skysocial_token'); hideApp();
     });
 
     async function loadPosts() {
@@ -160,117 +184,40 @@
       try {
         const res = await fetch(`${SOCIAL_API}/posts`, { headers: { Authorization: `Bearer ${token}` } });
         const posts = await res.json();
-        container.innerHTML = posts.map(post => renderPost(post)).join('');
-      } catch (e) { container.innerHTML = '<p>Ошибка загрузки</p>'; }
-    }
-
-    function renderPost(post) {
-      const deleteBtn = (post.skyid === currentUserSkyID || isAdmin) ?
-        `<button class="btn btn-danger" onclick="deletePost('${post.id}')">Удалить</button>` : '';
-      const banBtn = isAdmin ? `<button class="btn btn-danger" onclick="banUser('${post.skyid}')">🔨 Бан</button>` : '';
-      return `
-        <div class="post">
-          <div class="post-header">
-            <div class="post-avatar">👤</div>
-            <div class="post-author">${escapeHtml(post.author)} ${banBtn}</div>
-            <span style="margin-left:auto; font-size:0.7rem;">${new Date(post.created).toLocaleString()}</span>
-          </div>
-          <div class="post-text">${escapeHtml(post.text)}</div>
-          <div class="post-actions">
-            <button class="btn" onclick="likePost('${post.id}')">👍 ${post.likes.length}</button>
-            <button class="btn" onclick="dislikePost('${post.id}')">👎 ${post.dislikes.length}</button>
-            <button class="btn" onclick="toggleComments('${post.id}')">💬</button>
-            ${deleteBtn}
-          </div>
-          <div id="comments-${post.id}" class="comment-section" style="display:none;">
-            <div id="comments-list-${post.id}"></div>
-            <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">
-              <input type="text" id="comment-input-${post.id}" placeholder="Комментарий..." style="flex:1; padding:0.3rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:4px;">
-              <button class="btn" onclick="addComment('${post.id}')">➤</button>
+        container.innerHTML = posts.map(post => `
+          <div class="post">
+            <div class="post-header">
+              <div class="post-avatar">👤</div>
+              <div class="post-author">${escapeHtml(post.author)}</div>
+              <span style="margin-left:auto; font-size:0.7rem; color:#8899cc;">${new Date(post.created).toLocaleString()}</span>
+            </div>
+            <div class="post-text">${escapeHtml(post.text)}</div>
+            <div class="post-actions">
+              <button class="btn" onclick="likePost('${post.id}')">❤️ ${post.likes.length}</button>
             </div>
           </div>
-        </div>`;
+        `).join('');
+      } catch (e) { container.innerHTML = '<p>Ошибка загрузки постов</p>'; }
     }
 
     document.getElementById('sendPost').addEventListener('click', async () => {
       const text = document.getElementById('postText').value.trim();
       if (!text) return;
       await fetch(`${SOCIAL_API}/posts`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ text })
       });
       document.getElementById('postText').value = '';
       loadPosts();
     });
 
-    window.likePost = async (id) => {
-      await fetch(`${SOCIAL_API}/posts/${id}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      loadPosts();
-    };
-    window.dislikePost = async (id) => {
-      await fetch(`${SOCIAL_API}/posts/${id}/dislike`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      loadPosts();
-    };
-    window.deletePost = async (id) => {
-      if (!confirm('Удалить пост?')) return;
-      await fetch(`${SOCIAL_API}/posts/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+    window.likePost = async (postId) => {
+      await fetch(`${SOCIAL_API}/posts/${postId}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
       loadPosts();
     };
 
-    window.toggleComments = async (postId) => {
-      const block = document.getElementById('comments-' + postId);
-      if (block.style.display === 'none' || !block.style.display) {
-        block.style.display = 'block';
-        const list = document.getElementById('comments-list-' + postId);
-        const res = await fetch(`${SOCIAL_API}/posts/${postId}/comments`, { headers: { Authorization: `Bearer ${token}` } });
-        const comments = await res.json();
-        list.innerHTML = comments.map(c => `
-          <div class="comment">
-            <strong>${escapeHtml(c.author)}</strong>: ${escapeHtml(c.text)}
-            <div class="comment-actions">
-              <button class="btn" onclick="likeComment('${postId}','${c.id}')">👍 ${c.likes.length}</button>
-              <button class="btn" onclick="dislikeComment('${postId}','${c.id}')">👎 ${c.dislikes.length}</button>
-              ${(c.skyid === currentUserSkyID || isAdmin) ? `<button class="btn btn-danger" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
-            </div>
-          </div>`).join('');
-      } else { block.style.display = 'none'; }
-    };
-    window.addComment = async (postId) => {
-      const input = document.getElementById('comment-input-' + postId);
-      const text = input.value.trim();
-      if (!text) return;
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text })
-      });
-      input.value = '';
-      window.toggleComments(postId);
-    };
-    window.likeComment = async (postId, commentId) => {
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      window.toggleComments(postId);
-    };
-    window.dislikeComment = async (postId, commentId) => {
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}/dislike`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      window.toggleComments(postId);
-    };
-    window.deleteComment = async (postId, commentId) => {
-      if (!confirm('Удалить комментарий?')) return;
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      window.toggleComments(postId);
-    };
-
-    window.banUser = async (skyid) => {
-      if (!isAdmin) return;
-      if (!confirm(`Забанить ${skyid}?`)) return;
-      await fetch(`${SOCIAL_API}/admin/ban`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ skyid })
-      });
-      alert('Пользователь забанен');
-      loadPosts();
-    };
-
+    // Профиль (упрощённо)
     document.getElementById('profileBtn').addEventListener('click', async () => {
       const panel = document.getElementById('profilePanel');
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
@@ -281,12 +228,15 @@
         document.getElementById('profileBio').value = profile.bio || '';
       }
     });
-    document.getElementById('closeProfile').addEventListener('click', () => document.getElementById('profilePanel').style.display = 'none');
+    document.getElementById('closeProfile').addEventListener('click', () => {
+      document.getElementById('profilePanel').style.display = 'none';
+    });
     document.getElementById('saveProfile').addEventListener('click', async () => {
       const name = document.getElementById('profileName').value.trim();
       const bio = document.getElementById('profileBio').value.trim();
       await fetch(`${SOCIAL_API}/profile`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ name, bio })
       });
       alert('Профиль обновлён');
