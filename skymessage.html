@@ -437,7 +437,14 @@
     }
 
     // Профиль
-    document.getElementById('profileBtn').addEventListener('click', () => { /* ... */ });
+    document.getElementById('profileBtn').addEventListener('click', () => {
+      document.getElementById('profileModal').classList.add('active');
+      document.getElementById('profileName').value = currentUser.name || '';
+      document.getElementById('profileStatus').value = currentUser.status || '';
+      const av = document.getElementById('avatarUpload');
+      av.style.backgroundImage = currentUser.avatar ? `url(${currentUser.avatar})` : '';
+      av.textContent = currentUser.avatar ? '' : '👤';
+    });
 
     // ========== Звонки ==========
     const callModal = document.getElementById('callModal');
