@@ -780,5 +780,13 @@
       setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
     })();
   </script>
+
+  <!-- Счётчик посещений SkyCounter -->
+  <script>
+    var SITE_NAME = 'skycitadel.onrender.com';
+    fetch('https://skycounter.onrender.com/checkvizit?site=' + encodeURIComponent(SITE_NAME))
+      .then(function() { /* Успешно */ })
+      .catch(function() { /* Ошибка сети — игнорируем */ });
+  </script>
 </body>
 </html>
