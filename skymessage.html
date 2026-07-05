@@ -38,6 +38,11 @@
     .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 50; }
     .modal-overlay.active { display: flex; }
     .modal { background: var(--card); border-radius: 16px; padding: 1.5rem; width: 320px; border: 1px solid var(--border); }
+    .modal input { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
+    .modal .btn-row { display: flex; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+    .search-results { max-height: 200px; overflow-y: auto; margin: 0.5rem 0; }
+    .search-result-item { padding: 0.5rem; cursor: pointer; border-radius: 8px; }
+    .search-result-item:hover { background: #1f2b4a; }
     .call-ui { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; display: none; z-index: 30; flex-direction: column; gap: 0.8rem; }
     .call-ui.active { display: flex; }
     video { width: 200px; border-radius: 8px; background: #000; }
@@ -78,8 +83,8 @@
     <div class="modal">
       <h3>Поиск пользователя</h3>
       <input type="text" id="searchQuery" placeholder="Введите логин...">
-      <div class="search-results" id="searchResults" style="max-height:200px; overflow-y:auto; margin:0.5rem 0;"></div>
-      <div class="btn-row" style="display:flex; gap:0.5rem; justify-content:center;">
+      <div class="search-results" id="searchResults"></div>
+      <div class="btn-row">
         <button class="btn" id="modalCancel" style="background:#444;">Отмена</button>
       </div>
     </div>
@@ -89,7 +94,7 @@
     <div class="modal">
       <h3 id="callModalTitle">Вызов</h3>
       <p id="callModalName"></p>
-      <div class="btn-row" id="callModalActions" style="display:flex; gap:0.5rem; justify-content:center;">
+      <div class="btn-row" id="callModalActions">
         <button class="btn" id="callModalAcceptBtn" style="display:none;">Принять</button>
         <button class="btn" id="callModalRejectBtn" style="background:#c44;">Отклонить</button>
       </div>
@@ -271,7 +276,7 @@
       if (!users.length) { container.innerHTML = '<div>Никого не найдено</div>'; return; }
       users.forEach(u => {
         const div = document.createElement('div');
-        div.className = 'search-result-item' || div.style.cssText = 'padding:0.5rem; cursor:pointer; border-radius:8px;';
+        div.className = 'search-result-item';
         div.textContent = u.login;
         div.addEventListener('click', () => {
           sendServerMessage('create_private_chat', { target: u.login });
