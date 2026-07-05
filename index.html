@@ -6,12 +6,6 @@
   <title>SkyCitadel — Цифровая крепость</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-  <link rel="manifest" href="manifest.json">
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js');
-    }
-  </script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -111,8 +105,6 @@
     .station-btn.playing { background: #2f4b8c; border-color: #6b8cff; box-shadow: 0 0 12px #2f4b8c; }
     .btn { background: var(--accent, #2f4b8c); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
     .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-
-    /* Календарь */
     .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; text-align: center; }
     .cal-day-name { color: #7f8bb3; font-weight: bold; }
@@ -121,8 +113,6 @@
     .cal-day.has-events::after { content: '•'; color: #ffb347; position: absolute; top: 2px; right: 5px; }
     .event-list { margin-top: 1rem; }
     .event-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #151e36; border-radius: 8px; margin-bottom: 0.4rem; }
-
-    /* Калькулятор */
     .calc-container { display: flex; gap: 1rem; flex-wrap: wrap; }
     .calc-panel { flex: 2; min-width: 280px; }
     .history-panel { flex: 1; min-width: 200px; background: #111827; border-radius: 12px; padding: 0.8rem; max-height: 400px; overflow-y: auto; }
@@ -132,16 +122,12 @@
     .calc-btn.operator { background: #2f3b5c; }
     .calc-btn.equal { background: #3f62b0; }
     .calc-btn.func { background: #2f4b4a; }
-
-    /* Навигатор */
     .route-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .route-controls input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid #3a4660; color: white; border-radius: 10px; }
-
     .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
-    .search-result-item {
-      background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf;
-    }
+    .search-result-item { background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf; }
+    .spotify-container { margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -256,9 +242,7 @@
         <div class="calc-container">
           <div class="calc-panel">
             <div class="calc-display" id="calc-display">0</div>
-            <div class="calc-grid" id="calc-buttons">
-              <!-- Кнопки генерируются JS -->
-            </div>
+            <div class="calc-grid" id="calc-buttons"></div>
             <button id="toggle-mode" class="btn" style="margin-top:0.5rem;">Обычный / Инженерный</button>
           </div>
           <div class="history-panel">
@@ -281,7 +265,6 @@
       </div>
     </div>
 
-    <!-- Музыкальный центр -->
     <!-- Музыкальный центр (Spotify) -->
     <div id="music" class="section">
       <div class="card">
@@ -336,7 +319,7 @@
     <!-- Заметки -->
     <div id="notes" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://skynotes-n17c.onrender.com/" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="https://your-notes-project.com" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
   </div>
@@ -346,7 +329,7 @@
   <script>
     (function() {
       // ========== URLs сервисов ==========
-      const SERVICE2_URL = 'https://serveratiuz-8a8k.onrender.com'; // погода, объявления
+      const SERVICE2_URL = 'https://serveratiuz-8a8k.onrender.com'; // погода, объявления, Spotify
       const SERVICE4_URL = 'https://minicitadiz-9nr1.onrender.com'; // поиск
       const SKYID_URL = 'https://skybiduid.onrender.com';          // SkyID
 
@@ -457,6 +440,8 @@
         { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
         { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
       ];
+      const radioAudio = document.getElementById('radio-audio');
+      const radioListDiv = document.getElementById('radio-list');
       function renderRadioButtons(container, audioElement) {
         container.innerHTML = '';
         stations.forEach(st => {
@@ -473,8 +458,7 @@
           container.appendChild(btn);
         });
       }
-      const radioAudio = document.getElementById('radio-audio');
-      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
+      renderRadioButtons(radioListDiv, radioAudio);
       document.getElementById('play-custom-stream').addEventListener('click', () => {
         const url = document.getElementById('custom-stream').value.trim();
         if (url) {
@@ -483,9 +467,6 @@
           radioAudio.play().catch(e => alert('Ошибка потока'));
         }
       });
-
-      const musicRadioAudio = document.getElementById('music-radio-audio');
-      renderRadioButtons(document.getElementById('music-radio-list'), musicRadioAudio);
 
       // ========== НОВОСТИ ==========
       function refreshNewsIframe() {
@@ -590,130 +571,6 @@
       document.getElementById('cal-next').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
       renderCalendar();
       updateSelectedDate();
-
-      // ---------- Spotify Integration (PKCE + зашифрованное хранение) ----------
-      const SPOTIFY_CLIENT_ID = 'dfaee3c8058746a88eb73fea48a5879f';   // ← ЗАМЕНИ на свой
-      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
-      let spotifyAccessToken = null;
-
-      async function loadSpotifyTokenFromDB() {
-        const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
-        if (!skyToken) return;
-        try {
-          const res = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
-            headers: { Authorization: `Bearer ${skyToken}` }
-          });
-          const data = await res.json();
-          if (data.access_token) {
-            spotifyAccessToken = data.access_token;
-            document.getElementById('spotify-logged-out').style.display = 'none';
-            document.getElementById('spotify-logged-in').style.display = 'block';
-            if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
-              const script = document.createElement('script');
-              script.src = 'https://sdk.scdn.co/spotify-player.js';
-              document.head.appendChild(script);
-              script.onload = () => initSpotifyPlayer();
-            } else {
-              initSpotifyPlayer();
-            }
-          }
-        } catch (e) {}
-      }
-
-      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
-        const codeVerifier = generateRandomString(64);
-        localStorage.setItem('spotify_code_verifier', codeVerifier);
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
-        const state = generateRandomString(16);
-        localStorage.setItem('spotify_state', state);
-
-        const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
-          response_type: 'code',
-          client_id: SPOTIFY_CLIENT_ID,
-          scope: 'streaming user-read-email user-read-private',
-          redirect_uri: REDIRECT_URI,
-          state: state,
-          code_challenge_method: 'S256',
-          code_challenge: codeChallenge
-        }).toString();
-        window.location.href = url;
-      });
-
-      async function handleSpotifyCallback() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const state = urlParams.get('state');
-        const savedState = localStorage.getItem('spotify_state');
-        if (!code || state !== savedState) return;
-
-        const codeVerifier = localStorage.getItem('spotify_code_verifier');
-        if (!codeVerifier) return;
-
-        try {
-          const res = await fetch(`${SERVICE2_URL}/spotify/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI })
-          });
-          const data = await res.json();
-          if (data.access_token) {
-            spotifyAccessToken = data.access_token;
-            const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
-            if (skyToken) {
-              await fetch(`${SERVICE2_URL}/spotify/save-token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
-                body: JSON.stringify({
-                  spotify_token: data.access_token,
-                  spotify_refresh: data.refresh_token,
-                  expires_at: data.expires_in ? Date.now() + data.expires_in * 1000 : null
-                })
-              });
-            }
-            document.getElementById('spotify-logged-out').style.display = 'none';
-            document.getElementById('spotify-logged-in').style.display = 'block';
-            const script = document.createElement('script');
-            script.src = 'https://sdk.scdn.co/spotify-player.js';
-            document.head.appendChild(script);
-            script.onload = () => initSpotifyPlayer();
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } catch (e) { console.error('Spotify callback error:', e); }
-      }
-
-      function initSpotifyPlayer() {
-        if (window.Spotify) {
-          const player = new Spotify.Player({
-            name: 'SkyCitadel Music',
-            getOAuthToken: cb => { cb(spotifyAccessToken); }
-          });
-          player.connect();
-          player.on('ready', (device_id) => {
-            console.log('✅ Spotify Player готов, device_id:', device_id);
-          });
-          const container = document.getElementById('spotify-player');
-          container.innerHTML = '';
-          container.appendChild(player);
-        } else {
-          window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
-        }
-      }
-
-      function generateRandomString(length) {
-        let text = '';
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < length; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
-        return text;
-      }
-      async function generateCodeChallenge(codeVerifier) {
-        const data = new TextEncoder().encode(codeVerifier);
-        const digest = await crypto.subtle.digest('SHA-256', data);
-        return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      }
-
-      handleSpotifyCallback();
-      loadSpotifyTokenFromDB();
 
       // ========== ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР ==========
       let calcExpression = '';
@@ -911,12 +768,132 @@
       }
 
       setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
+
+      // ========== Spotify Integration ==========
+      const SPOTIFY_CLIENT_ID = 'dfaee3c8058746a88eb73fea48a5879f';
+      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
+      let spotifyAccessToken = null;
+
+      async function loadSpotifyTokenFromDB() {
+        const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
+        if (!skyToken) return;
+        try {
+          const res = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
+            headers: { Authorization: `Bearer ${skyToken}` }
+          });
+          const data = await res.json();
+          if (data.access_token) {
+            spotifyAccessToken = data.access_token;
+            document.getElementById('spotify-logged-out').style.display = 'none';
+            document.getElementById('spotify-logged-in').style.display = 'block';
+            if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
+              const script = document.createElement('script');
+              script.src = 'https://sdk.scdn.co/spotify-player.js';
+              document.head.appendChild(script);
+              script.onload = () => initSpotifyPlayer();
+            } else {
+              initSpotifyPlayer();
+            }
+          }
+        } catch (e) {}
+      }
+
+      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
+        const codeVerifier = generateRandomString(64);
+        localStorage.setItem('spotify_code_verifier', codeVerifier);
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
+        const state = generateRandomString(16);
+        localStorage.setItem('spotify_state', state);
+
+        const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+          response_type: 'code',
+          client_id: SPOTIFY_CLIENT_ID,
+          scope: 'streaming user-read-email user-read-private',
+          redirect_uri: REDIRECT_URI,
+          state: state,
+          code_challenge_method: 'S256',
+          code_challenge: codeChallenge
+        }).toString();
+        window.location.href = url;
+      });
+
+      async function handleSpotifyCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const savedState = localStorage.getItem('spotify_state');
+        if (!code || state !== savedState) return;
+
+        const codeVerifier = localStorage.getItem('spotify_code_verifier');
+        if (!codeVerifier) return;
+
+        try {
+          const res = await fetch(`${SERVICE2_URL}/spotify/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI })
+          });
+          const data = await res.json();
+          if (data.access_token) {
+            spotifyAccessToken = data.access_token;
+            const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
+            if (skyToken) {
+              await fetch(`${SERVICE2_URL}/spotify/save-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
+                body: JSON.stringify({
+                  spotify_token: data.access_token,
+                  spotify_refresh: data.refresh_token,
+                  expires_at: data.expires_in ? Date.now() + data.expires_in * 1000 : null
+                })
+              });
+            }
+            document.getElementById('spotify-logged-out').style.display = 'none';
+            document.getElementById('spotify-logged-in').style.display = 'block';
+            const script = document.createElement('script');
+            script.src = 'https://sdk.scdn.co/spotify-player.js';
+            document.head.appendChild(script);
+            script.onload = () => initSpotifyPlayer();
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (e) { console.error('Spotify callback error:', e); }
+      }
+
+      function initSpotifyPlayer() {
+        if (window.Spotify) {
+          const player = new Spotify.Player({
+            name: 'SkyCitadel Music',
+            getOAuthToken: cb => { cb(spotifyAccessToken); }
+          });
+          player.connect();
+          player.on('ready', (device_id) => {
+            console.log('✅ Spotify Player готов, device_id:', device_id);
+          });
+          const container = document.getElementById('spotify-player');
+          container.innerHTML = '';
+          container.appendChild(player);
+        } else {
+          window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
+        }
+      }
+
+      function generateRandomString(length) {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < length; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
+        return text;
+      }
+      async function generateCodeChallenge(codeVerifier) {
+        const data = new TextEncoder().encode(codeVerifier);
+        const digest = await crypto.subtle.digest('SHA-256', data);
+        return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+
+      handleSpotifyCallback();
+      loadSpotifyTokenFromDB();
     })();
   </script>
-
-  <!-- Счётчик посещений SkyCounter -->
-  <!-- Счётчик посещений SkyCounter (динамический пиксель) -->
-    <!-- Надёжный счётчик SkyCounter с обратной связью -->
   <script>
     (function() {
       var SITE_NAME = 'skycitadel.onrender.com'; // Ваш домен (должен быть в списке SITES на сервере)
@@ -948,6 +925,5 @@
       img.src = url;
     })();
   </script>
-  
 </body>
 </html>
