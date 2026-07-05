@@ -50,9 +50,6 @@
     .call-ui { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; display: none; z-index: 30; flex-direction: column; gap: 0.8rem; }
     .call-ui.active { display: flex; }
     video { width: 200px; border-radius: 8px; background: #000; }
-    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; margin-top: 1rem; }
-    .profile-panel input { margin-bottom: 0.5rem; }
-    .avatar-upload { width: 80px; height: 80px; border-radius: 50%; background: #2f3b5c; margin: 0 auto; display: flex; align-items: center; justify-content: center; font-size: 2rem; cursor: pointer; background-size: cover; }
   </style>
 </head>
 <body>
@@ -173,7 +170,18 @@
         switch (msg.type) {
           case 'auth_ok': currentUser = { ...currentUser, ...msg }; break;
           case 'message': handleIncomingMessage(msg); break;
-          case 'chat_list': chats = msg.chats; renderChatList(); if (activeChatId) openChat(activeChatId); break;
+          case 'chat_list':
+            chats = msg.chats;
+            // Если ещё не выбран чат, открываем первый доступный
+            if (!activeChatId || !chats[activeChatId]) {
+              const firstId = Object.keys(chats)[0];
+              if (firstId) {
+                activeChatId = firstId;
+                openChat(activeChatId);
+              }
+            }
+            renderChatList();
+            break;
           case 'chat_created': activeChatId = msg.chatId; sendServerMessage('get_chats', {}); break;
           case 'messages': displayMessages(msg.messages); break;
           case 'user_search_result': showSearchResults(msg.users, 'user'); break;
