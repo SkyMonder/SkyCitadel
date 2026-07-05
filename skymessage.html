@@ -172,7 +172,7 @@
           case 'message': handleIncomingMessage(msg); break;
           case 'chat_list':
             chats = msg.chats;
-            // Если ещё не выбран чат, открываем первый доступный
+            // Автоматически открываем первый чат, если ни один не выбран
             if (!activeChatId || !chats[activeChatId]) {
               const firstId = Object.keys(chats)[0];
               if (firstId) {
