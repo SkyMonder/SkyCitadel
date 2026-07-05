@@ -866,12 +866,30 @@
             getOAuthToken: cb => { cb(spotifyAccessToken); }
           });
           player.connect();
+
           player.on('ready', (device_id) => {
             console.log('✅ Spotify Player готов, device_id:', device_id);
           });
+          player.on('initialization_error', ({ message }) => {
+            console.error('❌ Ошибка инициализации Spotify:', message);
+            document.getElementById('spotify-logged-out').style.display = 'block';
+            document.getElementById('spotify-logged-in').style.display = 'none';
+            alert('Не удалось запустить Spotify плеер. Возможно, у вас нет Premium подписки (она нужна для Web Playback SDK).');
+          });
+            player.on('authentication_error', ({ message }) => {
+            console.error('❌ Ошибка авторизации Spotify:', message);
+            alert('Токен Spotify больше недействителен. Пожалуйста, переподключите аккаунт.');
+            document.getElementById('spotify-logged-out').style.display = 'block';
+            document.getElementById('spotify-logged-in').style.display = 'none';
+          });
+          player.on('playback_error', ({ message }) => {
+          console.warn('⚠️ Ошибка воспроизведения:', message);
+          });
+
+          // Правильно вставляем плеер: не appendChild(player), а просто сохраняем ссылку
           const container = document.getElementById('spotify-player');
           container.innerHTML = '';
-          container.appendChild(player);
+          container.appendChild(player); // Spotify сам управляет DOM
         } else {
           window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
         }
