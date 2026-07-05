@@ -282,16 +282,19 @@
     </div>
 
     <!-- Музыкальный центр -->
+    <!-- Музыкальный центр (Spotify) -->
     <div id="music" class="section">
       <div class="card">
         <h2>🎵 Музыкальный центр</h2>
-        <p>Локальный трек + радиостанции</p>
-        <audio id="local-audio" controls style="width:100%; margin-bottom:1rem;">
-          <source src="track.mp3" type="audio/mpeg">
-          Твой браузер не поддерживает audio.
-        </audio>
-        <div class="radio-stations" id="music-radio-list"></div>
-        <audio id="music-radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
+        <div id="spotify-logged-out">
+          <p>Подключи свой Spotify‑аккаунт, чтобы слушать любимую музыку прямо в крепости.</p>
+          <button id="spotify-login-btn" class="btn">🔗 Подключить Spotify</button>
+        </div>
+        <div id="spotify-logged-in" style="display:none;">
+          <p>Твой Spotify подключён! Управляй плеером:</p>
+          <div id="spotify-player"></div>
+        </div>
+        <p style="margin-top:1rem; font-size:0.8rem; color:#8899cc;">Токен хранится в зашифрованной базе крепости. Привязан к твоему SkyID.</p>
       </div>
     </div>
 
@@ -588,6 +591,130 @@
       renderCalendar();
       updateSelectedDate();
 
+      // ---------- Spotify Integration (PKCE + зашифрованное хранение) ----------
+      const SPOTIFY_CLIENT_ID = 'ТВОЙ_SPOTIFY_CLIENT_ID';   // ← ЗАМЕНИ на свой
+      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
+      let spotifyAccessToken = null;
+
+      async function loadSpotifyTokenFromDB() {
+        const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
+        if (!skyToken) return;
+        try {
+          const res = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
+            headers: { Authorization: `Bearer ${skyToken}` }
+          });
+          const data = await res.json();
+          if (data.access_token) {
+            spotifyAccessToken = data.access_token;
+            document.getElementById('spotify-logged-out').style.display = 'none';
+            document.getElementById('spotify-logged-in').style.display = 'block';
+            if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
+              const script = document.createElement('script');
+              script.src = 'https://sdk.scdn.co/spotify-player.js';
+              document.head.appendChild(script);
+              script.onload = () => initSpotifyPlayer();
+            } else {
+              initSpotifyPlayer();
+            }
+          }
+        } catch (e) {}
+      }
+
+      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
+        const codeVerifier = generateRandomString(64);
+        localStorage.setItem('spotify_code_verifier', codeVerifier);
+        const codeChallenge = await generateCodeChallenge(codeVerifier);
+        const state = generateRandomString(16);
+        localStorage.setItem('spotify_state', state);
+
+        const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
+          response_type: 'code',
+          client_id: SPOTIFY_CLIENT_ID,
+          scope: 'streaming user-read-email user-read-private',
+          redirect_uri: REDIRECT_URI,
+          state: state,
+          code_challenge_method: 'S256',
+          code_challenge: codeChallenge
+        }).toString();
+        window.location.href = url;
+      });
+
+      async function handleSpotifyCallback() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('code');
+        const state = urlParams.get('state');
+        const savedState = localStorage.getItem('spotify_state');
+        if (!code || state !== savedState) return;
+
+        const codeVerifier = localStorage.getItem('spotify_code_verifier');
+        if (!codeVerifier) return;
+
+        try {
+          const res = await fetch(`${SERVICE2_URL}/spotify/token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI })
+          });
+          const data = await res.json();
+          if (data.access_token) {
+            spotifyAccessToken = data.access_token;
+            const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
+            if (skyToken) {
+              await fetch(`${SERVICE2_URL}/spotify/save-token`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
+                body: JSON.stringify({
+                  spotify_token: data.access_token,
+                  spotify_refresh: data.refresh_token,
+                  expires_at: data.expires_in ? Date.now() + data.expires_in * 1000 : null
+                })
+              });
+            }
+            document.getElementById('spotify-logged-out').style.display = 'none';
+            document.getElementById('spotify-logged-in').style.display = 'block';
+            const script = document.createElement('script');
+            script.src = 'https://sdk.scdn.co/spotify-player.js';
+            document.head.appendChild(script);
+            script.onload = () => initSpotifyPlayer();
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        } catch (e) { console.error('Spotify callback error:', e); }
+      }
+
+      function initSpotifyPlayer() {
+        if (window.Spotify) {
+          const player = new Spotify.Player({
+            name: 'SkyCitadel Music',
+            getOAuthToken: cb => { cb(spotifyAccessToken); }
+          });
+          player.connect();
+          player.on('ready', (device_id) => {
+            console.log('✅ Spotify Player готов, device_id:', device_id);
+          });
+          const container = document.getElementById('spotify-player');
+          container.innerHTML = '';
+          container.appendChild(player);
+        } else {
+          window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
+        }
+      }
+
+      function generateRandomString(length) {
+        let text = '';
+        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        for (let i = 0; i < length; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
+        return text;
+      }
+      async function generateCodeChallenge(codeVerifier) {
+        const data = new TextEncoder().encode(codeVerifier);
+        const digest = await crypto.subtle.digest('SHA-256', data);
+        return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
+          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      }
+
+      handleSpotifyCallback();
+      loadSpotifyTokenFromDB();
+
       // ========== ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР ==========
       let calcExpression = '';
       let calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]');
@@ -821,5 +948,6 @@
       img.src = url;
     })();
   </script>
+  
 </body>
 </html>
