@@ -217,7 +217,7 @@
           const salt = window.crypto.getRandomValues(new Uint8Array(16));
           const saltB64 = btoa(String.fromCharCode(...salt));
           cryptoKey = await deriveKey(password, saltB64);
-          const res = await fetch(`${SERVER_URL}/register`, {
+          const res = await fetch(`${SERVER_URL}/chat/register`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
           });
           if (!res.ok) { alert('Ошибка регистрации'); return; }
@@ -225,7 +225,7 @@
           document.getElementById('authTitle').textContent='Вход';
           document.getElementById('authBtn').textContent='Войти';
         } else {
-          const res = await fetch(`${SERVER_URL}/login_salt?login=${encodeURIComponent(login)}`);
+          const res = await fetch(`${SERVER_URL}/chat/login_salt?login=${encodeURIComponent(login)}`);
           if (!res.ok) { alert('Пользователь не найден'); return; }
           const { salt: saltB64 } = await res.json();
           cryptoKey = await deriveKey(password, saltB64);
