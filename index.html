@@ -905,12 +905,26 @@
     })();
   </script>
 
-  <!-- Счётчик -->
   <script>
-    var SITE_NAME = 'skycitadel.onrender.com';
-    fetch('https://sky-mutant--rilloperdagelo.replit.app/checkvizit?site=' + encodeURIComponent(SITE_NAME))
-      .then(function() { /* визит учтён */ })
-      .catch(function() { /* ошибка сети */ });
+  (function() {
+    const site = 'skycitadel.onrender.com'; // замените на свой домен
+    const apiUrl = 'https://skycounter-api.onrender.com/checkvizit'; // ваш API-сервис
+
+    let deviceId = localStorage.getItem('device_id');
+    if (!deviceId) {
+      deviceId = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      localStorage.setItem('device_id', deviceId);
+    }
+
+    fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      mode: 'cors'
+    })
+    .then(r => r.json())
+    .then(data => console.log('Visits counter:', data.status))
+    .catch(() => {});
+  })();
   </script>
 </body>
 </html>
