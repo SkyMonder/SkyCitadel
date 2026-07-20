@@ -906,36 +906,25 @@
   </script>
 
   <script>
-(function() {
-    // Уникальный идентификатор устройства (локальное хранилище)
-    function getDeviceId() {
-        let id = localStorage.getItem('device_id');
-        if (!id) {
-            id = crypto.randomUUID ? crypto.randomUUID() : 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-            localStorage.setItem('device_id', id);
-        }
-        return id;
+  (function() {
+    const site = 'skycitadel.onrender.com'; // замените на свой домен
+    const apiUrl = 'https://sky-counter-wine.vercel.app/checkvizit';
+
+    let deviceId = localStorage.getItem('device_id');
+    if (!deviceId) {
+      deviceId = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
+      localStorage.setItem('device_id', deviceId);
     }
 
-    // Определяем текущий сайт
-    const site = window.location.hostname;
-
-    // Отправляем визит на ваш сервер
-    function sendVisit() {
-        const deviceId = getDeviceId();
-        const apiUrl = 'https://sky-counter-wine.vercel.app/checkvizit'; // замените на реальный URL вашего счётчика
-        fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, {
-            method: 'GET',
-            cache: 'no-store'
-        })
-        .then(r => r.json())
-        .then(data => console.log('Visit status:', data.status))
-        .catch(err => console.error('Visit error:', err));
-    }
-
-    // Отправляем визит при загрузке страницы
-    sendVisit();
-})();
-</script>
+    fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      mode: 'cors'
+    })
+    .then(r => r.json())
+    .then(data => console.log('Visits counter:', data.status))
+    .catch(() => {});
+  })();
+  </script>
 </body>
 </html>
