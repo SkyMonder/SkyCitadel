@@ -324,30 +324,49 @@
     }
 
     function handleIncomingMessage(msg) {
-      if (msg.from === currentUser.login) return;
+      if (msg.from === currentUser.login) return; // свои сообщения уже добавлены оптимистично
       if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
       if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
-      chats[msg.chatId].messages.push(msg);
-      if (activeChatId === msg.chatId) { addMessageToUI(msg); }
+  // Проверяем, нет ли уже такого сообщения (избегаем дублей)
+      if (!chats[msg.chatId].messages.find(m => m.id === msg.id)) {
+        chats[msg.chatId].messages.push(msg);
+        if (activeChatId === msg.chatId) {
+          addMessageToUI(msg);
+          document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+      }
+      }
       renderChatList();
     }
 
     function handleMessageEdited(msg) {
-      // Обновляем сообщение в кэше и UI
       const chat = chats[msg.chatId];
       if (!chat || !chat.messages) return;
       const found = chat.messages.find(m => m.id === msg.messageId);
       if (found) { found.text = msg.newText; found.edited = true; }
       if (activeChatId === msg.chatId) {
-        // Обновляем только изменённое сообщение в DOM
         const msgDiv = document.querySelector(`.msg[data-id="${msg.messageId}"]`);
         if (msgDiv) {
-          msgDiv.innerHTML = msgDiv.innerHTML.replace(/(?<=<\/strong>:).*?(?=<div class="time")/s, ' ' + escapeHtml(msg.newText));
-          if (!msgDiv.innerHTML.includes('(изменено)')) {
-            msgDiv.innerHTML += ' <span style="font-size:0.7rem; color:#aaa;">(изменено)</span>';
+      // Обновляем только текстовое содержимое, не трогая кнопки
+          const textSpan = msgDiv.querySelector('.msg-text');
+          if (textSpan) {
+          textSpan.textContent = msg.newText;
+           } else {
+            // fallback: заменяем содержимое
+            const originalHtml = msgDiv.innerHTML;
+            const parts = originalHtml.split(/(?=<\/strong>:)/);
+            if (parts.length > 1) {
+              msgDiv.innerHTML = parts[0] + escapeHtml(msg.newText) + parts[1].replace(/.*?(?=<div class="time")/s, '');
+            }
+          }
+        if (!msgDiv.querySelector('.edited-mark')) {
+            const mark = document.createElement('span');
+            mark.className = 'edited-mark';
+            mark.style.cssText = 'font-size:0.7rem; color:#aaa;';
+            mark.textContent = ' (изменено)';
+            msgDiv.appendChild(mark);
           }
         } else {
-          // Если не нашли, перерисовываем все сообщения
+          // если не нашли, перезагружаем чат
           sendServerMessage('get_messages', { chatId: msg.chatId });
         }
       }
@@ -360,7 +379,6 @@
       if (activeChatId === msg.chatId) {
         const msgDiv = document.querySelector(`.msg[data-id="${msg.messageId}"]`);
         if (msgDiv) msgDiv.remove();
-        else sendServerMessage('get_messages', { chatId: msg.chatId });
       }
     }
 
