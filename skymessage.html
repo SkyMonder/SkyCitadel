@@ -193,6 +193,16 @@
           case 'call_offer': handleCallOffer(msg); break;
           case 'call_answer': handleCallAnswer(msg); break;
           case 'ice_candidate': handleICECandidate(msg); break;
+          case 'search_user': {
+            const query = (msg.query || '').toLowerCase();
+            const allLogins = dbList('chat_users'); // массив логинов (имена файлов без .json)
+              console.log(`[search_user] query="${query}", total users in DB: ${allLogins.length}`);
+            const results = allLogins
+              .filter(login => login !== currentUser && login.toLowerCase().includes(query))
+              .map(login => ({ login }));
+            ws.send(JSON.stringify({ type: 'user_search_result', users: results }));
+            break;
+          }
           case 'call_end': handleCallEnded(); break;
           case 'profile_updated': updateLocalProfile(msg.profile); break;
         }
