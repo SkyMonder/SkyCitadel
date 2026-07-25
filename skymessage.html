@@ -307,18 +307,12 @@
     function addMessageToUI(msg) {
       const div = document.createElement('div');
       div.className = 'msg' + (msg.from === currentUser.login ? ' own' : '');
+      div.setAttribute('data-id', msg.id);  // <-- важно для edit/delete
       let content = `<strong>${escapeHtml(msg.from)}</strong>: `;
       if (msg.text) content += escapeHtml(msg.text);
-      if (msg.file) {
-        const { name, type, size, url, data } = msg.file;
-        const fileUrl = url || data;
-        if (type.startsWith('image/')) content += `<br><img src="${fileUrl}" alt="${name}" loading="lazy">`;
-        else if (type.startsWith('video/')) content += `<br><video controls src="${fileUrl}"></video>`;
-        else content += `<br><a href="${fileUrl}" download="${name}">📎 ${name} (${formatSize(size)})</a>`;
-      }
+      if (msg.file) { /* ... */ }
       if (msg.edited) content += ' <span style="font-size:0.7rem; color:#aaa;">(изменено)</span>';
       content += `<div class="time">${new Date(msg.time).toLocaleTimeString()}</div>`;
-      // Кнопки редактирования/удаления (только для своих сообщений)
       if (msg.from === currentUser.login) {
         content += `<div class="msg-actions">
           <button class="btn btn-sm" onclick="editMessage('${msg.id}')">✏️</button>
