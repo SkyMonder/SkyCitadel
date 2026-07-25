@@ -37,7 +37,8 @@
     .msg img, .msg video { max-width: 200px; border-radius: 8px; margin: 0.3rem 0; }
     .msg-actions { display: none; position: absolute; right: 5px; top: 5px; background: var(--card); border-radius: 6px; padding: 2px; }
     .msg:hover .msg-actions { display: flex; gap: 0.2rem; }
-    .input-area { padding: 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; background: var(--card); align-items: center; }
+    .edited-mark { font-size: 0.7rem; color: #aaa; }
+    .input-area { padding: 1rem; border-top: 1px solid var(--border); display: flex; gap: 0.5rem; background: var(--card); align-items: center; position: relative; }
     .input-area input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
     .btn { background: var(--accent); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 8px; cursor: pointer; font-size: 0.9rem; }
     .btn-danger { background: #c44; }
@@ -52,8 +53,7 @@
     .call-ui { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; display: none; z-index: 30; flex-direction: column; gap: 0.8rem; }
     .call-ui.active { display: flex; }
     video { width: 200px; border-radius: 8px; background: #000; }
-    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; margin-top: 1rem; }
-    .emoji-panel { display: none; flex-wrap: wrap; gap: 0.3rem; padding: 0.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-width: 280px; position: absolute; bottom: 60px; left: 10px; z-index: 40; }
+    .emoji-panel { display: none; flex-wrap: wrap; gap: 0.3rem; padding: 0.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-width: 280px; position: absolute; bottom: 70px; left: 10px; z-index: 40; }
     .emoji-panel span { cursor: pointer; font-size: 1.4rem; }
   </style>
 </head>
@@ -81,7 +81,7 @@
     <div class="main-area">
       <div class="chat-header" id="chatHeader">Выберите чат</div>
       <div class="messages" id="messagesContainer"></div>
-      <div class="input-area" id="inputArea" style="display:none; position: relative;">
+      <div class="input-area" id="inputArea" style="display:none;">
         <button class="btn" id="attachBtn">📎</button>
         <input type="file" id="fileInput" style="display:none;" multiple>
         <button class="btn" id="emojiBtn">😀</button>
@@ -140,9 +140,8 @@
   </div>
 
   <script>
-    // ====== КОНФИГУРАЦИЯ ======
     const SERVER_URL = 'https://skymutant.onrender.com'; // ← ЗАМЕНИ НА СВОЙ RENDER URL
-    const WS_URL = 'wss://skymutant.onrender.com';
+    const WS_URL = SERVER_URL.replace('https', 'wss');
     const ICE_SERVERS = {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
@@ -151,13 +150,11 @@
       ]
     };
 
-    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
-    let editingMessageId = null; // ID редактируемого сообщения
+    let editingMessageId = null;
 
-    // ====== ШИФРОВАНИЕ ======
     const enc = new TextEncoder(); const dec = new TextDecoder();
     async function deriveKey(password, saltBase64) {
       const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
@@ -165,7 +162,6 @@
       return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     }
 
-    // ====== WEBSOCKET ======
     function connectWebSocket() {
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
@@ -193,16 +189,6 @@
           case 'call_offer': handleCallOffer(msg); break;
           case 'call_answer': handleCallAnswer(msg); break;
           case 'ice_candidate': handleICECandidate(msg); break;
-          case 'search_user': {
-            const query = (msg.query || '').toLowerCase();
-            const allLogins = dbList('chat_users'); // массив логинов (имена файлов без .json)
-              console.log(`[search_user] query="${query}", total users in DB: ${allLogins.length}`);
-            const results = allLogins
-              .filter(login => login !== currentUser && login.toLowerCase().includes(query))
-              .map(login => ({ login }));
-            ws.send(JSON.stringify({ type: 'user_search_result', users: results }));
-            break;
-          }
           case 'call_end': handleCallEnded(); break;
           case 'profile_updated': updateLocalProfile(msg.profile); break;
         }
@@ -214,11 +200,9 @@
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...data }));
     }
 
-    // ====== UI ======
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
-    // ====== АВТОРИЗАЦИЯ ======
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -238,7 +222,7 @@
           const res = await fetch(`${SERVER_URL}/chat/register`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
           });
-          if (!res.ok) { alert('Ошибка регистрации'); return; }
+          if (!res.ok) { alert(res.status === 409 ? 'Логин занят' : 'Ошибка регистрации'); return; }
           alert('Аккаунт создан! Войдите.');
           document.getElementById('authTitle').textContent='Вход'; document.getElementById('authBtn').textContent='Войти';
         } else {
@@ -252,7 +236,6 @@
       } catch(e) { alert('Ошибка: '+e.message); }
     });
 
-    // ====== СПИСОК ЧАТОВ ======
     function renderChatList() {
       const container = document.getElementById('chatList');
       container.innerHTML = '';
@@ -260,35 +243,20 @@
         const div = document.createElement('div');
         div.className = 'chat-item' + (id === activeChatId ? ' active' : '');
         div.innerHTML = `
-          <div class="chat-avatar">${chat.type==='group'?'👥':chat.type==='channel'?'📢':'👤'}</div>
-          <div class="chat-info">
-            <div class="chat-name">${escapeHtml(chat.name)}${chat.blocked ? ' (заблокирован)' : ''}</div>
-            <div class="chat-last">${chat.lastMsg || ''}</div>
-          </div>
+          <div class="chat-avatar">${chat.type==='group'?'👥':'👤'}</div>
+          <div class="chat-info"><div class="chat-name">${escapeHtml(chat.name)}${chat.blocked?' (заблокирован)':''}</div><div class="chat-last">${chat.lastMsg||''}</div></div>
           <div class="chat-actions">
-            ${chat.type !== 'private' ? `<button class="btn btn-sm leave-btn" data-id="${id}">🚪</button>` : ''}
+            ${chat.type!=='private'?`<button class="btn btn-sm leave-btn" data-id="${id}">🚪</button>`:''}
             <button class="btn btn-sm delete-btn" data-id="${id}">🗑️</button>
-            ${chat.blocked ? `<button class="btn btn-sm unblock-btn" data-id="${id}">🔓</button>` : `<button class="btn btn-sm block-btn" data-id="${id}">🚫</button>`}
+            ${chat.blocked?`<button class="btn btn-sm unblock-btn" data-id="${id}">🔓</button>`:`<button class="btn btn-sm block-btn" data-id="${id}">🚫</button>`}
           </div>`;
-        div.addEventListener('click', (e) => {
-          if (e.target.closest('.chat-actions')) return;
-          activeChatId = id; openChat(id); renderChatList();
-        });
+        div.addEventListener('click', (e) => { if(e.target.closest('.chat-actions')) return; activeChatId=id; openChat(id); renderChatList(); });
         container.appendChild(div);
       });
-      // Обработчики кнопок
-      document.querySelectorAll('.delete-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); if(confirm('Удалить чат?')) sendServerMessage('delete_chat', { chatId: btn.dataset.id }); });
-      });
-      document.querySelectorAll('.block-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); sendServerMessage('block_chat', { chatId: btn.dataset.id }); });
-      });
-      document.querySelectorAll('.unblock-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); sendServerMessage('unblock_chat', { chatId: btn.dataset.id }); });
-      });
-      document.querySelectorAll('.leave-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => { e.stopPropagation(); if(confirm('Покинуть группу/канал?')) sendServerMessage('leave_group', { chatId: btn.dataset.id }); });
-      });
+      document.querySelectorAll('.delete-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Удалить чат?'))sendServerMessage('delete_chat',{chatId:b.dataset.id})}));
+      document.querySelectorAll('.block-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();sendServerMessage('block_chat',{chatId:b.dataset.id})}));
+      document.querySelectorAll('.unblock-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();sendServerMessage('unblock_chat',{chatId:b.dataset.id})}));
+      document.querySelectorAll('.leave-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Покинуть?'))sendServerMessage('leave_group',{chatId:b.dataset.id})}));
     }
 
     function openChat(id) {
@@ -297,7 +265,6 @@
       sendServerMessage('get_messages', { chatId: id });
     }
 
-    // ====== СООБЩЕНИЯ ======
     function displayMessages(msgs) {
       const cont = document.getElementById('messagesContainer'); cont.innerHTML = '';
       msgs.forEach(m => addMessageToUI(m));
@@ -307,11 +274,16 @@
     function addMessageToUI(msg) {
       const div = document.createElement('div');
       div.className = 'msg' + (msg.from === currentUser.login ? ' own' : '');
-      div.setAttribute('data-id', msg.id);  // <-- важно для edit/delete
-      let content = `<strong>${escapeHtml(msg.from)}</strong>: `;
-      if (msg.text) content += escapeHtml(msg.text);
-      if (msg.file) { /* ... */ }
-      if (msg.edited) content += ' <span style="font-size:0.7rem; color:#aaa;">(изменено)</span>';
+      div.setAttribute('data-id', msg.id);
+      let content = `<strong>${escapeHtml(msg.from)}</strong>: <span class="msg-text">${escapeHtml(msg.text||'')}</span>`;
+      if (msg.file) {
+        const { name, type, size, url, data } = msg.file;
+        const fileUrl = url || data;
+        if (type.startsWith('image/')) content += `<br><img src="${fileUrl}" alt="${name}" loading="lazy">`;
+        else if (type.startsWith('video/')) content += `<br><video controls src="${fileUrl}"></video>`;
+        else content += `<br><a href="${fileUrl}" download="${name}">📎 ${name} (${formatSize(size)})</a>`;
+      }
+      if (msg.edited) content += ' <span class="edited-mark">(изменено)</span>';
       content += `<div class="time">${new Date(msg.time).toLocaleTimeString()}</div>`;
       if (msg.from === currentUser.login) {
         content += `<div class="msg-actions">
@@ -324,17 +296,12 @@
     }
 
     function handleIncomingMessage(msg) {
-      if (msg.from === currentUser.login) return; // свои сообщения уже добавлены оптимистично
+      if (msg.from === currentUser.login) return;
       if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
       if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
-  // Проверяем, нет ли уже такого сообщения (избегаем дублей)
-      if (!chats[msg.chatId].messages.find(m => m.id === msg.id)) {
-        chats[msg.chatId].messages.push(msg);
-        if (activeChatId === msg.chatId) {
-          addMessageToUI(msg);
-          document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
-      }
-      }
+      if (chats[msg.chatId].messages.find(m => m.id === msg.id)) return;
+      chats[msg.chatId].messages.push(msg);
+      if (activeChatId === msg.chatId) { addMessageToUI(msg); }
       renderChatList();
     }
 
@@ -346,44 +313,47 @@
       if (activeChatId === msg.chatId) {
         const msgDiv = document.querySelector(`.msg[data-id="${msg.messageId}"]`);
         if (msgDiv) {
-      // Обновляем только текстовое содержимое, не трогая кнопки
           const textSpan = msgDiv.querySelector('.msg-text');
-          if (textSpan) {
-          textSpan.textContent = msg.newText;
-           } else {
-            // fallback: заменяем содержимое
-            const originalHtml = msgDiv.innerHTML;
-            const parts = originalHtml.split(/(?=<\/strong>:)/);
-            if (parts.length > 1) {
-              msgDiv.innerHTML = parts[0] + escapeHtml(msg.newText) + parts[1].replace(/.*?(?=<div class="time")/s, '');
-            }
-          }
-        if (!msgDiv.querySelector('.edited-mark')) {
+          if (textSpan) textSpan.textContent = msg.newText;
+          if (!msgDiv.querySelector('.edited-mark')) {
             const mark = document.createElement('span');
             mark.className = 'edited-mark';
-            mark.style.cssText = 'font-size:0.7rem; color:#aaa;';
             mark.textContent = ' (изменено)';
             msgDiv.appendChild(mark);
           }
-        } else {
-          // если не нашли, перезагружаем чат
-          sendServerMessage('get_messages', { chatId: msg.chatId });
-        }
+        } else sendServerMessage('get_messages', { chatId: msg.chatId });
       }
     }
 
     function handleMessageDeleted(msg) {
       const chat = chats[msg.chatId];
-      if (!chat || !chat.messages) return;
-      chat.messages = chat.messages.filter(m => m.id !== msg.messageId);
+      if (chat && chat.messages) chat.messages = chat.messages.filter(m => m.id !== msg.messageId);
       if (activeChatId === msg.chatId) {
         const msgDiv = document.querySelector(`.msg[data-id="${msg.messageId}"]`);
         if (msgDiv) msgDiv.remove();
       }
     }
 
+    document.getElementById('sendBtn').addEventListener('click', () => {
+      const input = document.getElementById('messageInput');
+      const text = input.value.trim();
+      if (!text && !editingMessageId) return;
+      if (editingMessageId) {
+        sendServerMessage('edit_message', { chatId: activeChatId, messageId: editingMessageId, newText: text });
+        editingMessageId = null;
+        document.getElementById('sendBtn').textContent = '➤';
+      } else {
+        const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
+        if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
+        if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
+        chats[activeChatId].messages.push(msg);
+        addMessageToUI(msg);
+        sendServerMessage('send_message', { chatId: activeChatId, text });
+      }
+      input.value = '';
+    });
+
     window.editMessage = (id) => {
-      // Находим текст сообщения в кэше и подставляем в поле ввода
       const chat = chats[activeChatId];
       if (!chat || !chat.messages) return;
       const msg = chat.messages.find(m => m.id === id);
@@ -396,35 +366,11 @@
     window.deleteMessage = (id) => {
       if (!confirm('Удалить сообщение?')) return;
       sendServerMessage('delete_message', { chatId: activeChatId, messageId: id });
+      const chat = chats[activeChatId];
+      if (chat && chat.messages) chat.messages = chat.messages.filter(m => m.id !== id);
+      const msgDiv = document.querySelector(`.msg[data-id="${id}"]`);
+      if (msgDiv) msgDiv.remove();
     };
-
-    document.getElementById('sendBtn').addEventListener('click', () => {
-      const input = document.getElementById('messageInput');
-      const text = input.value.trim();
-      if (!text || !activeChatId) return;
-
-      // Создаём локальное сообщение
-      const msg = {
-        id: 'msg_' + Date.now(),
-        from: currentUser.login,
-        text: text,
-        time: Date.now()
-      };
-
-  // Добавляем в кэш чата
-      if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
-      if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
-      chats[activeChatId].messages.push(msg);
-
-      // Отображаем сразу (оптимистичная вставка)
-      addMessageToUI(msg);
-      document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
-
-  // Отправляем на сервер (получатель получит через WS)
-      sendServerMessage('send_message', { chatId: activeChatId, text });
-
-      input.value = '';
-    });
 
     // ====== ЭМОДЗИ ======
     const emojis = '😀😃😄😁😆😅😂🤣😊😇🙂😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶😱😨😰😥😓🤗🤔🤭🤫🤥😶😐😑😬🙄😯😦😧😮😲🥱😴🤤😪😵🤐🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻💀☠️👽👾🤖🎃😺😸😹😻😼😽🙀😿😾'.split('');
@@ -432,42 +378,30 @@
     emojis.forEach(e => {
       const span = document.createElement('span');
       span.textContent = e;
-      span.addEventListener('click', () => {
-        document.getElementById('messageInput').value += e;
-        emojiPanel.style.display = 'none';
-      });
+      span.addEventListener('click', () => { document.getElementById('messageInput').value += e; emojiPanel.style.display = 'none'; });
       emojiPanel.appendChild(span);
     });
-    document.getElementById('emojiBtn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      emojiPanel.style.display = emojiPanel.style.display === 'flex' ? 'none' : 'flex';
-    });
+    document.getElementById('emojiBtn').addEventListener('click', (e) => { e.stopPropagation(); emojiPanel.style.display = emojiPanel.style.display === 'flex' ? 'none' : 'flex'; });
     document.addEventListener('click', () => { emojiPanel.style.display = 'none'; });
 
     // ====== ФАЙЛЫ ======
-    document.getElementById('attachBtn').addEventListener('click', async () => {
-      if (!uploadToken) { const res = await fetch(`${SERVER_URL}/get_upload_token`); const data = await res.json(); uploadToken = data.token; }
-      document.getElementById('fileInput').click();
-    });
+    async function ensureUploadToken() { if(!uploadToken){ const r=await fetch(`${SERVER_URL}/get_upload_token`); const d=await r.json(); uploadToken=d.token; } }
+    document.getElementById('attachBtn').addEventListener('click', async () => { await ensureUploadToken(); document.getElementById('fileInput').click(); });
     document.getElementById('fileInput').addEventListener('change', async (e) => {
       const files = Array.from(e.target.files);
-      if (!files.length) return;
-      for (const file of files) {
-        const formData = new FormData(); formData.append('file', file);
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${SERVER_URL}/upload_file`);
-        xhr.setRequestHeader('x-upload-token', uploadToken);
-        xhr.send(formData);
-        xhr.onload = () => {
-          const response = JSON.parse(xhr.responseText);
-          sendServerMessage('file_message', {
-            chatId: activeChatId,
-            text: '',
-            file: { name: response.name, size: response.size, type: response.type, url: `${SERVER_URL}${response.url}` }
-          });
+      if(!files.length) return;
+      for(const file of files){
+        const fd=new FormData(); fd.append('file',file);
+        const xhr=new XMLHttpRequest();
+        xhr.open('POST',`${SERVER_URL}/upload_file`);
+        xhr.setRequestHeader('x-upload-token',uploadToken);
+        xhr.send(fd);
+        xhr.onload=()=>{
+          const r=JSON.parse(xhr.responseText);
+          sendServerMessage('file_message',{chatId:activeChatId,text:'',file:{name:r.name,size:r.size,type:r.type,url:`${SERVER_URL}${r.url}`}});
         };
       }
-      e.target.value = '';
+      e.target.value='';
     });
 
     // ====== ПОИСК ПОЛЬЗОВАТЕЛЕЙ ======
