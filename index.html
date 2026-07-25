@@ -159,7 +159,7 @@
   </div>
 
   <div class="main">
-    <!-- Карты -->
+        <!-- Карты -->
     <div id="maps" class="section active">
       <div class="card">
         <h2>🗺️ Интерактивная карта</h2>
@@ -171,6 +171,7 @@
           <input type="text" id="route-start" placeholder="Откуда (адрес)">
           <input type="text" id="route-end" placeholder="Куда (адрес)">
           <button id="route-go" class="btn">Проложить маршрут</button>
+          <button id="geolocate-btn" class="btn" title="Моё местоположение">📍</button>
         </div>
         <div id="map"></div>
       </div>
@@ -397,14 +398,47 @@
         return await decryptPayload(json.data);
       }
 
-      // ========== КАРТЫ + НАВИГАТОР ==========
+            // ========== КАРТЫ + НАВИГАТОР + ГЕОЛОКАЦИЯ ==========
+      // Стильные тайлы CartoDB Voyager (бесплатные, без ключа)
       const map = L.map('map').setView([55.751244, 37.618423], 10);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap'
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20
       }).addTo(map);
 
       let routingControl = null;
+      let userLocationMarker = null;
 
+      // Геолокация
+      document.getElementById('geolocate-btn').addEventListener('click', () => {
+        if (!navigator.geolocation) {
+          alert('Геолокация не поддерживается браузером');
+          return;
+        }
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            // Устанавливаем вид карты
+            map.setView([lat, lon], 15);
+            // Удаляем старый маркер, если есть
+            if (userLocationMarker) map.removeLayer(userLocationMarker);
+            userLocationMarker = L.marker([lat, lon])
+              .addTo(map)
+              .bindPopup('📍 Вы здесь')
+              .openPopup();
+            // Автоматически заполняем поле "Откуда" координатами
+            document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+          },
+          (err) => {
+            alert('Не удалось определить местоположение: ' + err.message);
+          },
+          { enableHighAccuracy: true }
+        );
+      });
+
+      // Поиск места
       document.getElementById('map-search-btn').addEventListener('click', async () => {
         const query = document.getElementById('map-search-input').value.trim();
         if (!query) return;
@@ -417,12 +451,19 @@
         }
       });
 
+      // Построение маршрута
       document.getElementById('route-go').addEventListener('click', async () => {
         const startInput = document.getElementById('route-start').value.trim();
         const endInput = document.getElementById('route-end').value.trim();
         if (!startInput || !endInput) return alert('Укажите начало и конец маршрута');
 
         const geocode = async (address) => {
+          // Если передан текст с координатами (от геолокации), попробуем распарсить
+          const coordMatch = address.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+          if (coordMatch) {
+            return L.latLng(parseFloat(coordMatch[1]), parseFloat(coordMatch[2]));
+          }
+          // Иначе геокодируем через Nominatim
           const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
           const data = await res.json();
           if (data && data.length > 0) return L.latLng(data[0].lat, data[0].lon);
