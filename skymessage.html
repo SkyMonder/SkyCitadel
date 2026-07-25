@@ -399,15 +399,17 @@
 
     document.getElementById('searchQuery').addEventListener('input', () => {
       const q = document.getElementById('searchQuery').value.trim();
-      if (q.length === 0) { document.getElementById('searchResults').innerHTML = ''; return; }
-      sendServerMessage('search_user', { query: q });
-    });
-    document.getElementById('groupSearchQuery').addEventListener('input', async () => {
-      const q = document.getElementById('groupSearchQuery').value.trim();
-      if (q.length === 0) { document.getElementById('groupSearchResults').innerHTML = ''; return; }
-      const res = await fetch(`${SERVER_URL}/search_groups?q=${encodeURIComponent(q)}`);
-      const groups = await res.json();
-      showSearchResults(groups, 'group');
+      if (q.length === 0) {
+        document.getElementById('searchResults').innerHTML = '';
+        return;
+      }
+      // Используем REST-поиск, а не WebSocket
+      fetch(`${SERVER_URL}/chat/search_user?q=${encodeURIComponent(q)}&login=${encodeURIComponent(currentUser.login)}`)
+        .then(r => r.json())
+        .then(users => {
+          showSearchResults(users, 'user');
+        })
+        .catch(err => console.error('Ошибка поиска:', err));
     });
 
     function showSearchResults(items, type) {
