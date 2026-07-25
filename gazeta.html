@@ -5,11 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Газета SkyCitadel</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       background: #0d1225;
       color: #e0e8ff;
@@ -24,10 +20,7 @@
       color: #b7ceff;
       text-shadow: 0 0 8px #2f4b8c;
     }
-    #news {
-      max-width: 800px;
-      margin: 0 auto;
-    }
+    #news { max-width: 800px; margin: 0 auto; }
     .article {
       background: rgba(20, 28, 50, 0.7);
       backdrop-filter: blur(8px);
@@ -37,9 +30,7 @@
       margin-bottom: 0.8rem;
       transition: background 0.2s;
     }
-    .article:hover {
-      background: rgba(30, 40, 65, 0.8);
-    }
+    .article:hover { background: rgba(30, 40, 65, 0.8); }
     .article h2 {
       margin: 0 0 0.4rem 0;
       font-size: 1.1rem;
@@ -49,9 +40,7 @@
       color: #aac0ff;
       text-decoration: none;
     }
-    .article h2 a:hover {
-      text-decoration: underline;
-    }
+    .article h2 a:hover { text-decoration: underline; }
     .article p {
       font-size: 0.85rem;
       color: #8899cc;
@@ -72,66 +61,63 @@
   </style>
 </head>
 <body>
-  <h1>📰 Новости РИА</h1>
+  <h1>📰 Новости Интерфакс</h1>
   <div id="news">Загрузка новостей...</div>
   <div class="date" id="updateTime"></div>
   <div id="sources">
-    <strong>Источник:</strong> РИА Новости (RSS)
+    <strong>Источник:</strong> Интерфакс (RSS)
   </div>
 
   <script>
-    // Реальный RSS РИА Новостей (архивная лента, обновляется часто)
-    const rssFeeds = [
-      'https://ria.ru/export/rss2/archive/index.xml'
-    ];
+    // Прямая RSS-лента Интерфакса (работает без API)
+    const RSS_URL = 'https://www.interfax.ru/rss';
 
     const newsContainer = document.getElementById('news');
     const updateTime = document.getElementById('updateTime');
 
-    function fetchRSS(feedUrl) {
-      return fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(feedUrl)}`)
-        .then(response => response.json())
-        .then(data => data.items)
-        .catch(err => {
-          console.error('Ошибка при загрузке RSS:', feedUrl, err);
-          return [];
-        });
-    }
-
     function loadNews() {
       newsContainer.innerHTML = 'Загрузка новостей...';
-      let allItems = [];
-
-      Promise.all(rssFeeds.map(fetchRSS))
-        .then(results => {
-          results.forEach(items => {
-            allItems = allItems.concat(items);
+      fetch(RSS_URL)
+        .then(response => response.text())
+        .then(str => {
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(str, 'text/xml');
+          const items = xml.querySelectorAll('item');
+          const articles = [];
+          items.forEach(item => {
+            const title = item.querySelector('title')?.textContent || 'Без заголовка';
+            const link = item.querySelector('link')?.textContent || '#';
+            const pubDate = item.querySelector('pubDate')?.textContent;
+            articles.push({ title, link, pubDate });
           });
-          // Сортировка по дате (свежие сверху)
-          allItems.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
-          displayNews(allItems.slice(0, 10)); // 10 последних новостей
+          if (articles.length === 0) {
+            newsContainer.innerHTML = '<p style="text-align:center;">Новостей пока нет</p>';
+          } else {
+            displayNews(articles.slice(0, 10));
+          }
+        })
+        .catch(err => {
+          console.error('Ошибка загрузки RSS:', err);
+          newsContainer.innerHTML = '<p style="text-align:center;">Не удалось загрузить новости</p>';
         });
     }
 
     function displayNews(items) {
-      if (items.length === 0) {
-        newsContainer.innerHTML = '<p style="text-align:center;">Нет новостей для отображения.</p>';
-        return;
-      }
       newsContainer.innerHTML = '';
       items.forEach(item => {
-        const articleDiv = document.createElement('div');
-        articleDiv.className = 'article';
-        articleDiv.innerHTML = `
+        const div = document.createElement('div');
+        div.className = 'article';
+        const date = item.pubDate ? new Date(item.pubDate).toLocaleString('ru-RU') : '';
+        div.innerHTML = `
           <h2><a href="${item.link}" target="_blank">${item.title}</a></h2>
-          <p>${new Date(item.pubDate).toLocaleString('ru-RU')}</p>
+          <p>${date}</p>
         `;
-        newsContainer.appendChild(articleDiv);
+        newsContainer.appendChild(div);
       });
       updateTime.textContent = 'Обновлено: ' + new Date().toLocaleString('ru-RU');
     }
 
-    // Первая загрузка и автообновление каждый час (3600000 мс)
+    // Загружаем при старте и обновляем каждый час
     loadNews();
     setInterval(loadNews, 3600000);
   </script>
