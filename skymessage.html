@@ -421,10 +421,21 @@
         div.className = 'search-result-item';
         if (type === 'user') {
           div.textContent = item.login;
-          div.addEventListener('click', () => { sendServerMessage('create_private_chat', { target: item.login }); document.getElementById('searchModal').classList.remove('active'); });
+          div.addEventListener('click', () => {
+            fetch(`${SERVER_URL}/chat/create_private`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ user1: currentUser.login, user2: item.login })
+            })
+            .then(r => r.json())
+            .then(() => {
+              document.getElementById('searchModal').classList.remove('active');
+              loadChatList();
+            })
+            .catch(err => console.error('Ошибка создания чата:', err));
+          });
         } else {
-          div.innerHTML = `${escapeHtml(item.name)} (${item.type === 'group' ? 'Группа' : 'Канал'}, ${item.membersCount} уч.) <button class="btn btn-sm join-btn" data-id="${item.id}">Вступить</button>`;
-          div.querySelector('.join-btn').addEventListener('click', (e) => { e.stopPropagation(); sendServerMessage('join_group', { chatId: item.id }); document.getElementById('groupsModal').classList.remove('active'); });
+          div.innerHTML = `${escapeHtml(item.name)} (${item.type==='group'?'Группа':'Канал'}) <button class="btn btn-sm">Вступить</button>`;
         }
         container.appendChild(div);
       });
