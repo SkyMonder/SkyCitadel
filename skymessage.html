@@ -389,17 +389,28 @@
     document.getElementById('sendBtn').addEventListener('click', () => {
       const input = document.getElementById('messageInput');
       const text = input.value.trim();
-      if (!text && !editingMessageId) return;
-      if (editingMessageId) {
-        // Редактирование
-        sendServerMessage('edit_message', { chatId: activeChatId, messageId: editingMessageId, newText: text });
-        editingMessageId = null;
-        document.getElementById('sendBtn').textContent = '➤';
-      } else {
-        // Отправка нового
-        if (!activeChatId) return;
-        sendServerMessage('send_message', { chatId: activeChatId, text });
-      }
+      if (!text || !activeChatId) return;
+
+      // Создаём локальное сообщение
+      const msg = {
+        id: 'msg_' + Date.now(),
+        from: currentUser.login,
+        text: text,
+        time: Date.now()
+      };
+
+  // Добавляем в кэш чата
+      if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
+      if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
+      chats[activeChatId].messages.push(msg);
+
+      // Отображаем сразу (оптимистичная вставка)
+      addMessageToUI(msg);
+      document.getElementById('messagesContainer').scrollTop = document.getElementById('messagesContainer').scrollHeight;
+
+  // Отправляем на сервер (получатель получит через WS)
+      sendServerMessage('send_message', { chatId: activeChatId, text });
+
       input.value = '';
     });
 
