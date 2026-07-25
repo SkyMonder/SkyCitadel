@@ -560,6 +560,20 @@
       if (localStream) { const t = localStream.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; localVideo.style.display = t.enabled ? 'block' : 'none'; } }
     });
 
+    function loadChatList() {
+      fetch(`${SERVER_URL}/chat/list?login=${encodeURIComponent(currentUser.login)}`)
+        .then(r => r.json())
+        .then(list => {
+          chats = list;
+          renderChatList();
+          if (!activeChatId || !chats[activeChatId]) {
+            const firstId = Object.keys(chats)[0];
+            if (firstId) { activeChatId = firstId; openChat(firstId); }
+          }
+        })
+        .catch(err => console.error('Ошибка загрузки чатов:', err));
+    }
+
     function escapeHtml(text) { return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
