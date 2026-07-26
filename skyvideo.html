@@ -8,10 +8,11 @@
     :root { --bg:#0a0f1e; --panel:#111827; --card:#1a233a; --border:#2a3450; --text:#e0e8ff; --accent:#5f7ecf; }
     * { margin:0; padding:0; box-sizing:border-box; }
     body { font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
-    header { padding:1rem; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    header { padding:1rem; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.5rem; }
     .logo { font-size:1.5rem; font-weight:700; cursor:pointer; }
     .btn { background:var(--accent); border:none; color:white; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; }
     .btn-danger { background:#c44; }
+    .back-btn { background:#2f4b8c; border:none; color:white; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; font-weight:bold; }
     .content { flex:1; overflow-y:auto; padding:1rem; }
     .video-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
     .video-card { background:var(--card); border-radius:12px; overflow:hidden; cursor:pointer; transition:transform .2s; }
@@ -33,17 +34,64 @@
     .follow-btn.following { background:var(--accent); }
     .back-link { color:var(--accent); cursor:pointer; margin-right:1rem; }
     .player-container { padding:1rem 0; }
+    .header-left { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+
+    /* Баннер ошибки */
+    .error-banner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 9999;
+      background: #c44;
+      color: white;
+      padding: 1rem 2rem;
+      text-align: center;
+      font-weight: bold;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.5rem;
+      border-bottom: 3px solid #ff8a8a;
+    }
+    .error-banner.show { display: flex; }
+    .error-banner .btn-retry {
+      background: white;
+      color: #c44;
+      border: none;
+      padding: 0.5rem 2rem;
+      border-radius: 20px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .error-banner .btn-retry:hover { background: #f0f0f0; transform: scale(1.05); }
+    .error-banner small {
+      font-weight: normal;
+      opacity: 0.9;
+      font-size: 0.9rem;
+    }
   </style>
 </head>
 <body>
+  <!-- Баннер ошибки -->
+  <div id="error-banner" class="error-banner">
+    <div>⚠️ Ошибка соединения с сервером</div>
+    <small>Попробуйте обновить страницу (Ctrl+Shift+R или Cmd+Shift+R). Если ошибка повторяется, подождите 2–3 минуты и обновите страницу.</small>
+    <button class="btn-retry" onclick="location.reload()">🔄 Обновить страницу</button>
+  </div>
+
   <header>
-    <div class="logo" onclick="goHome()">🎬 SkyVideo</div>
+    <div class="header-left">
+      <button class="back-btn" onclick="window.location.href='/'">🏰 Вернуться в SkyCitadel</button>
+      <div class="logo" onclick="goHome()">🎬 SkyVideo</div>
+    </div>
     <div>
       <span id="user-info"></span>
       <button id="login-btn" class="btn">Войти</button>
       <button id="upload-btn" class="btn" style="display:none;">📤 Загрузить</button>
       <button id="profile-btn" class="btn" style="display:none;">👤</button>
-      <button onclick="window.location.href='/'">🏰 Вернуться в SkyCitadel</button>
     </div>
   </header>
   <div class="content">
@@ -98,74 +146,65 @@
     let currentUser = null;
     let currentSkyid = localStorage.getItem('skyvideo_skyid') || null;
 
+    // ====== Показ ошибки ======
+    function showErrorBanner(show = true) {
+      const banner = document.getElementById('error-banner');
+      if (show) banner.classList.add('show');
+      else banner.classList.remove('show');
+    }
+
+    // ====== Функция для безопасных fetch с повторными попытками ======
+    async function safeFetch(url, options = {}, retries = 3, delay = 1000) {
+      for (let i = 0; i < retries; i++) {
+        try {
+          const res = await fetch(url, options);
+          return res;
+        } catch (err) {
+          console.warn(`⚠️ Попытка ${i+1} из ${retries} не удалась:`, err.message);
+          if (i === retries - 1) {
+            // Последняя попытка – показываем баннер и пробрасываем ошибку
+            showErrorBanner(true);
+            throw err;
+          }
+          await new Promise(r => setTimeout(r, delay * (i + 1))); // увеличиваем задержку
+        }
+      }
+    }
+
     // ====== Навигация ======
     function goHome() {
-      console.log('🔙 Возврат на главную');
-      // Если мы внутри iframe – сообщаем родителю, чтобы он сбросил параметр
-      if (window.parent !== window) {
-        try {
-          window.parent.postMessage({ type: 'navigateHome' }, '*');
-          console.log('📤 Сообщение о возврате на главную отправлено');
-        } catch (e) {
-          console.error(e);
-        }
-      } else {
-        const url = new URL(window.location);
-        url.search = '';
-        window.history.pushState({}, '', url);
-        renderFeed();
-      }
+      window.location.href = 'skyvideo.html';
     }
 
     function navigateToVideo(videoId) {
       console.log('🎬 Переход к видео:', videoId);
-      if (!videoId) {
-        console.error('❌ videoId не передан');
-        return;
-      }
-      function goBackToCitadel() {
-        window.location.href = '/index.html'; // или просто '/' если index.html в корне
-      }    
-      // Проверяем, находимся ли мы внутри iframe
-      if (window.parent !== window) {
-        // Мы внутри iframe – отправляем сообщение родителю
-        try {
-          window.parent.postMessage({
-            type: 'navigateVideo',
-            videoId: videoId
-          }, '*');
-          console.log('📤 Сообщение отправлено родителю');
-        } catch (e) {
-          console.error('❌ Ошибка отправки сообщения родителю:', e);
-        }
-      } else {
-        // Мы на самостоятельной странице – полная перезагрузка с новым параметром
-        console.log('🔄 Переход через location.href');
-        window.location.href = '?v=' + videoId;
-      }
+      if (!videoId) return;
+      window.location.href = '?v=' + videoId;
     }
 
     // ====== Авторизация ======
     async function verifyToken() {
       if (!token) return false;
       try {
-        const res = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-        if (res.ok) {
-          const me = await res.json();
-          const profileRes = await fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
-          if (profileRes.ok) {
-            const profile = await profileRes.json();
-            currentUser = { login: me.login, name: profile.name || me.login, skyid: me.skyid };
-            currentSkyid = me.skyid;
-            localStorage.setItem('skyvideo_skyid', me.skyid);
-          } else {
-            currentUser = { login: me.login, name: me.login, skyid: me.skyid };
-            currentSkyid = me.skyid;
-            localStorage.setItem('skyvideo_skyid', me.skyid);
-          }
-          return true;
-        } else { logout(); return false; }
-      } catch (e) { logout(); return false; }
+        const res = await safeFetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
+        if (!res.ok) return false;
+        const me = await res.json();
+        const profileRes = await safeFetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
+        if (profileRes.ok) {
+          const profile = await profileRes.json();
+          currentUser = { login: me.login, name: profile.name || me.login, skyid: me.skyid };
+          currentSkyid = me.skyid;
+          localStorage.setItem('skyvideo_skyid', me.skyid);
+        } else {
+          currentUser = { login: me.login, name: me.login, skyid: me.skyid };
+          currentSkyid = me.skyid;
+          localStorage.setItem('skyvideo_skyid', me.skyid);
+        }
+        return true;
+      } catch (e) {
+        logout();
+        return false;
+      }
     }
 
     function loginWithSkyID() {
@@ -201,22 +240,27 @@
 
     // ====== Инициализация ======
     (async () => {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('code')) {
-        window.location.href = '/callback.html' + window.location.search;
-        return;
-      }
-      if (token) {
-        const valid = await verifyToken();
-        if (valid && currentUser) { login(currentUser); }
-      } else {
-        document.getElementById('login-btn').style.display = 'inline-block';
-      }
-      const videoId = params.get('v');
-      if (videoId) {
-        renderVideoPage(videoId);
-      } else {
-        renderFeed();
+      try {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('code')) {
+          window.location.href = '/callback.html' + window.location.search;
+          return;
+        }
+        if (token) {
+          const valid = await verifyToken();
+          if (valid && currentUser) { login(currentUser); }
+        } else {
+          document.getElementById('login-btn').style.display = 'inline-block';
+        }
+        const videoId = params.get('v');
+        if (videoId) {
+          renderVideoPage(videoId);
+        } else {
+          renderFeed();
+        }
+      } catch (e) {
+        showErrorBanner(true);
+        console.error('Ошибка инициализации:', e);
       }
     })();
 
@@ -228,25 +272,25 @@
     // ====== Профиль ======
     document.getElementById('profile-btn').addEventListener('click', async () => {
       try {
-        const res = await fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await safeFetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
         const profile = await res.json();
         document.getElementById('channel-name').value = profile.name || '';
         document.getElementById('channel-bio').value = profile.bio || '';
         document.getElementById('profile-modal').classList.add('active');
-      } catch (e) {}
+      } catch (e) { showErrorBanner(true); }
     });
     document.getElementById('save-profile').addEventListener('click', async () => {
       const name = document.getElementById('channel-name').value.trim();
       const bio = document.getElementById('channel-bio').value.trim();
       try {
-        await fetch(`${SKYVIDEO_URL}/profile`, {
+        await safeFetch(`${SKYVIDEO_URL}/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ name, bio })
         });
         document.getElementById('profile-modal').classList.remove('active');
         if (currentUser) { currentUser.name = name; document.getElementById('user-info').textContent = name; }
-      } catch (e) {}
+      } catch (e) { showErrorBanner(true); }
     });
 
     // ====== Загрузка видео ======
@@ -318,17 +362,22 @@
         statusDiv.textContent = '❌ Ошибка: ' + e.message;
         console.error(e);
         progressBar.style.display = 'none';
-        alert('Ошибка загрузки: ' + e.message);
+        if (e.message.includes('сетевая') || e.message.includes('таймаут')) {
+          showErrorBanner(true);
+        } else {
+          alert('Ошибка загрузки: ' + e.message);
+        }
       }
     });
 
-    // ====== РЕНДЕР ЛЕНТЫ ======
+    // ====== Рендер ленты ======
     async function renderFeed() {
       const container = document.getElementById('main-content');
       try {
-        const res = await fetch(`${SKYVIDEO_URL}/list`);
+        const res = await safeFetch(`${SKYVIDEO_URL}/list`);
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         const data = await res.json();
-        if (!Array.isArray(data)) return;
+        if (!Array.isArray(data)) throw new Error('Не массив');
         container.innerHTML = `
           <div class="video-grid">
             ${data.map(v => `
@@ -344,27 +393,24 @@
         `;
         console.log('📋 Лента загружена, карточек:', data.length);
       } catch (e) {
-        container.innerHTML = '<p style="text-align:center;color:#8899cc;">Не удалось загрузить видео</p>';
+        container.innerHTML = `<p style="text-align:center;color:#c44;">❌ Ошибка загрузки видео: ${e.message}</p><p style="text-align:center;color:#8899cc;">Проверьте сервер ${SKYVIDEO_URL}</p>`;
         console.error('❌ Ошибка загрузки ленты:', e);
       }
     }
 
-    // ====== РЕНДЕР СТРАНИЦЫ ВИДЕО ======
+    // ====== Рендер страницы видео ======
     async function renderVideoPage(videoId) {
       const container = document.getElementById('main-content');
       console.log('🎞️ Рендер видео:', videoId);
-      
       container.innerHTML = `<p style="text-align:center;color:#8899cc;">⏳ Загрузка видео...</p>`;
-      
       try {
-        const res = await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         const meta = await res.json();
         console.log('📦 Метаданные получены:', meta);
-        
         container.innerHTML = `
           <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-            <span class="back-link" onclick="goHome()">← Назад</span>
+            <span class="back-link" onclick="goHome()">← На главную</span>
           </div>
           <div class="player-container">
             <video id="player-video" controls autoplay style="width:100%;max-height:500px;background:#000;border-radius:8px;">
@@ -373,7 +419,6 @@
             <div id="player-meta-${videoId}"></div>
           </div>
         `;
-        
         const video = document.getElementById('player-video');
         if (video) {
           video.addEventListener('error', (e) => {
@@ -384,8 +429,8 @@
             console.log('✅ Видео загружено, длительность:', video.duration);
           });
         }
-        
         renderPlayerMeta(videoId, meta);
+        // Просмотры не критичны, можно без retry
         fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method: 'POST' }).catch(()=>{});
         if (currentUser) {
           checkFollowStatus(meta.authorSkyid);
@@ -408,7 +453,6 @@
         return;
       }
       console.log('📝 Рендер метаданных для', videoId);
-      
       const isOwner = currentUser && meta.authorSkyid === currentUser.skyid;
       const isAdmin = currentUser && currentUser.login === 'SkyMonder';
       let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
@@ -449,7 +493,7 @@
     async function checkFollowStatus(skyid) {
       if (!currentUser) return;
       try {
-        const res = await fetch(`${SKYVIDEO_URL}/follow/check/${skyid}`, {
+        const res = await safeFetch(`${SKYVIDEO_URL}/follow/check/${skyid}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -463,7 +507,7 @@
             btn.classList.remove('following');
           }
         }
-      } catch (e) {}
+      } catch (e) { showErrorBanner(true); }
     }
 
     window.toggleFollow = async (skyid) => {
@@ -472,11 +516,11 @@
       if (!btn) return;
       try {
         if (btn.classList.contains('following')) {
-          await fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+          await safeFetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
           btn.textContent = '➕ Подписаться';
           btn.classList.remove('following');
         } else {
-          await fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+          await safeFetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
           btn.textContent = '✔️ Подписан';
           btn.classList.add('following');
         }
@@ -489,7 +533,7 @@
     window.likeVideo = async (id) => {
       if (!currentUser) return alert('Войдите в аккаунт');
       try {
-        const res = await fetch(`${SKYVIDEO_URL}/video/${id}/like`, {
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${id}/like`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -498,12 +542,13 @@
         document.getElementById('dislike-count-' + id).textContent = data.dislikes;
       } catch (e) {
         alert('Ошибка: ' + e.message);
+        showErrorBanner(true);
       }
     };
     window.dislikeVideo = async (id) => {
       if (!currentUser) return alert('Войдите в аккаунт');
       try {
-        const res = await fetch(`${SKYVIDEO_URL}/video/${id}/dislike`, {
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${id}/dislike`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -512,6 +557,7 @@
         document.getElementById('dislike-count-' + id).textContent = data.dislikes;
       } catch (e) {
         alert('Ошибка: ' + e.message);
+        showErrorBanner(true);
       }
     };
 
@@ -521,7 +567,7 @@
       const text = document.getElementById('new-comment').value.trim();
       if (!text) return;
       try {
-        await fetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
+        await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ text })
@@ -529,36 +575,41 @@
         refreshMeta(videoId);
       } catch (e) {
         alert('Ошибка: ' + e.message);
+        showErrorBanner(true);
       }
     };
     window.deleteComment = async (videoId, commentId) => {
       if (!confirm('Удалить комментарий?')) return;
       try {
-        await fetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
+        await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
         refreshMeta(videoId);
       } catch (e) {
         alert('Ошибка: ' + e.message);
+        showErrorBanner(true);
       }
     };
     window.deleteVideo = async (id) => {
       if (!confirm('Удалить видео?')) return;
       try {
-        await fetch(`${SKYVIDEO_URL}/video/${id}`, {
+        await safeFetch(`${SKYVIDEO_URL}/video/${id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
         goHome();
       } catch (e) {
         alert('Ошибка: ' + e.message);
+        showErrorBanner(true);
       }
     };
     async function refreshMeta(videoId) {
-      const res = await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
-      const meta = await res.json();
-      renderPlayerMeta(videoId, meta);
+      try {
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
+        const meta = await res.json();
+        renderPlayerMeta(videoId, meta);
+      } catch (e) { showErrorBanner(true); }
     }
 
     // ====== Вспомогательные ======
@@ -566,18 +617,16 @@
       return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
 
-    // ====== Обработка изменения URL (назад/вперёд) для самостоятельной страницы ======
-    if (window.parent === window) {
-      window.addEventListener('popstate', () => {
-        const params = new URLSearchParams(window.location.search);
-        const videoId = params.get('v');
-        if (videoId) {
-          renderVideoPage(videoId);
-        } else {
-          renderFeed();
-        }
-      });
-    }
+    // ====== Обработка возврата по кнопке "Назад" браузера ======
+    window.addEventListener('popstate', () => {
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get('v');
+      if (videoId) {
+        renderVideoPage(videoId);
+      } else {
+        renderFeed();
+      }
+    });
   </script>
 </body>
 </html>
