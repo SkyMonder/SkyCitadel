@@ -146,7 +146,7 @@
       <div class="nav-items" style="display: none;">
         <button class="nav-btn" data-section="radio">📻 Радио</button>
         <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
-        <button class="nav-btn" data-section="video">🎬 Видео</button>
+        <button class="nav-btn" data-section="video" onclick="openVideo()">🎬 Видео</button>
       </div>
     </div>
     <div class="nav-section">
@@ -691,7 +691,13 @@
           console.log('🎬 Загружаем видео по параметру v:', videoId);
           videoIframe.src = `skyvideo.html?v=${videoId}`;
         }
-
+        function openVideo() {
+          // Переход на skyvideo.html с сохранением текущего параметра v (если есть)
+          const params = new URLSearchParams(window.location.search);
+          const videoId = params.get('v');
+          const url = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
+          window.location.href = url;
+        }
         // Слушаем сообщения от iframe
         window.addEventListener('message', (event) => {
           console.log('📨 Получено сообщение от iframe:', event.data);
