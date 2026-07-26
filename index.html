@@ -121,6 +121,7 @@
     .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
     .search-result-item { background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf; }
+    #video-iframe { width: 100%; height: 100%; border: none; min-height: 600px; }
   </style>
 </head>
 <body>
@@ -238,7 +239,7 @@
       </div>
     </div>
 
-    <!-- Календарь с мероприятиями -->
+    <!-- Календарь -->
     <div id="calendar" class="section">
       <div class="card">
         <h2>📅 Календарь</h2>
@@ -260,7 +261,7 @@
       </div>
     </div>
 
-    <!-- Калькулятор инженерный -->
+    <!-- Калькулятор -->
     <div id="calculator" class="section">
       <div class="card">
         <h2>🧮 Инженерный калькулятор</h2>
@@ -341,17 +342,17 @@
       </div>
     </div>
 
-    <!-- Заметки -->
+    <!-- Заметки (заглушка) -->
     <div id="notes" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://skynotes-n17c.onrender.com/" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="https://skynotes-n17c.onrender.com" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
 
-    <!-- Видео (iframe SkyVideo) -->
+    <!-- Видео (SkyVideo в iframe) -->
     <div id="video" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="skyvideo.html" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe id="video-iframe" src="skyvideo.html" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
   </div>
@@ -402,7 +403,7 @@
       async function decryptPayload(b64) { const key = await getKey(); const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); const iv = combo.slice(0,12); const data = combo.slice(12); const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data); return JSON.parse(new TextDecoder().decode(dec)); }
       async function secureFetch(url, payload) { const enc = await encryptPayload(payload); const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: enc }) }); if (!r.ok) throw new Error('fail'); const j = await r.json(); if (!j.data) throw new Error('no data'); return decryptPayload(j.data); }
 
-      // ========== КАРТЫ + НАВИГАТОР + ГЕОЛОКАЦИЯ ==========
+      // ========== КАРТЫ ==========
       const map = L.map('map').setView([55.751244, 37.618423], 10);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
@@ -679,6 +680,43 @@
       function generateRandomString(l) { let s=''; const ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for(let i=0;i<l;i++) s+=ch.charAt(Math.floor(Math.random()*ch.length)); return s; }
       async function generateCodeChallenge(v) { const d = new TextEncoder().encode(v); const h = await crypto.subtle.digest('SHA-256', d); return btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
       handleSpotifyCallback(); loadSpotifyToken();
+
+      // ====== ОБРАБОТКА ВИДЕО (iframe + параметр ?v=) ======
+      const videoIframe = document.getElementById('video-iframe');
+      if (videoIframe) {
+        // При загрузке страницы проверяем параметр v
+        const params = new URLSearchParams(window.location.search);
+        const videoId = params.get('v');
+        if (videoId) {
+          videoIframe.src = `skyvideo.html?v=${videoId}`;
+        }
+
+        // Слушаем сообщения от iframe
+        window.addEventListener('message', (event) => {
+          if (event.data && event.data.type === 'navigateVideo') {
+            const videoId = event.data.videoId;
+            if (videoId) {
+              // Меняем URL в адресной строке (без перезагрузки)
+              const url = new URL(window.location);
+              url.search = `?v=${videoId}`;
+              window.history.pushState({}, '', url);
+              // Обновляем iframe, чтобы загрузить видео
+              if (videoIframe) {
+                videoIframe.src = `skyvideo.html?v=${videoId}`;
+              }
+            }
+          }
+        });
+
+        // Обработка навигации браузера (назад/вперёд)
+        window.addEventListener('popstate', () => {
+          const params = new URLSearchParams(window.location.search);
+          const videoId = params.get('v');
+          if (videoIframe) {
+            videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
+          }
+        });
+      }
 
       function escapeHtml(t) { return String(t).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
