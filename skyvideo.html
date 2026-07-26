@@ -134,7 +134,7 @@
       <button class="btn" style="background:#444;" onclick="document.getElementById('profile-modal').classList.remove('active')">Закрыть</button>
     </div>
   </div>
-  <script src="sky-network.js"></script>
+
   <script>
     // ====== Конфигурация ======
     const SKYVIDEO_URL = 'https://skyvideo.onrender.com';
@@ -153,11 +153,11 @@
       else banner.classList.remove('show');
     }
 
-    // ====== Функция для безопасных SkyNetwork.fetch с повторными попытками ======
-    async function safeSkyNetwork.fetch(url, options = {}, retries = 3, delay = 1000) {
+    // ====== Функция для безопасных fetch с повторными попытками ======
+    async function safeFetch(url, options = {}, retries = 3, delay = 1000) {
       for (let i = 0; i < retries; i++) {
         try {
-          const res = await SkyNetwork.fetch(url, options);
+          const res = await fetch(url, options);
           return res;
         } catch (err) {
           console.warn(`⚠️ Попытка ${i+1} из ${retries} не удалась:`, err.message);
@@ -186,10 +186,10 @@
     async function verifyToken() {
       if (!token) return false;
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await safeFetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
         if (!res.ok) return false;
         const me = await res.json();
-        const profileRes = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
+        const profileRes = await safeFetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
         if (profileRes.ok) {
           const profile = await profileRes.json();
           currentUser = { login: me.login, name: profile.name || me.login, skyid: me.skyid };
@@ -272,7 +272,7 @@
     // ====== Профиль ======
     document.getElementById('profile-btn').addEventListener('click', async () => {
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await safeFetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
         const profile = await res.json();
         document.getElementById('channel-name').value = profile.name || '';
         document.getElementById('channel-bio').value = profile.bio || '';
@@ -283,7 +283,7 @@
       const name = document.getElementById('channel-name').value.trim();
       const bio = document.getElementById('channel-bio').value.trim();
       try {
-        await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/profile`, {
+        await safeFetch(`${SKYVIDEO_URL}/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ name, bio })
@@ -374,7 +374,7 @@
     async function renderFeed() {
       const container = document.getElementById('main-content');
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/list`);
+        const res = await safeFetch(`${SKYVIDEO_URL}/list`);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         const data = await res.json();
         if (!Array.isArray(data)) throw new Error('Не массив');
@@ -404,7 +404,7 @@
       console.log('🎞️ Рендер видео:', videoId);
       container.innerHTML = `<p style="text-align:center;color:#8899cc;">⏳ Загрузка видео...</p>`;
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
         if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`);
         const meta = await res.json();
         console.log('📦 Метаданные получены:', meta);
@@ -431,7 +431,7 @@
         }
         renderPlayerMeta(videoId, meta);
         // Просмотры не критичны, можно без retry
-        SkyNetwork.fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method: 'POST' }).catch(()=>{});
+        fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method: 'POST' }).catch(()=>{});
         if (currentUser) {
           checkFollowStatus(meta.authorSkyid);
         }
@@ -493,7 +493,7 @@
     async function checkFollowStatus(skyid) {
       if (!currentUser) return;
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/follow/check/${skyid}`, {
+        const res = await safeFetch(`${SKYVIDEO_URL}/follow/check/${skyid}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -516,11 +516,11 @@
       if (!btn) return;
       try {
         if (btn.classList.contains('following')) {
-          await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+          await safeFetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
           btn.textContent = '➕ Подписаться';
           btn.classList.remove('following');
         } else {
-          await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+          await safeFetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
           btn.textContent = '✔️ Подписан';
           btn.classList.add('following');
         }
@@ -533,7 +533,7 @@
     window.likeVideo = async (id) => {
       if (!currentUser) return alert('Войдите в аккаунт');
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${id}/like`, {
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${id}/like`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -548,7 +548,7 @@
     window.dislikeVideo = async (id) => {
       if (!currentUser) return alert('Войдите в аккаунт');
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${id}/dislike`, {
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${id}/dislike`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -567,7 +567,7 @@
       const text = document.getElementById('new-comment').value.trim();
       if (!text) return;
       try {
-        await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
+        await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ text })
@@ -581,7 +581,7 @@
     window.deleteComment = async (videoId, commentId) => {
       if (!confirm('Удалить комментарий?')) return;
       try {
-        await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
+        await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -594,7 +594,7 @@
     window.deleteVideo = async (id) => {
       if (!confirm('Удалить видео?')) return;
       try {
-        await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${id}`, {
+        await safeFetch(`${SKYVIDEO_URL}/video/${id}`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -606,7 +606,7 @@
     };
     async function refreshMeta(videoId) {
       try {
-        const res = await safeSkyNetwork.fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
+        const res = await safeFetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
         const meta = await res.json();
         renderPlayerMeta(videoId, meta);
       } catch (e) { showErrorBanner(true); }
