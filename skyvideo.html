@@ -100,7 +100,23 @@
     function login(user) {
       currentUser = user;
       document.getElementById('user-info').textContent = user.login;
-      document.getElementById('login-btn').style.display = 'none';
+      document.getElementById('login-btn').addEventListener('click', async () => {
+        const res = await fetch(`${SKYVIDEO_URL}/auth/login`);
+        const { loginUrl } = await res.json();
+        window.location.href = loginUrl;
+      });
+
+      // При загрузке проверяем наличие токена (после колбэка он будет в localStorage)
+      (async () => {
+        const token = localStorage.getItem('skyvideo_token');
+        if (token) {
+          try {
+            const me = await api('GET', '/profile'); // используем существующий метод api с токеном
+            login({ login: me.name });
+          } catch(e) { logout(); }
+        }
+        loadVideos();
+      })();
       document.getElementById('upload-btn').style.display = 'inline-block';
       document.getElementById('profile-btn').style.display = 'inline-block';
       loadVideos();
