@@ -17,7 +17,7 @@
       overflow: hidden;
     }
     .sidebar {
-      width: 260px;
+      width: 280px;
       background: linear-gradient(180deg, #0d1425 0%, #131b2f 100%);
       border-right: 1px solid #2a3450;
       display: flex;
@@ -25,6 +25,7 @@
       padding: 1.2rem 0.8rem;
       box-shadow: 4px 0 20px rgba(0,0,0,0.6);
       z-index: 10;
+      overflow-y: auto;
     }
     .logo {
       font-size: 2rem;
@@ -34,42 +35,42 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      margin-bottom: 2rem;
+      margin-bottom: 1.5rem;
       text-align: center;
       text-shadow: 0 0 12px #2f4b8c;
     }
-    .nav-btn {
-      background: transparent;
-      border: 1px solid #2f3b5c;
-      color: #cbd5ff;
-      padding: 0.9rem 1.2rem;
-      margin: 0.3rem 0;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 500;
-      text-align: left;
-      cursor: pointer;
-      transition: all 0.2s;
+    .nav-section { margin-bottom: 0.5rem; }
+    .section-title {
       display: flex;
       align-items: center;
-      gap: 0.7rem;
-      backdrop-filter: blur(4px);
+      gap: 0.5rem;
+      padding: 0.7rem 0.8rem;
+      cursor: pointer;
+      font-weight: 600;
+      color: #b7ceff;
+      border-bottom: 1px solid #2a3450;
+      transition: background 0.2s;
     }
-    .nav-btn i { font-style: normal; font-size: 1.2rem; }
-    .nav-btn:hover, .nav-btn.active {
-      background: #1f2b4a;
-      border-color: #5f7ecf;
-      box-shadow: 0 0 15px #2f4b8c;
-      color: #ffffff;
+    .section-title:hover { background: #1f2b4a; }
+    .section-title .arrow { margin-left: auto; transition: transform 0.2s; }
+    .section-title.open .arrow { transform: rotate(90deg); }
+    .nav-btn {
+      display: block;
+      background: transparent;
+      border: none;
+      color: #cbd5ff;
+      padding: 0.7rem 1.2rem 0.7rem 2rem;
+      width: 100%;
+      text-align: left;
+      cursor: pointer;
+      font-size: 0.95rem;
+      transition: all 0.2s;
+      border-radius: 0;
     }
+    .nav-btn:hover { background: #1f2b4a; color: #fff; }
+    .nav-btn.active { background: #1f2b4a; border-left: 3px solid #5f7ecf; color: #ffffff; }
     .spacer { flex: 1; }
-    .status-line {
-      margin-top: 1rem;
-      font-size: 0.8rem;
-      color: #6b7b9e;
-      border-top: 1px solid #2a3450;
-      padding-top: 0.8rem;
-    }
+    .status-line { margin-top: 1rem; font-size: 0.8rem; color: #6b7b9e; border-top: 1px solid #2a3450; padding-top: 0.8rem; }
     .main {
       flex: 1;
       padding: 1.5rem;
@@ -88,14 +89,7 @@
       margin-bottom: 1.5rem;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
-    h2 {
-      font-weight: 600;
-      font-size: 1.8rem;
-      margin-bottom: 1.2rem;
-      color: #b7ceff;
-      border-left: 4px solid #5f7ecf;
-      padding-left: 1rem;
-    }
+    h2 { font-weight: 600; font-size: 1.8rem; margin-bottom: 1.2rem; color: #b7ceff; border-left: 4px solid #5f7ecf; padding-left: 1rem; }
     #map { height: 500px; border-radius: 20px; border: 1px solid #3f4b6b; }
     .map-search { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .map-search input { flex: 1; padding: 0.7rem 1rem; border-radius: 12px; background: #0d1225; border: 1px solid #3a4660; color: #fff; }
@@ -105,8 +99,6 @@
     .station-btn.playing { background: #2f4b8c; border-color: #6b8cff; box-shadow: 0 0 12px #2f4b8c; }
     .btn { background: var(--accent, #2f4b8c); border: none; color: white; padding: 0.5rem 1rem; border-radius: 8px; cursor: pointer; }
     .btn-sm { padding: 0.3rem 0.6rem; font-size: 0.8rem; }
-
-    /* Календарь */
     .cal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; }
     .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 0.4rem; text-align: center; }
     .cal-day-name { color: #7f8bb3; font-weight: bold; }
@@ -115,8 +107,6 @@
     .cal-day.has-events::after { content: '•'; color: #ffb347; position: absolute; top: 2px; right: 5px; }
     .event-list { margin-top: 1rem; }
     .event-item { display: flex; justify-content: space-between; align-items: center; padding: 0.5rem; background: #151e36; border-radius: 8px; margin-bottom: 0.4rem; }
-
-    /* Калькулятор */
     .calc-container { display: flex; gap: 1rem; flex-wrap: wrap; }
     .calc-panel { flex: 2; min-width: 280px; }
     .history-panel { flex: 1; min-width: 200px; background: #111827; border-radius: 12px; padding: 0.8rem; max-height: 400px; overflow-y: auto; }
@@ -126,40 +116,83 @@
     .calc-btn.operator { background: #2f3b5c; }
     .calc-btn.equal { background: #3f62b0; }
     .calc-btn.func { background: #2f4b4a; }
-
-    /* Навигатор */
     .route-controls { display: flex; gap: 0.5rem; margin-bottom: 1rem; }
     .route-controls input { flex: 1; padding: 0.7rem; background: #0d1225; border: 1px solid #3a4660; color: white; border-radius: 10px; }
-
     .news-frame { width: 100%; height: 600px; border: none; border-radius: 16px; background: #0d1225; }
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
-    .search-result-item {
-      background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf;
-    }
+    .search-result-item { background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf; }
+    .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1rem; }
+    .video-card { background: #151e36; border-radius: 12px; overflow: hidden; cursor: pointer; transition: transform 0.2s; }
+    .video-card:hover { transform: scale(1.02); }
+    .video-card img { width: 100%; height: 150px; object-fit: cover; }
+    .video-card .info { padding: 0.8rem; }
+    .video-card .title { font-weight: 600; margin-bottom: 0.3rem; }
+    .video-card .meta { font-size: 0.8rem; color: #8899cc; }
+    .video-player { position: relative; background: #000; }
+    .video-player video { width: 100%; max-height: 70vh; background: #000; }
+    .video-details { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+    .video-details .comments { flex: 2; min-width: 250px; }
+    .video-details .actions { flex: 1; min-width: 200px; }
+    .comment-item { padding: 0.5rem 0; border-bottom: 1px solid #1e2a40; }
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 50; }
+    .modal-overlay.active { display: flex; }
+    .modal { background: var(--card, #1a233a); border-radius: 16px; padding: 1.5rem; width: 400px; border: 1px solid var(--border, #2a3450); }
+    .modal input, .modal textarea { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border, #3a4660); color: white; border-radius: 10px; }
   </style>
 </head>
 <body>
   <div class="sidebar">
     <div class="logo">🛡️ SkyCitadel</div>
-    <button class="nav-btn active" data-section="maps">🗺️ Карты</button>
-    <button class="nav-btn" data-section="radio">📻 Радио</button>
-    <button class="nav-btn" data-section="messenger">💬 Мессенджер</button>
-    <button class="nav-btn" data-section="social">👥 Соцсеть</button>
-    <button class="nav-btn" data-section="news">📰 Новости</button>
-    <button class="nav-btn" data-section="announce">📢 Объявления</button>
-    <button class="nav-btn" data-section="calendar">📅 Календарь</button>
-    <button class="nav-btn" data-section="calculator">🧮 Калькулятор</button>
-    <button class="nav-btn" data-section="weather">☁️ Погода</button>
-    <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
-    <button class="nav-btn" data-section="search">🔍 Поиск</button>
-    <button class="nav-btn" data-section="skyid">🆔 SkyID</button>
-    <button class="nav-btn" data-section="notes">📝 Заметки</button>
+    <div class="nav-section">
+      <div class="section-title" data-section="nav">🌐 Навигация <span class="arrow">▶</span></div>
+      <div class="nav-items" style="display: none;">
+        <button class="nav-btn active" data-section="maps">🗺️ Карты</button>
+        <button class="nav-btn" data-section="search">🔍 Поиск</button>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="section-title" data-section="comms">💬 Общение <span class="arrow">▶</span></div>
+      <div class="nav-items" style="display: none;">
+        <button class="nav-btn" data-section="messenger">💬 Мессенджер</button>
+        <button class="nav-btn" data-section="social">👥 Соцсеть</button>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="section-title" data-section="media">🎵 Медиа <span class="arrow">▶</span></div>
+      <div class="nav-items" style="display: none;">
+        <button class="nav-btn" data-section="radio">📻 Радио</button>
+        <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
+        <button class="nav-btn" data-section="video">🎬 Видео</button>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="section-title" data-section="info">📰 Информация <span class="arrow">▶</span></div>
+      <div class="nav-items" style="display: none;">
+        <button class="nav-btn" data-section="news">📰 Новости</button>
+        <button class="nav-btn" data-section="announce">📢 Объявления</button>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="section-title" data-section="tools">🛠️ Инструменты <span class="arrow">▶</span></div>
+      <div class="nav-items" style="display: none;">
+        <button class="nav-btn" data-section="calendar">📅 Календарь</button>
+        <button class="nav-btn" data-section="calculator">🧮 Калькулятор</button>
+        <button class="nav-btn" data-section="weather">☁️ Погода</button>
+      </div>
+    </div>
+    <div class="nav-section">
+      <div class="section-title" data-section="account">🔐 Аккаунт <span class="arrow">▶</span></div>
+      <div class="nav-items" style="display: none;">
+        <button class="nav-btn" data-section="skyid">🆔 SkyID</button>
+        <button class="nav-btn" data-section="notes">📝 Заметки</button>
+      </div>
+    </div>
     <div class="spacer"></div>
     <div class="status-line">🔒 Шифрование AES-256-GCM<br>Сервис #1 (статический)</div>
   </div>
 
   <div class="main">
-        <!-- Карты -->
+    <!-- Карты -->
     <div id="maps" class="section active">
       <div class="card">
         <h2>🗺️ Интерактивная карта</h2>
@@ -208,7 +241,7 @@
     <div id="news" class="section">
       <div class="card">
         <h2>📰 Автообновляемая газета</h2>
-        <p style="margin-bottom:0.8rem;">Источник: РИА Новости</p>
+        <p style="margin-bottom:0.8rem;">Источник: Интерфакс</p>
         <iframe id="news-iframe" class="news-frame" src="gazeta.html"></iframe>
         <button id="refresh-news" style="margin-top:0.7rem; background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">🔄 Обновить</button>
       </div>
@@ -251,9 +284,7 @@
         <div class="calc-container">
           <div class="calc-panel">
             <div class="calc-display" id="calc-display">0</div>
-            <div class="calc-grid" id="calc-buttons">
-              <!-- Кнопки генерируются JS -->
-            </div>
+            <div class="calc-grid" id="calc-buttons"></div>
             <button id="toggle-mode" class="btn" style="margin-top:0.5rem;">Обычный / Инженерный</button>
           </div>
           <div class="history-panel">
@@ -330,7 +361,35 @@
     <!-- Заметки -->
     <div id="notes" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://skynotes-n17c.onrender.com/" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="https://your-notes-project.com" style="width:100%; height:100%; border:none;"></iframe>
+      </div>
+    </div>
+
+    <!-- Видео -->
+    <div id="video" class="section">
+      <div class="card">
+        <h2>🎬 Видеохостинг</h2>
+        <div id="video-list" class="video-grid"></div>
+        <button id="upload-video-btn" class="btn" style="margin-top:1rem;">📤 Загрузить видео</button>
+      </div>
+    </div>
+
+    <!-- Модалки видео -->
+    <div class="modal-overlay" id="upload-modal">
+      <div class="modal">
+        <h3>Загрузить видео</h3>
+        <input type="text" id="video-title" placeholder="Название">
+        <textarea id="video-desc" placeholder="Описание"></textarea>
+        <input type="text" id="video-tags" placeholder="Теги (через запятую)">
+        <input type="file" id="video-file" accept="video/*">
+        <button id="upload-submit" class="btn">Загрузить</button>
+        <button id="upload-cancel" class="btn" style="background:#444;">Отмена</button>
+      </div>
+    </div>
+    <div class="modal-overlay" id="player-modal">
+      <div class="modal" style="width:800px; max-width:95vw;">
+        <button id="close-player" class="btn" style="float:right; background:#c44;">✖</button>
+        <div id="player-container"></div>
       </div>
     </div>
   </div>
@@ -339,12 +398,26 @@
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
   <script>
     (function() {
-      // ========== URLs сервисов ==========
-      const SERVICE2_URL = 'https://sky-mutant--rilloperdagelo.replit.app'; // погода, объявления, Spotify
-      const SERVICE4_URL = 'https://sky-mutant--rilloperdagelo.replit.app'; // поиск
-      const SKYID_URL = 'https://sky-mutant--rilloperdagelo.replit.app';   // SkyID
+      const SERVICE2_URL = 'https://skymutant.onrender.com';
+      const SERVICE4_URL = 'https://skymutant.onrender.com';
+      const SKYID_URL = 'https://skymutant.onrender.com';
+      const SKYVIDEO_URL = 'https://skyvideo.onrender.com'; // ⚠️ ЗАМЕНИТЕ
 
-      // ========== НАВИГАЦИЯ ==========
+      // Аккордеон
+      document.querySelectorAll('.section-title').forEach(title => {
+        title.addEventListener('click', () => {
+          const items = title.nextElementSibling;
+          const arrow = title.querySelector('.arrow');
+          if (items.style.display === 'none' || !items.style.display) {
+            items.style.display = 'block';
+            arrow.textContent = '▼';
+          } else {
+            items.style.display = 'none';
+            arrow.textContent = '▶';
+          }
+        });
+      });
+
       const navButtons = document.querySelectorAll('.nav-btn');
       const sections = document.querySelectorAll('.section');
       navButtons.forEach(btn => {
@@ -358,130 +431,65 @@
           if (targetId === 'calendar') { renderCalendar(); updateSelectedDate(); }
           if (targetId === 'news') refreshNewsIframe();
           if (targetId === 'announce') loadAnnouncements();
+          if (targetId === 'video') loadVideoList();
         });
       });
 
       // ========== ШИФРОВАНИЕ ==========
       const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
-      async function getKey() {
-        const keyBytes = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
-        return await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-      }
-      async function encryptPayload(plainObj) {
-        const key = await getKey();
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
-        const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-        const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
-        combined.set(iv, 0);
-        combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
-        return btoa(String.fromCharCode(...combined));
-      }
-      async function decryptPayload(combinedBase64) {
-        const key = await getKey();
-        const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
-        const iv = combined.slice(0, 12);
-        const data = combined.slice(12);
-        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-        return JSON.parse(new TextDecoder().decode(decrypted));
-      }
-      async function secureFetch(endpoint, payload) {
-        const encrypted = await encryptPayload(payload);
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: encrypted })
-        });
-        if (!response.ok) throw new Error(`Ошибка ${response.status}`);
-        const json = await response.json();
-        if (!json.data) throw new Error('Нет зашифрованного ответа');
-        return await decryptPayload(json.data);
-      }
+      async function getKey() { const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0)); return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt','decrypt']); }
+      async function encryptPayload(obj) { const key = await getKey(); const iv = crypto.getRandomValues(new Uint8Array(12)); const enc = new TextEncoder().encode(JSON.stringify(obj)); const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc); const combo = new Uint8Array(iv.byteLength + c.byteLength); combo.set(iv); combo.set(new Uint8Array(c), iv.byteLength); return btoa(String.fromCharCode(...combo)); }
+      async function decryptPayload(b64) { const key = await getKey(); const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); const iv = combo.slice(0,12); const data = combo.slice(12); const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data); return JSON.parse(new TextDecoder().decode(dec)); }
+      async function secureFetch(url, payload) { const enc = await encryptPayload(payload); const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: enc }) }); if (!r.ok) throw new Error('fail'); const j = await r.json(); if (!j.data) throw new Error('no data'); return decryptPayload(j.data); }
 
-            // ========== КАРТЫ + НАВИГАТОР + ГЕОЛОКАЦИЯ ==========
-      // Стильные тайлы CartoDB Voyager (бесплатные, без ключа)
+      // ========== КАРТЫ + НАВИГАТОР + ГЕОЛОКАЦИЯ ==========
       const map = L.map('map').setView([55.751244, 37.618423], 10);
       L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd',
-        maxZoom: 20
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd', maxZoom: 20
       }).addTo(map);
+      let routingControl = null, userLocationMarker = null;
 
-      let routingControl = null;
-      let userLocationMarker = null;
-
-      // Геолокация
       document.getElementById('geolocate-btn').addEventListener('click', () => {
-        if (!navigator.geolocation) {
-          alert('Геолокация не поддерживается браузером');
-          return;
-        }
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            // Устанавливаем вид карты
-            map.setView([lat, lon], 15);
-            // Удаляем старый маркер, если есть
-            if (userLocationMarker) map.removeLayer(userLocationMarker);
-            userLocationMarker = L.marker([lat, lon])
-              .addTo(map)
-              .bindPopup('📍 Вы здесь')
-              .openPopup();
-            // Автоматически заполняем поле "Откуда" координатами
-            document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-          },
-          (err) => {
-            alert('Не удалось определить местоположение: ' + err.message);
-          },
-          { enableHighAccuracy: true }
-        );
+        if (!navigator.geolocation) return alert('Геолокация не поддерживается');
+        navigator.geolocation.getCurrentPosition(pos => {
+          const lat = pos.coords.latitude, lon = pos.coords.longitude;
+          map.setView([lat, lon], 15);
+          if (userLocationMarker) map.removeLayer(userLocationMarker);
+          userLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('📍 Вы здесь').openPopup();
+          document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+        }, err => alert('Ошибка: ' + err.message), { enableHighAccuracy: true });
       });
 
-      // Поиск места
       document.getElementById('map-search-btn').addEventListener('click', async () => {
-        const query = document.getElementById('map-search-input').value.trim();
-        if (!query) return;
-        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-        const data = await res.json();
-        if (data && data.length > 0) {
-          const { lat, lon } = data[0];
+        const q = document.getElementById('map-search-input').value.trim();
+        if (!q) return;
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        if (d && d.length > 0) {
+          const { lat, lon } = d[0];
           map.setView([lat, lon], 13);
-          L.marker([lat, lon]).addTo(map).bindPopup(query).openPopup();
+          L.marker([lat, lon]).addTo(map).bindPopup(q).openPopup();
         }
       });
 
-      // Построение маршрута
       document.getElementById('route-go').addEventListener('click', async () => {
         const startInput = document.getElementById('route-start').value.trim();
         const endInput = document.getElementById('route-end').value.trim();
-        if (!startInput || !endInput) return alert('Укажите начало и конец маршрута');
-
-        const geocode = async (address) => {
-          // Если передан текст с координатами (от геолокации), попробуем распарсить
-          const coordMatch = address.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
-          if (coordMatch) {
-            return L.latLng(parseFloat(coordMatch[1]), parseFloat(coordMatch[2]));
-          }
-          // Иначе геокодируем через Nominatim
-          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}`);
-          const data = await res.json();
-          if (data && data.length > 0) return L.latLng(data[0].lat, data[0].lon);
+        if (!startInput || !endInput) return alert('Укажите начало и конец');
+        const geocode = async (addr) => {
+          const m = addr.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+          if (m) return L.latLng(parseFloat(m[1]), parseFloat(m[2]));
+          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+          const d = await r.json();
+          if (d && d.length > 0) return L.latLng(d[0].lat, d[0].lon);
           throw new Error('Адрес не найден');
         };
-
         try {
-          const start = await geocode(startInput);
-          const end = await geocode(endInput);
+          const start = await geocode(startInput), end = await geocode(endInput);
           if (routingControl) map.removeControl(routingControl);
-          routingControl = L.Routing.control({
-            waypoints: [start, end],
-            routeWhileDragging: true,
-            lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] }
-          }).addTo(map);
-        } catch (e) {
-          alert('Ошибка: ' + e.message);
-        }
+          routingControl = L.Routing.control({ waypoints: [start, end], routeWhileDragging: true, lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] } }).addTo(map);
+        } catch (e) { alert('Ошибка: ' + e.message); }
       });
 
       // ========== РАДИО ==========
@@ -492,480 +500,275 @@
         { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
       ];
       const radioAudio = document.getElementById('radio-audio');
-      const radioListDiv = document.getElementById('radio-list');
-      function renderRadioButtons(container, audioElement) {
+      function renderRadioButtons(container, audio) {
         container.innerHTML = '';
         stations.forEach(st => {
           const btn = document.createElement('button');
           btn.className = 'station-btn';
           btn.textContent = st.name;
-          btn.addEventListener('click', () => {
-            audioElement.src = st.url;
-            audioElement.load();
-            audioElement.play().catch(e => alert('Ошибка ' + st.name));
-            container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
-            btn.classList.add('playing');
-          });
+          btn.addEventListener('click', () => { audio.src = st.url; audio.load(); audio.play().catch(()=>{}); container.querySelectorAll('.station-btn').forEach(b=>b.classList.remove('playing')); btn.classList.add('playing'); });
           container.appendChild(btn);
         });
       }
-      renderRadioButtons(radioListDiv, radioAudio);
+      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
       document.getElementById('play-custom-stream').addEventListener('click', () => {
         const url = document.getElementById('custom-stream').value.trim();
-        if (url) {
-          radioAudio.src = url;
-          radioAudio.load();
-          radioAudio.play().catch(e => alert('Ошибка потока'));
-        }
+        if (url) { radioAudio.src = url; radioAudio.load(); radioAudio.play().catch(()=>{}); }
       });
 
       // ========== НОВОСТИ ==========
-      function refreshNewsIframe() {
-        const iframe = document.getElementById('news-iframe');
-        iframe.src = iframe.src;
-      }
+      function refreshNewsIframe() { const f = document.getElementById('news-iframe'); f.src = f.src; }
       document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
-      setInterval(refreshNewsIframe, 5 * 60 * 1000);
+      setInterval(refreshNewsIframe, 5*60*1000);
 
-      // ========== ОБЪЯВЛЕНИЯ (шифрованные) ==========
+      // ========== ОБЪЯВЛЕНИЯ ==========
       async function loadAnnouncements() {
-        const container = document.getElementById('announce-container');
+        const c = document.getElementById('announce-container');
         try {
-          const res = await fetch(`${SERVICE2_URL}/announcements`);
-          const json = await res.json();
-          if (!json.data) throw new Error('No data');
-          const items = await decryptPayload(json.data);
-          container.innerHTML = items.length ? items.map(item => `<div class="announce-item">📌 ${escapeHtml(item.text)}</div>`).join('') : '<p>Объявлений пока нет</p>';
-        } catch (e) { container.innerHTML = '<p>Ошибка загрузки объявлений</p>'; }
+          const r = await fetch(`${SERVICE2_URL}/announcements`);
+          const j = await r.json();
+          if (!j.data) throw new Error('no data');
+          const items = await decryptPayload(j.data);
+          c.innerHTML = items.length ? items.map(i=>`<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('') : '<p>Объявлений пока нет</p>';
+        } catch (e) { c.innerHTML = '<p>Ошибка</p>'; }
       }
       loadAnnouncements();
 
-      // ========== КАЛЕНДАРЬ С СОБЫТИЯМИ ==========
-      let calDate = new Date();
-      let selectedDate = new Date().toISOString().split('T')[0];
+      // ========== КАЛЕНДАРЬ ==========
+      let calDate = new Date(), selectedDate = new Date().toISOString().split('T')[0];
       let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
-
       function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
-
       function renderCalendar() {
-        const year = calDate.getFullYear();
-        const month = calDate.getMonth();
-        const firstDay = new Date(year, month, 1).getDay() || 7;
-        const daysInMonth = new Date(year, month+1, 0).getDate();
-        document.getElementById('cal-month-year').textContent = 
-          calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-        const grid = document.getElementById('cal-days');
-        grid.innerHTML = '';
-        const dayNames = ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'];
-        dayNames.forEach(d => { const div = document.createElement('div'); div.className='cal-day-name'; div.textContent=d; grid.appendChild(div); });
-        for (let i = 1; i < firstDay; i++) { grid.appendChild(document.createElement('div')); }
+        const y = calDate.getFullYear(), m = calDate.getMonth();
+        const first = new Date(y, m, 1).getDay() || 7, days = new Date(y, m+1, 0).getDate();
+        document.getElementById('cal-month-year').textContent = calDate.toLocaleDateString('ru-RU', { month:'long', year:'numeric' });
+        const grid = document.getElementById('cal-days'); grid.innerHTML = '';
+        ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => { const div = document.createElement('div'); div.className='cal-day-name'; div.textContent=d; grid.appendChild(div); });
+        for (let i=1; i<first; i++) grid.appendChild(document.createElement('div'));
         const today = new Date();
-        for (let d = 1; d <= daysInMonth; d++) {
-          const div = document.createElement('div');
-          div.className = 'cal-day';
-          div.textContent = d;
-          const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          if (events[dateStr] && events[dateStr].length > 0) div.classList.add('has-events');
-          if (year === today.getFullYear() && month === today.getMonth() && d === today.getDate()) div.classList.add('today');
-          div.addEventListener('click', () => {
-            selectedDate = dateStr;
-            document.querySelectorAll('.cal-day').forEach(el => el.style.background = '');
-            div.style.background = '#3f62b0';
-            updateSelectedDate();
-          });
+        for (let d=1; d<=days; d++) {
+          const div = document.createElement('div'); div.className='cal-day'; div.textContent = d;
+          const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+          if (events[ds]?.length) div.classList.add('has-events');
+          if (y===today.getFullYear() && m===today.getMonth() && d===today.getDate()) div.classList.add('today');
+          div.addEventListener('click', () => { selectedDate = ds; document.querySelectorAll('.cal-day').forEach(el=>el.style.background=''); div.style.background='#3f62b0'; updateSelectedDate(); });
           grid.appendChild(div);
         }
-        if (selectedDate.startsWith(`${year}-${String(month+1).padStart(2,'0')}`)) {
-          const day = parseInt(selectedDate.split('-')[2]);
+        if (selectedDate.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)) {
+          const day = +selectedDate.split('-')[2];
           const cells = grid.querySelectorAll('.cal-day');
-          const targetCell = cells[firstDay - 1 + day];
-          if (targetCell) targetCell.style.background = '#3f62b0';
+          const target = cells[first-1+day];
+          if (target) target.style.background='#3f62b0';
         }
       }
-
       function updateSelectedDate() {
         document.getElementById('selected-date').textContent = selectedDate;
-        const container = document.getElementById('events-container');
+        const c = document.getElementById('events-container');
         const dayEvents = events[selectedDate] || [];
-        container.innerHTML = dayEvents.map(ev => `
-          <div class="event-item">
-            <span>${escapeHtml(ev.text)}</span>
-            <button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button>
-          </div>
-        `).join('');
+        c.innerHTML = dayEvents.map(ev=>`<div class="event-item"><span>${escapeHtml(ev.text)}</span><button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button></div>`).join('');
         document.getElementById('event-date').value = selectedDate;
       }
-
       document.getElementById('add-event').addEventListener('click', () => {
         const text = document.getElementById('event-text').value.trim();
         if (!text) return;
         const date = document.getElementById('event-date').value || selectedDate;
         if (!events[date]) events[date] = [];
         events[date].push({ id: Date.now().toString(), text });
-        saveEvents();
-        document.getElementById('event-text').value = '';
-        renderCalendar();
-        updateSelectedDate();
+        saveEvents(); document.getElementById('event-text').value=''; renderCalendar(); updateSelectedDate();
       });
-
       window.deleteEvent = (id) => {
-        for (const date in events) {
-          events[date] = events[date].filter(ev => ev.id !== id);
-          if (events[date].length === 0) delete events[date];
-        }
-        saveEvents();
-        renderCalendar();
-        updateSelectedDate();
+        for (const d in events) { events[d] = events[d].filter(ev=>ev.id!==id); if (!events[d].length) delete events[d]; }
+        saveEvents(); renderCalendar(); updateSelectedDate();
       };
-
       document.getElementById('cal-prev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
       document.getElementById('cal-next').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
-      renderCalendar();
-      updateSelectedDate();
+      renderCalendar(); updateSelectedDate();
 
-      // ========== ИНЖЕНЕРНЫЙ КАЛЬКУЛЯТОР ==========
-      let calcExpression = '';
-      let calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]');
-      let isEngineerMode = false;
-
-      const basicLayout = [
-        ['C', '(', ')', '/'],
-        ['7', '8', '9', '*'],
-        ['4', '5', '6', '-'],
-        ['1', '2', '3', '+'],
-        ['0', '.', '⌫', '=']
-      ];
-      const engineerLayout = [
-        ['C', '(', ')', 'sin', 'cos'],
-        ['7', '8', '9', 'tan', 'log'],
-        ['4', '5', '6', 'sqrt', '^'],
-        ['1', '2', '3', 'EXP', 'PI'],
-        ['0', '.', '⌫', '+', '=']
-      ];
-
-      function buildCalcButtons(layout) {
-        const container = document.getElementById('calc-buttons');
-        container.innerHTML = '';
-        layout.forEach(row => {
-          row.forEach(key => {
-            const btn = document.createElement('button');
-            btn.className = 'calc-btn';
-            if ('C(/*-+='.includes(key) || 'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator');
-            if (key === '=') btn.classList.add('equal');
-            btn.textContent = key;
-            btn.addEventListener('click', () => handleCalcInput(key));
-            container.appendChild(btn);
-          });
-        });
+      // ========== КАЛЬКУЛЯТОР ==========
+      let calcExpr = '', calcHistory = JSON.parse(localStorage.getItem('calc_history')||'[]'), isEngineer = false;
+      const basic = [['C','(',')','/'],['7','8','9','*'],['4','5','6','-'],['1','2','3','+'],['0','.','⌫','=']];
+      const eng = [['C','(',')','sin','cos'],['7','8','9','tan','log'],['4','5','6','sqrt','^'],['1','2','3','EXP','PI'],['0','.','⌫','+','=']];
+      function buildCalc(layout) {
+        const c = document.getElementById('calc-buttons'); c.innerHTML = '';
+        layout.forEach(row => row.forEach(key => {
+          const btn = document.createElement('button');
+          btn.className = 'calc-btn'; if ('C(/*-+='.includes(key)||'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator'); if (key==='=') btn.classList.add('equal');
+          btn.textContent = key; btn.addEventListener('click', ()=>handleCalc(key)); c.appendChild(btn);
+        }));
       }
-      buildCalcButtons(basicLayout);
-
-      function handleCalcInput(key) {
-        if (key === 'C') { calcExpression = ''; }
-        else if (key === '⌫') { calcExpression = calcExpression.slice(0, -1); }
-        else if (key === '=') {
+      buildCalc(basic);
+      function handleCalc(key) {
+        if (key==='C') calcExpr='';
+        else if (key==='⌫') calcExpr=calcExpr.slice(0,-1);
+        else if (key==='=') {
           try {
-            let result;
-            if (isEngineerMode) {
-              const expr = calcExpression
-                .replace(/sin/g, 'Math.sin')
-                .replace(/cos/g, 'Math.cos')
-                .replace(/tan/g, 'Math.tan')
-                .replace(/log/g, 'Math.log10')
-                .replace(/sqrt/g, 'Math.sqrt')
-                .replace(/\^/g, '**')
-                .replace(/EXP/g, '*10**')
-                .replace(/PI/g, 'Math.PI');
-              result = eval(expr);
-            } else {
-              result = eval(calcExpression);
-            }
-            const historyEntry = `${calcExpression} = ${result}`;
-            calcHistory.unshift(historyEntry);
-            if (calcHistory.length > 10) calcHistory.pop();
-            localStorage.setItem('calc_history', JSON.stringify(calcHistory));
-            renderHistory();
-            calcExpression = result.toString();
-          } catch { calcExpression = 'Ошибка'; }
-        } else {
-          calcExpression += key;
-        }
-        document.getElementById('calc-display').textContent = calcExpression || '0';
+            let res;
+            if (isEngineer) {
+              const expr = calcExpr.replace(/sin/g,'Math.sin').replace(/cos/g,'Math.cos').replace(/tan/g,'Math.tan').replace(/log/g,'Math.log10').replace(/sqrt/g,'Math.sqrt').replace(/\^/g,'**').replace(/EXP/g,'*10**').replace(/PI/g,'Math.PI');
+              res = eval(expr);
+            } else res = eval(calcExpr);
+            calcHistory.unshift(calcExpr+' = '+res); if (calcHistory.length>10) calcHistory.pop();
+            localStorage.setItem('calc_history', JSON.stringify(calcHistory)); renderHist();
+            calcExpr = res.toString();
+          } catch { calcExpr = 'Ошибка'; }
+        } else calcExpr += key;
+        document.getElementById('calc-display').textContent = calcExpr || '0';
       }
-
-      function renderHistory() {
-        const container = document.getElementById('calc-history');
-        container.innerHTML = calcHistory.map(h => `<div style="font-size:0.9rem; padding:0.2rem 0;">${h}</div>`).join('');
-      }
-      renderHistory();
-
-      document.getElementById('toggle-mode').addEventListener('click', () => {
-        isEngineerMode = !isEngineerMode;
-        buildCalcButtons(isEngineerMode ? engineerLayout : basicLayout);
-        document.getElementById('toggle-mode').textContent = isEngineerMode ? 'Обычный' : 'Инженерный';
-      });
+      function renderHist() { document.getElementById('calc-history').innerHTML = calcHistory.map(h=>`<div style="font-size:0.9rem;padding:0.2rem 0;">${h}</div>`).join(''); }
+      renderHist();
+      document.getElementById('toggle-mode').addEventListener('click', ()=>{ isEngineer=!isEngineer; buildCalc(isEngineer?eng:basic); document.getElementById('toggle-mode').textContent = isEngineer?'Обычный':'Инженерный'; });
 
       // ========== ПОГОДА ==========
       document.getElementById('weather-btn').addEventListener('click', async () => {
         const city = document.getElementById('city-input').value.trim();
-        const resultDiv = document.getElementById('weather-result');
         if (!city) return;
-        resultDiv.textContent = 'Запрос...';
+        document.getElementById('weather-result').textContent = 'Запрос...';
         try {
-          const response = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
-          resultDiv.innerHTML = `🌡️ ${response.temp}°C, ${response.desc}<br>📍 ${response.city}`;
-        } catch (e) {
-          resultDiv.textContent = 'Ошибка получения погоды.';
-        }
+          const res = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
+          document.getElementById('weather-result').innerHTML = `🌡️ ${res.temp}°C, ${res.desc}<br>📍 ${res.city}`;
+        } catch (e) { document.getElementById('weather-result').textContent = 'Ошибка'; }
       });
 
       // ========== ПОИСК ==========
-      const searchQuery = document.getElementById('search-query');
-      const searchBtn = document.getElementById('search-btn');
-      const searchResults = document.getElementById('search-results');
-      const searchStatus = document.getElementById('search-status');
-
+      const searchQ = document.getElementById('search-query'), searchBtn = document.getElementById('search-btn'), searchRes = document.getElementById('search-results'), searchStat = document.getElementById('search-status');
       searchBtn.addEventListener('click', async () => {
-        const query = searchQuery.value.trim();
-        if (!query) return;
-        searchStatus.textContent = 'Поиск...';
-        searchResults.innerHTML = '';
+        const q = searchQ.value.trim();
+        if (!q) return;
+        searchStat.textContent = 'Поиск...'; searchRes.innerHTML = '';
         try {
-          const response = await secureFetch(`${SERVICE4_URL}/api/search`, { query });
-          displaySearchResults(response.results);
-          searchStatus.textContent = `Найдено: ${response.results.length}`;
-        } catch (e) {
-          searchStatus.textContent = 'Ошибка поиска.';
-        }
+          const resp = await secureFetch(`${SERVICE4_URL}/api/search`, { query: q });
+          searchRes.innerHTML = resp.results.length ? resp.results.map(r=>`<div class="search-result-item"><div style="font-size:0.8rem;color:#5f7ecf;">${r.source}</div><a href="${r.url||'#'}" target="_blank" style="color:#cfdbff;font-weight:bold;">${escapeHtml(r.title)}</a><p style="font-size:0.85rem;color:#b0c0e0;">${escapeHtml(r.text||'')}</p>${r.icon?`<img src="${r.icon}" style="max-height:40px;margin-top:0.3rem;">`:''}</div>`).join('') : '<p>Ничего не найдено</p>';
+          searchStat.textContent = `Найдено: ${resp.results.length}`;
+        } catch (e) { searchStat.textContent = 'Ошибка поиска'; }
       });
-      searchQuery.addEventListener('keypress', e => {
-        if (e.key === 'Enter') searchBtn.click();
-      });
+      searchQ.addEventListener('keypress', e => { if (e.key==='Enter') searchBtn.click(); });
 
-      function displaySearchResults(results) {
-        if (!results.length) {
-          searchResults.innerHTML = '<p>Ничего не найдено</p>';
-          return;
-        }
-        searchResults.innerHTML = results.map(r => `
-          <div class="search-result-item">
-            <div style="font-size:0.8rem; color:#5f7ecf;">${r.source}</div>
-            <a href="${r.url || '#'}" target="_blank" rel="noopener" style="color:#cfdbff; font-weight:bold; text-decoration:none;">${escapeHtml(r.title)}</a>
-            <p style="font-size:0.85rem; color:#b0c0e0; margin-top:0.3rem;">${escapeHtml(r.text || '')}</p>
-            ${r.icon ? `<img src="${r.icon}" style="max-height:40px; margin-top:0.3rem;">` : ''}
-          </div>
-        `).join('');
-      }
-
-      // ========== SkyID (шифрованные регистрация и вход) ==========
+      // ========== SkyID ==========
       document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
-        const login = document.getElementById('skyid-reg-login').value.trim();
-        const password = document.getElementById('skyid-reg-password').value;
-        if (!login || !password) return alert('Заполни поля');
+        const login = document.getElementById('skyid-reg-login').value.trim(), pass = document.getElementById('skyid-reg-password').value;
+        if (!login||!pass) return alert('Заполни поля');
         try {
-          const payload = await encryptPayload({ login, password });
-          const res = await fetch(`${SKYID_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
-          });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || 'Ошибка');
-          }
+          const payload = await encryptPayload({ login, password: pass });
+          const res = await fetch(`${SKYID_URL}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
+          if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Ошибка'); }
           const json = await res.json();
-          if (!json.data) throw new Error('No data');
           const data = await decryptPayload(json.data);
-          document.getElementById('skyid-result').innerHTML = `
-            <p style="color:#7ebc6f;">✅ Регистрация успешна!</p>
-            <p><strong>SkyID:</strong> ${data.skyid}</p>
-            <p><strong>Токен:</strong> ${data.token}</p>
-          `;
-        } catch (e) {
-          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
-        }
+          document.getElementById('skyid-result').innerHTML = `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+        } catch (e) { document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`; }
       });
-
       document.getElementById('skyid-login-btn').addEventListener('click', async () => {
-        const login = document.getElementById('skyid-login-login').value.trim();
-        const password = document.getElementById('skyid-login-password').value;
-        if (!login || !password) return alert('Заполни поля');
+        const login = document.getElementById('skyid-login-login').value.trim(), pass = document.getElementById('skyid-login-password').value;
+        if (!login||!pass) return alert('Заполни поля');
         try {
-          const payload = await encryptPayload({ login, password });
-          const res = await fetch(`${SKYID_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
-          });
-          if (!res.ok) {
-            const err = await res.json().catch(() => ({}));
-            throw new Error(err.error || 'Ошибка');
-          }
+          const payload = await encryptPayload({ login, password: pass });
+          const res = await fetch(`${SKYID_URL}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
+          if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Ошибка'); }
           const json = await res.json();
-          if (!json.data) throw new Error('No data');
           const data = await decryptPayload(json.data);
-          document.getElementById('skyid-result').innerHTML = `
-            <p style="color:#7ebc6f;">✅ Вход выполнен!</p>
-            <p><strong>SkyID:</strong> ${data.skyid}</p>
-            <p><strong>Токен:</strong> ${data.token}</p>
-          `;
-        } catch (e) {
-          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
-        }
+          document.getElementById('skyid-result').innerHTML = `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+        } catch (e) { document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`; }
       });
 
-      function escapeHtml(text) {
-        return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+      // ========== SPOTIFY ==========
+      const SPOTIFY_CLIENT_ID = 'ТВОЙ_ID';
+      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
+      let spotifyToken = null;
+      async function loadSpotifyToken() {
+        const t = localStorage.getItem('skyid_token');
+        if (!t) return;
+        try {
+          const r = await fetch(`${SERVICE2_URL}/spotify/get-token`, { headers: { Authorization: `Bearer ${t}` } });
+          const d = await r.json();
+          if (d.access_token) { spotifyToken = d.access_token; document.getElementById('spotify-logged-out').style.display='none'; document.getElementById('spotify-logged-in').style.display='block'; initSpotifyPlayer(); }
+        } catch(e) {}
       }
+      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
+        const cv = generateRandomString(64); localStorage.setItem('spotify_code_verifier', cv);
+        const cc = await generateCodeChallenge(cv); const state = generateRandomString(16); localStorage.setItem('spotify_state', state);
+        window.location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({ response_type:'code', client_id: SPOTIFY_CLIENT_ID, scope:'streaming user-read-email user-read-private', redirect_uri: REDIRECT_URI, state, code_challenge_method:'S256', code_challenge: cc }).toString();
+      });
+      async function handleSpotifyCallback() {
+        const p = new URLSearchParams(location.search); const code = p.get('code'), state = p.get('state');
+        if (!code || state !== localStorage.getItem('spotify_state')) return;
+        const cv = localStorage.getItem('spotify_code_verifier'); if (!cv) return;
+        try {
+          const r = await fetch(`${SERVICE2_URL}/spotify/token`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI }) });
+          const d = await r.json();
+          if (d.access_token) {
+            spotifyToken = d.access_token;
+            const skyToken = localStorage.getItem('skyid_token');
+            if (skyToken) await fetch(`${SERVICE2_URL}/spotify/save-token`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${skyToken}`}, body: JSON.stringify({ spotify_token: d.access_token, spotify_refresh: d.refresh_token, expires_at: d.expires_in ? Date.now()+d.expires_in*1000 : null }) });
+            document.getElementById('spotify-logged-out').style.display='none'; document.getElementById('spotify-logged-in').style.display='block'; initSpotifyPlayer();
+            history.replaceState({}, document.title, location.pathname);
+          }
+        } catch(e) { console.error(e); }
+      }
+      function initSpotifyPlayer() { /* ... */ }
+      function generateRandomString(l) { let s=''; const ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for(let i=0;i<l;i++) s+=ch.charAt(Math.floor(Math.random()*ch.length)); return s; }
+      async function generateCodeChallenge(v) { const d = new TextEncoder().encode(v); const h = await crypto.subtle.digest('SHA-256', d); return btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+      handleSpotifyCallback(); loadSpotifyToken();
+
+      // ========== ВИДЕОХОСТИНГ ==========
+      async function loadVideoList() {
+        const container = document.getElementById('video-list');
+        container.innerHTML = 'Загрузка...';
+        try {
+          const res = await fetch(`${SKYVIDEO_URL}/list`);
+          const videos = await res.json();
+          if (!videos.length) { container.innerHTML = '<p>Нет загруженных видео</p>'; return; }
+          container.innerHTML = videos.map(v => `
+            <div class="video-card" onclick="openPlayer('${v.id}')">
+              <img src="/placeholder-video.png" alt="preview">
+              <div class="info">
+                <div class="title">${escapeHtml(v.title)}</div>
+                <div class="meta">${v.author} • ${v.views} просмотров • ${new Date(v.created).toLocaleDateString()}</div>
+              </div>
+            </div>`).join('');
+        } catch (e) { container.innerHTML = '<p>Ошибка загрузки списка</p>'; }
+      }
+      window.openPlayer = (videoId) => {
+        document.getElementById('player-modal').classList.add('active');
+        const pc = document.getElementById('player-container');
+        pc.innerHTML = `<video controls autoplay width="100%"><source src="${SKYVIDEO_URL}/video/${videoId}" type="video/mp4"></video><div id="video-meta-${videoId}"></div>`;
+        loadVideoMeta(videoId);
+      };
+      async function loadVideoMeta(videoId) {
+        try {
+          const res = await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
+          const meta = await res.json();
+          const c = document.getElementById('video-meta-' + videoId);
+          c.innerHTML = `<h3>${escapeHtml(meta.title)}</h3><p>${escapeHtml(meta.description)}</p><p>Теги: ${meta.tags.join(', ')}</p><p>❤️ ${meta.likes.length} | 👎 ${meta.dislikes.length} | 👀 ${meta.views}</p><div class="comments"><h4>Комментарии</h4>${meta.comments.map(c=>`<div class="comment-item"><strong>${escapeHtml(c.author)}</strong>: ${escapeHtml(c.text)}</div>`).join('')}</div>`;
+          fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method:'POST' });
+        } catch(e) {}
+      }
+      document.getElementById('close-player').addEventListener('click', ()=> document.getElementById('player-modal').classList.remove('active'));
+      document.getElementById('upload-video-btn').addEventListener('click', ()=>{
+        if (!localStorage.getItem('skyid_token')) return alert('Войдите в SkyID');
+        document.getElementById('upload-modal').classList.add('active');
+      });
+      document.getElementById('upload-cancel').addEventListener('click', ()=> document.getElementById('upload-modal').classList.remove('active'));
+      document.getElementById('upload-submit').addEventListener('click', async ()=>{
+        const title = document.getElementById('video-title').value.trim();
+        const desc = document.getElementById('video-desc').value.trim();
+        const tags = document.getElementById('video-tags').value.trim();
+        const file = document.getElementById('video-file').files[0];
+        if (!title || !file) return alert('Название и файл обязательны');
+        const token = localStorage.getItem('skyid_token');
+        const fd = new FormData();
+        fd.append('title', title); fd.append('description', desc); fd.append('tags', tags); fd.append('video', file);
+        try {
+          const r = await fetch(`${SKYVIDEO_URL}/upload`, { method:'POST', headers:{ Authorization:`Bearer ${token}` }, body: fd });
+          if (!r.ok) throw new Error('Upload failed');
+          alert('Видео загружается и обрабатывается...');
+          document.getElementById('upload-modal').classList.remove('active');
+          loadVideoList();
+        } catch(e) { alert('Ошибка загрузки: '+e.message); }
+      });
+
+      function escapeHtml(t) { return String(t).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
       setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
-
-      // ========== Spotify Integration ==========
-      const SPOTIFY_CLIENT_ID = 'ТВОЙ_SPOTIFY_CLIENT_ID'; // замени на свой
-      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
-      let spotifyAccessToken = null;
-
-      async function loadSpotifyTokenFromDB() {
-        const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
-        if (!skyToken) return;
-        try {
-          const res = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
-            headers: { Authorization: `Bearer ${skyToken}` }
-          });
-          const data = await res.json();
-          if (data.access_token) {
-            spotifyAccessToken = data.access_token;
-            document.getElementById('spotify-logged-out').style.display = 'none';
-            document.getElementById('spotify-logged-in').style.display = 'block';
-            if (!document.querySelector('script[src="https://sdk.scdn.co/spotify-player.js"]')) {
-              const script = document.createElement('script');
-              script.src = 'https://sdk.scdn.co/spotify-player.js';
-              document.head.appendChild(script);
-              script.onload = () => initSpotifyPlayer();
-            } else {
-              initSpotifyPlayer();
-            }
-          }
-        } catch (e) {}
-      }
-
-      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
-        const codeVerifier = generateRandomString(64);
-        localStorage.setItem('spotify_code_verifier', codeVerifier);
-        const codeChallenge = await generateCodeChallenge(codeVerifier);
-        const state = generateRandomString(16);
-        localStorage.setItem('spotify_state', state);
-
-        const url = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({
-          response_type: 'code',
-          client_id: SPOTIFY_CLIENT_ID,
-          scope: 'streaming user-read-email user-read-private',
-          redirect_uri: REDIRECT_URI,
-          state: state,
-          code_challenge_method: 'S256',
-          code_challenge: codeChallenge
-        }).toString();
-        window.location.href = url;
-      });
-
-      async function handleSpotifyCallback() {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const state = urlParams.get('state');
-        const savedState = localStorage.getItem('spotify_state');
-        if (!code || state !== savedState) return;
-
-        const codeVerifier = localStorage.getItem('spotify_code_verifier');
-        if (!codeVerifier) return;
-
-        try {
-          const res = await fetch(`${SERVICE2_URL}/spotify/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, code_verifier: codeVerifier, redirect_uri: REDIRECT_URI })
-          });
-          const data = await res.json();
-          if (data.access_token) {
-            spotifyAccessToken = data.access_token;
-            const skyToken = localStorage.getItem('skysocial_token') || localStorage.getItem('skyid_token');
-            if (skyToken) {
-              await fetch(`${SERVICE2_URL}/spotify/save-token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
-                body: JSON.stringify({
-                  spotify_token: data.access_token,
-                  spotify_refresh: data.refresh_token,
-                  expires_at: data.expires_in ? Date.now() + data.expires_in * 1000 : null
-                })
-              });
-            }
-            document.getElementById('spotify-logged-out').style.display = 'none';
-            document.getElementById('spotify-logged-in').style.display = 'block';
-            const script = document.createElement('script');
-            script.src = 'https://sdk.scdn.co/spotify-player.js';
-            document.head.appendChild(script);
-            script.onload = () => initSpotifyPlayer();
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        } catch (e) { console.error('Spotify callback error:', e); }
-      }
-
-      function initSpotifyPlayer() {
-        if (window.Spotify) {
-          const player = new Spotify.Player({
-            name: 'SkyCitadel Music',
-            getOAuthToken: cb => { cb(spotifyAccessToken); }
-          });
-          player.connect();
-          player.on('ready', (device_id) => {
-            console.log('✅ Spotify Player готов, device_id:', device_id);
-          });
-          const container = document.getElementById('spotify-player');
-          container.innerHTML = '';
-          container.appendChild(player);
-        } else {
-          window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
-        }
-      }
-
-      function generateRandomString(length) {
-        let text = '';
-        const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < length; i++) text += possible.charAt(Math.floor(Math.random() * possible.length));
-        return text;
-      }
-      async function generateCodeChallenge(codeVerifier) {
-        const data = new TextEncoder().encode(codeVerifier);
-        const digest = await crypto.subtle.digest('SHA-256', data);
-        return btoa(String.fromCharCode.apply(null, [...new Uint8Array(digest)]))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      }
-
-      handleSpotifyCallback();
-      loadSpotifyTokenFromDB();
     })();
-  </script>
-
-  <script>
-  (function() {
-    const site = 'skycitadel.onrender.com'; // замените на свой домен
-    const apiUrl = 'https://sky-counter-wine.vercel.app/checkvizit';
-
-    let deviceId = localStorage.getItem('device_id');
-    if (!deviceId) {
-      deviceId = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-      localStorage.setItem('device_id', deviceId);
-    }
-
-    fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, {
-      method: 'GET',
-      cache: 'no-store',
-      mode: 'cors'
-    })
-    .then(r => r.json())
-    .then(data => console.log('Visits counter:', data.status))
-    .catch(() => {});
-  })();
   </script>
 </body>
 </html>
