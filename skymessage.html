@@ -138,7 +138,7 @@
       <button class="btn" id="endCallBtn" style="background:#c44;">Завершить</button>
     </div>
   </div>
-  <script src="sky-network.js"></script>
+
   <script>
     const SERVER_URL = 'https://skymutant.onrender.com'; // ← ЗАМЕНИ НА СВОЙ RENDER URL
     const WS_URL = SERVER_URL.replace('https', 'wss');
@@ -219,14 +219,14 @@
           const salt = window.crypto.getRandomValues(new Uint8Array(16));
           const saltB64 = btoa(String.fromCharCode(...salt));
           cryptoKey = await deriveKey(password, saltB64);
-          const res = await SkyNetwork.fetch(`${SERVER_URL}/chat/register`, {
+          const res = await fetch(`${SERVER_URL}/chat/register`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
           });
           if (!res.ok) { alert(res.status === 409 ? 'Логин занят' : 'Ошибка регистрации'); return; }
           alert('Аккаунт создан! Войдите.');
           document.getElementById('authTitle').textContent='Вход'; document.getElementById('authBtn').textContent='Войти';
         } else {
-          const res = await SkyNetwork.fetch(`${SERVER_URL}/chat/login_salt?login=${encodeURIComponent(login)}`);
+          const res = await fetch(`${SERVER_URL}/chat/login_salt?login=${encodeURIComponent(login)}`);
           if (!res.ok) { alert('Пользователь не найден'); return; }
           const { salt: saltB64 } = await res.json();
           cryptoKey = await deriveKey(password, saltB64);
@@ -385,7 +385,7 @@
     document.addEventListener('click', () => { emojiPanel.style.display = 'none'; });
 
     // ====== ФАЙЛЫ ======
-    async function ensureUploadToken() { if(!uploadToken){ const r=await SkyNetwork.fetch(`${SERVER_URL}/get_upload_token`); const d=await r.json(); uploadToken=d.token; } }
+    async function ensureUploadToken() { if(!uploadToken){ const r=await fetch(`${SERVER_URL}/get_upload_token`); const d=await r.json(); uploadToken=d.token; } }
     document.getElementById('attachBtn').addEventListener('click', async () => { await ensureUploadToken(); document.getElementById('fileInput').click(); });
     document.getElementById('fileInput').addEventListener('change', async (e) => {
       const files = Array.from(e.target.files);
@@ -433,7 +433,7 @@
     document.getElementById('groupSearchQuery').addEventListener('input', async () => {
       const q = document.getElementById('groupSearchQuery').value.trim();
       if (!q) { document.getElementById('groupSearchResults').innerHTML = ''; return; }
-      const res = await SkyNetwork.fetch(`${SERVER_URL}/search_groups?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`${SERVER_URL}/search_groups?q=${encodeURIComponent(q)}`);
       const groups = await res.json();
       showSearchResults(groups, 'group');
     });
