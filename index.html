@@ -342,7 +342,7 @@
       </div>
     </div>
 
-    <!-- Заметки (заглушка) -->
+    <!-- Заметки -->
     <div id="notes" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
         <iframe src="https://skynotes-n17c.onrender.com" style="width:100%; height:100%; border:none;"></iframe>
@@ -688,11 +688,13 @@
         const params = new URLSearchParams(window.location.search);
         const videoId = params.get('v');
         if (videoId) {
+          console.log('🎬 Загружаем видео по параметру v:', videoId);
           videoIframe.src = `skyvideo.html?v=${videoId}`;
         }
 
         // Слушаем сообщения от iframe
         window.addEventListener('message', (event) => {
+          console.log('📨 Получено сообщение от iframe:', event.data);
           if (event.data && event.data.type === 'navigateVideo') {
             const videoId = event.data.videoId;
             if (videoId) {
@@ -704,7 +706,17 @@
               if (videoIframe) {
                 videoIframe.src = `skyvideo.html?v=${videoId}`;
               }
+              console.log('✅ URL обновлён, iframe перезагружен');
             }
+          } else if (event.data && event.data.type === 'navigateHome') {
+            // Возврат на главную страницу видео
+            const url = new URL(window.location);
+            url.search = '';
+            window.history.pushState({}, '', url);
+            if (videoIframe) {
+              videoIframe.src = 'skyvideo.html';
+            }
+            console.log('🏠 Возврат на главную страницу видео');
           }
         });
 
@@ -714,6 +726,7 @@
           const videoId = params.get('v');
           if (videoIframe) {
             videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
+            console.log('🔄 Навигация назад/вперёд, загружено:', videoId || 'главная');
           }
         });
       }
