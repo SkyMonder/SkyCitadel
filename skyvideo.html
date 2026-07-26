@@ -200,6 +200,13 @@
       const file = document.getElementById('vid-file').files[0];
       if (!title || !file) return alert('Название и файл обязательны');
 
+  // Проверка размера (Render может иметь лимит 100 МБ)
+      const MAX_SIZE = 100 * 1024 * 1024; // 100 МБ
+      if (file.size > MAX_SIZE) {
+        alert('Файл слишком большой! Максимум 100 МБ для загрузки.');
+        return;
+      }
+
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', desc);
@@ -217,6 +224,8 @@
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${SKYVIDEO_URL}/upload`, true);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+        xhr.timeout = 600000; // 10 минут таймаут
+
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const percent = Math.round((e.loaded / e.total) * 100);
@@ -224,21 +233,30 @@
             statusDiv.textContent = `Загрузка: ${percent}%`;
           }
         };
+
         const promise = new Promise((resolve, reject) => {
           xhr.onload = () => {
             if (xhr.status === 200) {
               try { resolve(JSON.parse(xhr.responseText)); }
-              catch (e) { reject(new Error('Invalid response')); }
-            } else { reject(new Error(`Upload failed: ${xhr.status}`)); }
+              catch (e) { reject(new Error('Ошибка парсинга ответа')); }
+            } else {
+              let errMsg = `Ошибка сервера (${xhr.status})`;
+              try {
+                const resp = JSON.parse(xhr.responseText);
+                if (resp.error) errMsg = resp.error;
+              } catch (e) {}
+              reject(new Error(errMsg));
+            }
           };
-          xhr.onerror = () => reject(new Error('Network error'));
+          xhr.onerror = () => reject(new Error('Ошибка сети. Проверьте соединение.'));
+          xhr.ontimeout = () => reject(new Error('Превышено время ожидания.'));
         });
         xhr.send(formData);
 
         await promise;
         progressFill.style.width = '100%';
         statusDiv.textContent = '✅ Готово!';
-        
+    
         document.getElementById('upload-modal').classList.remove('active');
         document.getElementById('vid-title').value = '';
         document.getElementById('vid-desc').value = '';
@@ -251,6 +269,8 @@
       } catch (e) {
         statusDiv.textContent = '❌ Ошибка: ' + e.message;
         console.error(e);
+        progressBar.style.display = 'none';
+        alert('Ошибка загрузки: ' + e.message);
       }
     });
 
