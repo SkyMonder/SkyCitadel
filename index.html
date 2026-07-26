@@ -358,8 +358,7 @@
   </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>'=
-  <script src="sky-network.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
   <script>
     (function() {
       const SERVICE2_URL = 'https://skymutant.onrender.com';
@@ -402,7 +401,7 @@
       async function getKey() { const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0)); return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt','decrypt']); }
       async function encryptPayload(obj) { const key = await getKey(); const iv = crypto.getRandomValues(new Uint8Array(12)); const enc = new TextEncoder().encode(JSON.stringify(obj)); const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc); const combo = new Uint8Array(iv.byteLength + c.byteLength); combo.set(iv); combo.set(new Uint8Array(c), iv.byteLength); return btoa(String.fromCharCode(...combo)); }
       async function decryptPayload(b64) { const key = await getKey(); const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); const iv = combo.slice(0,12); const data = combo.slice(12); const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data); return JSON.parse(new TextDecoder().decode(dec)); }
-      async function secureSkyNetwork.fetch(url, payload) { const enc = await encryptPayload(payload); const r = await SkyNetwork.fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: enc }) }); if (!r.ok) throw new Error('fail'); const j = await r.json(); if (!j.data) throw new Error('no data'); return decryptPayload(j.data); }
+      async function secureFetch(url, payload) { const enc = await encryptPayload(payload); const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: enc }) }); if (!r.ok) throw new Error('fail'); const j = await r.json(); if (!j.data) throw new Error('no data'); return decryptPayload(j.data); }
 
       // ========== КАРТЫ ==========
       const map = L.map('map').setView([55.751244, 37.618423], 10);
@@ -426,7 +425,7 @@
       document.getElementById('map-search-btn').addEventListener('click', async () => {
         const q = document.getElementById('map-search-input').value.trim();
         if (!q) return;
-        const r = await SkyNetwork.fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
         const d = await r.json();
         if (d && d.length > 0) {
           const { lat, lon } = d[0];
@@ -442,7 +441,7 @@
         const geocode = async (addr) => {
           const m = addr.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
           if (m) return L.latLng(parseFloat(m[1]), parseFloat(m[2]));
-          const r = await SkyNetwork.fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
           const d = await r.json();
           if (d && d.length > 0) return L.latLng(d[0].lat, d[0].lon);
           throw new Error('Адрес не найден');
@@ -487,7 +486,7 @@
       async function loadAnnouncements() {
         const c = document.getElementById('announce-container');
         try {
-          const r = await SkyNetwork.fetch(`${SERVICE2_URL}/announcements`);
+          const r = await fetch(`${SERVICE2_URL}/announcements`);
           const j = await r.json();
           if (!j.data) throw new Error('no data');
           const items = await decryptPayload(j.data);
@@ -586,7 +585,7 @@
         if (!city) return;
         document.getElementById('weather-result').textContent = 'Запрос...';
         try {
-          const res = await secureSkyNetwork.fetch(`${SERVICE2_URL}/api/weather`, { city });
+          const res = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
           document.getElementById('weather-result').innerHTML = `🌡️ ${res.temp}°C, ${res.desc}<br>📍 ${res.city}`;
         } catch (e) { document.getElementById('weather-result').textContent = 'Ошибка'; }
       });
@@ -598,7 +597,7 @@
         if (!q) return;
         searchStat.textContent = 'Поиск...'; searchRes.innerHTML = '';
         try {
-          const resp = await secureSkyNetwork.fetch(`${SERVICE4_URL}/api/search`, { query: q });
+          const resp = await secureFetch(`${SERVICE4_URL}/api/search`, { query: q });
           searchRes.innerHTML = resp.results.length ? resp.results.map(r=>`<div class="search-result-item"><div style="font-size:0.8rem;color:#5f7ecf;">${r.source}</div><a href="${r.url||'#'}" target="_blank" style="color:#cfdbff;font-weight:bold;">${escapeHtml(r.title)}</a><p style="font-size:0.85rem;color:#b0c0e0;">${escapeHtml(r.text||'')}</p>${r.icon?`<img src="${r.icon}" style="max-height:40px;margin-top:0.3rem;">`:''}</div>`).join('') : '<p>Ничего не найдено</p>';
           searchStat.textContent = `Найдено: ${resp.results.length}`;
         } catch (e) { searchStat.textContent = 'Ошибка поиска'; }
@@ -611,7 +610,7 @@
         if (!login||!pass) return alert('Заполни поля');
         try {
           const payload = await encryptPayload({ login, password: pass });
-          const res = await SkyNetwork.fetch(`${SKYID_URL}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
+          const res = await fetch(`${SKYID_URL}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
           if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Ошибка'); }
           const json = await res.json();
           const data = await decryptPayload(json.data);
@@ -623,7 +622,7 @@
         if (!login||!pass) return alert('Заполни поля');
         try {
           const payload = await encryptPayload({ login, password: pass });
-          const res = await SkyNetwork.fetch(`${SKYID_URL}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
+          const res = await fetch(`${SKYID_URL}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
           if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Ошибка'); }
           const json = await res.json();
           const data = await decryptPayload(json.data);
@@ -639,7 +638,7 @@
         const t = localStorage.getItem('skyid_token');
         if (!t) return;
         try {
-          const r = await SkyNetwork.fetch(`${SERVICE2_URL}/spotify/get-token`, { headers: { Authorization: `Bearer ${t}` } });
+          const r = await fetch(`${SERVICE2_URL}/spotify/get-token`, { headers: { Authorization: `Bearer ${t}` } });
           const d = await r.json();
           if (d.access_token) { spotifyToken = d.access_token; document.getElementById('spotify-logged-out').style.display='none'; document.getElementById('spotify-logged-in').style.display='block'; initSpotifyPlayer(); }
         } catch(e) {}
@@ -654,12 +653,12 @@
         if (!code || state !== localStorage.getItem('spotify_state')) return;
         const cv = localStorage.getItem('spotify_code_verifier'); if (!cv) return;
         try {
-          const r = await SkyNetwork.fetch(`${SERVICE2_URL}/spotify/token`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI }) });
+          const r = await fetch(`${SERVICE2_URL}/spotify/token`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI }) });
           const d = await r.json();
           if (d.access_token) {
             spotifyToken = d.access_token;
             const skyToken = localStorage.getItem('skyid_token');
-            if (skyToken) await SkyNetwork.fetch(`${SERVICE2_URL}/spotify/save-token`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${skyToken}`}, body: JSON.stringify({ spotify_token: d.access_token, spotify_refresh: d.refresh_token, expires_at: d.expires_in ? Date.now()+d.expires_in*1000 : null }) });
+            if (skyToken) await fetch(`${SERVICE2_URL}/spotify/save-token`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${skyToken}`}, body: JSON.stringify({ spotify_token: d.access_token, spotify_refresh: d.refresh_token, expires_at: d.expires_in ? Date.now()+d.expires_in*1000 : null }) });
             document.getElementById('spotify-logged-out').style.display='none'; document.getElementById('spotify-logged-in').style.display='block'; initSpotifyPlayer();
             history.replaceState({}, document.title, location.pathname);
           }
@@ -754,7 +753,7 @@
         deviceId = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
         localStorage.setItem('device_id', deviceId);
       }
-      SkyNetwork.fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, { method: 'GET', cache: 'no-store', mode: 'cors' })
+      fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, { method: 'GET', cache: 'no-store', mode: 'cors' })
         .then(r => r.json())
         .then(data => console.log('Visits counter:', data.status))
         .catch(() => {});
