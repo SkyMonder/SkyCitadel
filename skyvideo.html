@@ -46,11 +46,10 @@
     </div>
   </header>
   <div class="content">
-    <!-- Контейнер для списка видео или плеера -->
     <div id="main-content"></div>
   </div>
 
-  <!-- Модалки (авторизация, загрузка, профиль) -->
+  <!-- Модалки -->
   <div id="auth-modal" class="modal-overlay">
     <div class="modal">
       <h2 id="auth-title">Вход</h2>
@@ -100,6 +99,7 @@
 
     // ====== Навигация ======
     function goHome() {
+      console.log('🔙 Возврат на главную');
       const url = new URL(window.location);
       url.search = '';
       window.history.pushState({}, '', url);
@@ -107,6 +107,11 @@
     }
 
     function navigateToVideo(videoId) {
+      console.log('🎬 Переход к видео:', videoId);
+      if (!videoId) {
+        console.error('❌ videoId не передан');
+        return;
+      }
       const url = new URL(window.location);
       url.search = `?v=${videoId}`;
       window.history.pushState({}, '', url);
@@ -180,7 +185,6 @@
       } else {
         document.getElementById('login-btn').style.display = 'inline-block';
       }
-      // Рендерим контент в зависимости от URL
       const videoId = params.get('v');
       if (videoId) {
         renderVideoPage(videoId);
@@ -311,17 +315,20 @@
             `).join('')}
           </div>
         `;
+        console.log('📋 Лента загружена, карточек:', data.length);
       } catch (e) {
         container.innerHTML = '<p style="text-align:center;color:#8899cc;">Не удалось загрузить видео</p>';
+        console.error('❌ Ошибка загрузки ленты:', e);
       }
     }
 
     // ====== РЕНДЕР СТРАНИЦЫ ВИДЕО ======
     async function renderVideoPage(videoId) {
       const container = document.getElementById('main-content');
+      console.log('🎞️ Рендер видео:', videoId);
       try {
         const res = await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
-        if (!res.ok) throw new Error('Video not found');
+        if (!res.ok) throw new Error('Видео не найдено');
         const meta = await res.json();
         container.innerHTML = `
           <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
@@ -341,14 +348,17 @@
         if (currentUser) {
           checkFollowStatus(meta.authorSkyid);
         }
+        console.log('✅ Страница видео отрендерена');
       } catch (e) {
-        container.innerHTML = `<p style="color:#c44;">Видео не найдено</p><span class="back-link" onclick="goHome()">← На главную</span>`;
+        container.innerHTML = `<p style="color:#c44;">❌ ${e.message}</p><span class="back-link" onclick="goHome()">← На главную</span>`;
+        console.error('❌ Ошибка рендера видео:', e);
       }
     }
 
-    // ====== Отрисовка метаданных и комментариев ======
+    // ====== Отрисовка метаданных ======
     function renderPlayerMeta(videoId, meta) {
       const container = document.getElementById('player-meta-' + videoId);
+      if (!container) return;
       const isOwner = currentUser && meta.authorSkyid === currentUser.skyid;
       const isAdmin = currentUser && currentUser.login === 'SkyMonder';
       let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
@@ -506,7 +516,7 @@
       return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
 
-    // ====== Обработка изменения URL (кнопки назад/вперёд) ======
+    // ====== Обработка изменения URL (назад/вперёд) ======
     window.addEventListener('popstate', () => {
       const params = new URLSearchParams(window.location.search);
       const videoId = params.get('v');
