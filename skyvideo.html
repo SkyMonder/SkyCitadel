@@ -83,33 +83,63 @@
   </div>
 
   <script>
+    // ====== Конфигурация ======
     const SKYVIDEO_URL = 'https://skyvideo.onrender.com'; // замените на ваш адрес
-    let token = localStorage.getItem('skyvideo_token');
+    const SKYID_URL = 'https://skymutant.onrender.com';
+    const CLIENT_ID = 'skyvideo';
+    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html';
+
+    // ====== Глобальные переменные ======
+    let token = localStorage.getItem('skyvideo_token') || null;
     let currentUser = null;
+    let currentLogin = null;
 
-    async function api(method, path, body) {
-      const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
-      const res = await fetch(SKYVIDEO_URL + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
-      if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
-      return res.json();
+    // ====== Функции авторизации ======
+    async function verifyToken() {
+      if (!token) return false;
+      try {
+        const res = await fetch(`${SKYID_URL}/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const me = await res.json();
+          currentLogin = me.login || me.skyid;
+          // Для профиля используем отдельный запрос к /profile SkyVideo
+          const profileRes = await fetch(`${SKYVIDEO_URL}/profile`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          if (profileRes.ok) {
+            const profile = await profileRes.json();
+            currentUser = { login: currentLogin, name: profile.name || currentLogin };
+          } else {
+            currentUser = { login: currentLogin, name: currentLogin };
+          }
+          return true;
+        } else {
+          logout();
+          return false;
+        }
+      } catch (e) {
+        logout();
+        return false;
+      }
     }
 
-    function login(user) {
-      currentUser = user;
-      document.getElementById('user-info').textContent = user.login || user.name;
-      document.getElementById('login-btn').style.display = 'none';
-      document.getElementById('upload-btn').style.display = 'inline-block';
-      document.getElementById('profile-btn').style.display = 'inline-block';
-      loadVideos();
+    function loginWithSkyID() {
+      const scope = 'profile email';
+      const state = encodeURIComponent(window.location.href);
+      const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
+      window.location.href = authUrl;
     }
+
     function logout() {
-      token = null; currentUser = null;
+      token = null;
       localStorage.removeItem('skyvideo_token');
       localStorage.removeItem('skyvideo_scope');
       localStorage.removeItem('skyvideo_skyid');
-      localStorage.removeItem('skyvideo_refresh_token');
       localStorage.removeItem('skyvideo_expires_at');
+      currentUser = null;
+      currentLogin = null;
       document.getElementById('user-info').textContent = '';
       document.getElementById('login-btn').style.display = 'inline-block';
       document.getElementById('upload-btn').style.display = 'none';
@@ -117,77 +147,86 @@
       loadVideos();
     }
 
-    // Авторизация через OAuth (с использованием callback.html)
-    document.getElementById('login-btn').addEventListener('click', () => {
-      // Запрашиваем права: профиль и email (можно расширить)
-      const scope = 'profile email';
-      // Открываем окно авторизации
-      fetch(`${SKYVIDEO_URL}/auth/login?scope=${encodeURIComponent(scope)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.loginUrl) {
-            // Сохраняем текущий URL, чтобы вернуться после входа
-            localStorage.setItem('skyvideo_redirect_after_login', window.location.href);
-            window.location.href = data.loginUrl;
-          } else {
-            alert('Ошибка получения URL для входа');
-          }
-        })
-        .catch(err => {
-          document.getElementById('auth-error').textContent = 'Ошибка соединения с сервером';
-        });
-    });
+    function login(user) {
+      currentUser = user;
+      document.getElementById('user-info').textContent = user.name || user.login;
+      document.getElementById('login-btn').style.display = 'none';
+      document.getElementById('upload-btn').style.display = 'inline-block';
+      document.getElementById('profile-btn').style.display = 'inline-block';
+      loadVideos();
+    }
 
-    // Проверяем, не вернулись ли с callback (токен уже сохранён в localStorage через callback.html)
-    (async () => {
-      // Если есть токен, пытаемся получить профиль
+    // ====== API-запросы с автоматической обработкой 401 ======
+    async function apiFetch(url, options = {}) {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
       if (token) {
-        try {
-          // Проверяем, не истёк ли токен (опционально)
-          const expiresAt = localStorage.getItem('skyvideo_expires_at');
-          if (expiresAt && Date.now() > parseInt(expiresAt)) {
-            // Токен истёк, можно попробовать обновить через refresh_token, но пока просто выходим
-            logout();
-            return;
-          }
-          // Получаем профиль с /profile (этот эндпоинт использует токен для определения пользователя)
-          const profile = await api('GET', '/profile');
-          if (profile.name) {
-            login({ login: profile.name, name: profile.name });
-          } else {
-            // Если профиль не получен, пробуем через /me (но /me требует scope, возможно, его нет)
-            // Вместо этого попробуем получить данные из localStorage skyid
-            const skyid = localStorage.getItem('skyvideo_skyid');
-            if (skyid) {
-              login({ login: skyid, name: skyid });
-            } else {
-              logout();
-            }
-          }
-        } catch (e) {
-          console.warn('Ошибка получения профиля:', e);
-          logout();
-        }
-      } else {
-        loadVideos();
+        headers['Authorization'] = `Bearer ${token}`;
       }
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        logout();
+        throw new Error('Unauthorized');
+      }
+      return res;
+    }
+
+    // ====== Инициализация при загрузке ======
+    (async () => {
+      // 1. Проверяем, не вернулись ли с callback с параметром code
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('code')) {
+        window.location.href = '/callback.html' + window.location.search;
+        return;
+      }
+
+      // 2. Пытаемся использовать сохранённый токен
+      if (token) {
+        const valid = await verifyToken();
+        if (valid && currentUser) {
+          login(currentUser);
+          return;
+        }
+      }
+
+      // 3. Токена нет или он невалидный — показываем кнопку входа
+      document.getElementById('login-btn').style.display = 'inline-block';
+      loadVideos();
     })();
 
-    // Профиль
+    // ====== Обработчики кнопок ======
+    document.getElementById('login-btn').addEventListener('click', () => {
+      document.getElementById('auth-modal').classList.add('active');
+    });
+    document.getElementById('auth-submit').addEventListener('click', loginWithSkyID);
+
+    // ====== Профиль ======
     document.getElementById('profile-btn').addEventListener('click', async () => {
-      const profile = await api('GET', '/profile');
-      document.getElementById('channel-name').value = profile.name || '';
-      document.getElementById('profile-modal').classList.add('active');
+      try {
+        const res = await apiFetch(`${SKYVIDEO_URL}/profile`);
+        const profile = await res.json();
+        document.getElementById('channel-name').value = profile.name || '';
+        document.getElementById('profile-modal').classList.add('active');
+      } catch (e) {}
     });
     document.getElementById('save-profile').addEventListener('click', async () => {
       const name = document.getElementById('channel-name').value.trim();
-      await api('PUT', '/profile', { name });
-      document.getElementById('profile-modal').classList.remove('active');
-      if (currentUser) currentUser.login = name;
-      document.getElementById('user-info').textContent = name;
+      try {
+        await apiFetch(`${SKYVIDEO_URL}/profile`, {
+          method: 'PUT',
+          body: JSON.stringify({ name })
+        });
+        document.getElementById('profile-modal').classList.remove('active');
+        if (currentUser) {
+          currentUser.name = name;
+          document.getElementById('user-info').textContent = name;
+        }
+      } catch (e) {}
     });
 
-    // Загрузка
+    // ====== Загрузка видео ======
     document.getElementById('upload-btn').addEventListener('click', () => document.getElementById('upload-modal').classList.add('active'));
     document.getElementById('vid-submit').addEventListener('click', async () => {
       const title = document.getElementById('vid-title').value.trim();
@@ -195,38 +234,60 @@
       const tags = document.getElementById('vid-tags').value.trim();
       const file = document.getElementById('vid-file').files[0];
       if (!title || !file) return alert('Название и файл обязательны');
-      const fd = new FormData(); fd.append('title', title); fd.append('description', desc); fd.append('tags', tags); fd.append('video', file);
-      const res = await fetch(SKYVIDEO_URL + '/upload', { method:'POST', headers:{ Authorization: `Bearer ${token}` }, body: fd });
-      if (res.ok) {
-        alert('Видео загружено');
-        document.getElementById('upload-modal').classList.remove('active');
-        loadVideos();
-      } else alert('Ошибка загрузки');
+      const fd = new FormData();
+      fd.append('title', title);
+      fd.append('description', desc);
+      fd.append('tags', tags);
+      fd.append('video', file);
+      try {
+        const res = await fetch(`${SKYVIDEO_URL}/upload`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+          body: fd
+        });
+        if (res.ok) {
+          alert('Видео загружено');
+          document.getElementById('upload-modal').classList.remove('active');
+          loadVideos();
+        } else {
+          alert('Ошибка загрузки');
+        }
+      } catch (e) {
+        alert('Ошибка соединения');
+      }
     });
 
-    // Лента
+    // ====== Лента видео ======
     async function loadVideos() {
-      const data = await api('GET', '/list');
-      const container = document.getElementById('video-feed');
-      if (!Array.isArray(data)) return;
-      container.innerHTML = data.map(v => `
-        <div class="video-card" onclick="openPlayer('${v.id}')">
-          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='150' viewBox='0 0 280 150'%3E%3Crect width='280' height='150' fill='%231a233a'/%3E%3Ctext x='140' y='75' font-family='sans-serif' font-size='20' fill='%235f7ecf' text-anchor='middle' dy='.3em'%3E🎬%3C/text%3E%3C/svg%3E" alt="preview">
-          <div class="info">
-            <div class="title">${escapeHtml(v.title)}</div>
-            <div class="meta">${escapeHtml(v.author)} • ${v.views} просмотров</div>
-          </div>
-        </div>`).join('');
+      try {
+        const res = await fetch(`${SKYVIDEO_URL}/list`);
+        const data = await res.json();
+        const container = document.getElementById('video-feed');
+        if (!Array.isArray(data)) return;
+        container.innerHTML = data.map(v => `
+          <div class="video-card" onclick="openPlayer('${v.id}')">
+            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='150' viewBox='0 0 280 150'%3E%3Crect width='280' height='150' fill='%231a233a'/%3E%3Ctext x='140' y='75' font-family='sans-serif' font-size='20' fill='%235f7ecf' text-anchor='middle' dy='.3em'%3E🎬%3C/text%3E%3C/svg%3E" alt="preview">
+            <div class="info">
+              <div class="title">${escapeHtml(v.title)}</div>
+              <div class="meta">${escapeHtml(v.author)} • ${v.views} просмотров</div>
+            </div>
+          </div>`).join('');
+      } catch (e) {
+        document.getElementById('video-feed').innerHTML = '<p style="text-align:center;color:#8899cc;">Не удалось загрузить видео</p>';
+      }
     }
 
-    // Плеер
+    // ====== Плеер ======
     window.openPlayer = async (videoId) => {
       document.getElementById('player-modal').classList.add('active');
       const pc = document.getElementById('player-container');
       pc.innerHTML = `<video controls autoplay width="100%"><source src="${SKYVIDEO_URL}/video/${videoId}" type="video/mp4"></video><div id="player-meta-${videoId}"></div>`;
-      const meta = await api('GET', `/video/${videoId}/meta`);
-      renderPlayerMeta(videoId, meta);
-      api('POST', `/video/${videoId}/view`);
+      try {
+        const meta = await (await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`)).json();
+        renderPlayerMeta(videoId, meta);
+        // Увеличиваем просмотры
+        fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method: 'POST' }).catch(()=>{});
+      } catch (e) {}
     };
 
     function renderPlayerMeta(videoId, meta) {
@@ -256,44 +317,78 @@
       container.innerHTML = html;
     }
 
-    window.likeVideo = async (id) => { await api('POST', `/video/${id}/like`); refreshMeta(id); };
-    window.dislikeVideo = async (id) => { await api('POST', `/video/${id}/dislike`); refreshMeta(id); };
-    window.deleteVideo = async (id) => { if (confirm('Удалить видео?')) { await api('DELETE', `/video/${id}`); document.getElementById('player-modal').classList.remove('active'); loadVideos(); } };
+    // ====== Лайки/дизлайки ======
+    window.likeVideo = async (id) => {
+      try {
+        await apiFetch(`${SKYVIDEO_URL}/video/${id}/like`, { method: 'POST' });
+        refreshMeta(id);
+      } catch (e) {}
+    };
+    window.dislikeVideo = async (id) => {
+      try {
+        await apiFetch(`${SKYVIDEO_URL}/video/${id}/dislike`, { method: 'POST' });
+        refreshMeta(id);
+      } catch (e) {}
+    };
+    window.deleteVideo = async (id) => {
+      if (!confirm('Удалить видео?')) return;
+      try {
+        await apiFetch(`${SKYVIDEO_URL}/video/${id}`, { method: 'DELETE' });
+        document.getElementById('player-modal').classList.remove('active');
+        loadVideos();
+      } catch (e) {}
+    };
+
+    // ====== Комментарии ======
     window.addComment = async (videoId) => {
       const text = document.getElementById('new-comment').value.trim();
       if (!text) return;
-      await api('POST', `/video/${videoId}/comment`, { text });
-      refreshMeta(videoId);
+      try {
+        await apiFetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
+          method: 'POST',
+          body: JSON.stringify({ text })
+        });
+        refreshMeta(videoId);
+      } catch (e) {}
     };
     window.editComment = async (videoId, commentId) => {
       const newText = prompt('Новый текст');
       if (newText) {
-        await api('PUT', `/video/${videoId}/comment/${commentId}`, { text: newText });
-        refreshMeta(videoId);
+        try {
+          await apiFetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
+            method: 'PUT',
+            body: JSON.stringify({ text: newText })
+          });
+          refreshMeta(videoId);
+        } catch (e) {}
       }
     };
     window.deleteComment = async (videoId, commentId) => {
-      if (confirm('Удалить комментарий?')) {
-        await api('DELETE', `/video/${videoId}/comment/${commentId}`);
+      if (!confirm('Удалить комментарий?')) return;
+      try {
+        await apiFetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, { method: 'DELETE' });
         refreshMeta(videoId);
-      }
+      } catch (e) {}
     };
+
     async function refreshMeta(videoId) {
-      const meta = await api('GET', `/video/${videoId}/meta`);
-      renderPlayerMeta(videoId, meta);
+      try {
+        const meta = await (await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`)).json();
+        renderPlayerMeta(videoId, meta);
+      } catch (e) {}
     }
 
-    function escapeHtml(t) { return String(t).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+    // ====== Вспомогательные функции ======
+    function escapeHtml(t) {
+      return String(t).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
 
-    // Обработка возврата из callback - если мы вернулись, то callback уже сохранил токен, просто перезагружаем страницу
-    // Проверяем, есть ли параметр ?code в URL (на случай, если callback почему-то не сработал)
-    (function checkUrlParams() {
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('code')) {
-        // Если мы попали сюда с code, возможно callback не обработал, делаем редирект на callback
-        window.location.href = '/callback.html' + window.location.search;
-      }
-    })();
+    // Обработка возврата из callback - если мы вернулись с токеном, но не залогинены
+    if (token && !currentUser) {
+      verifyToken().then(valid => {
+        if (valid && currentUser) login(currentUser);
+      });
+    }
   </script>
 </body>
 </html>
