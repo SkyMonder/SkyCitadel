@@ -68,90 +68,126 @@
   </div>
 
   <script>
-    const SKYID_URL = 'https://skymutant.onrender.com'; // замените на ваш URL
+    // ====== Конфигурация ======
+    const SKYID_URL = 'https://skymutant.onrender.com';
     const SOCIAL_API = 'https://skymutant.onrender.com';
     const CLIENT_ID = 'skysocial';
-    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html'; // общий callback
+    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html';
 
+    // ====== Глобальные переменные ======
     let token = localStorage.getItem('skysocial_token') || null;
     let currentUserSkyID = null;
-    let isAdmin = false;
     let currentLogin = null;
+    let isAdmin = false;
 
-    // Проверяем токен при загрузке
-    (async () => {
-      if (token) {
-        try {
-          const res = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-          if (res.ok) {
-            const me = await res.json();
-            currentUserSkyID = me.skyid;
-            currentLogin = me.login || me.skyid;
-            isAdmin = (me.login === 'SkyMonder');
-            showApp();
-            loadPosts();
-          } else {
-            logout();
-          }
-        } catch (e) {
+    // ====== Функции авторизации ======
+    async function verifyToken() {
+      if (!token) return false;
+      try {
+        const res = await fetch(`${SKYID_URL}/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const me = await res.json();
+          currentUserSkyID = me.skyid;
+          currentLogin = me.login || me.skyid;
+          isAdmin = (me.login === 'SkyMonder');
+          return true;
+        } else {
+          // Токен невалидный — удаляем и выходим
           logout();
+          return false;
         }
+      } catch (e) {
+        logout();
+        return false;
       }
-    })();
+    }
 
-    // Вход через OAuth
-    document.getElementById('loginBtn').addEventListener('click', () => {
-      // Запрашиваем scope: profile, social (для доступа к соцсети)
+    function loginWithSkyID() {
       const scope = 'profile social';
-      const state = encodeURIComponent(window.location.href); // вернуться на эту же страницу
+      const state = encodeURIComponent(window.location.href);
       const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
       window.location.href = authUrl;
-    });
+    }
 
-    function showApp() {
-      document.getElementById('loginScreen').style.display = 'none';
-      document.getElementById('app').style.display = 'flex';
-    }
-    function hideApp() {
-      document.getElementById('loginScreen').style.display = 'flex';
-      document.getElementById('app').style.display = 'none';
-    }
     function logout() {
       token = null;
       localStorage.removeItem('skysocial_token');
       localStorage.removeItem('skysocial_scope');
       localStorage.removeItem('skysocial_skyid');
-      hideApp();
+      currentUserSkyID = null;
+      currentLogin = null;
+      isAdmin = false;
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
     }
-    document.getElementById('logoutBtn').addEventListener('click', logout);
 
-    // Проверяем, не вернулись ли с callback (токен уже сохранён в localStorage через callback.html)
-    // Если есть токен, но мы ещё не вошли (произошёл редирект обратно), то повторно проверим
-    if (token && !currentUserSkyID) {
-      // Попытаемся получить данные
-      fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(res => {
-          if (res.ok) return res.json();
-          else throw new Error('invalid');
-        })
-        .then(me => {
-          currentUserSkyID = me.skyid;
-          currentLogin = me.login || me.skyid;
-          isAdmin = (me.login === 'SkyMonder');
+    function showApp() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = 'flex';
+    }
+
+    // ====== Инициализация при загрузке ======
+    (async () => {
+      // 1. Проверяем, не вернулись ли с callback с параметром code
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('code')) {
+        // Если мы попали сюда с code, значит callback.html не сработал (редкий случай).
+        // Перенаправляем на callback.html, который обработает код и сохранит токен.
+        window.location.href = '/callback.html' + window.location.search;
+        return;
+      }
+
+      // 2. Пытаемся использовать сохранённый токен
+      if (token) {
+        const valid = await verifyToken();
+        if (valid) {
           showApp();
           loadPosts();
-        })
-        .catch(() => logout());
+          return;
+        }
+      }
+
+      // 3. Токена нет или он невалидный — показываем экран входа
+      document.getElementById('loginScreen').style.display = 'flex';
+      document.getElementById('app').style.display = 'none';
+    })();
+
+    // ====== Обработчики кнопок ======
+    document.getElementById('loginBtn').addEventListener('click', loginWithSkyID);
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    // ====== API-запросы с автоматической обработкой 401 ======
+    async function apiFetch(url, options = {}) {
+      const headers = {
+        'Content-Type': 'application/json',
+        ...options.headers
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      const res = await fetch(url, { ...options, headers });
+      if (res.status === 401) {
+        // Токен истёк или невалидный — выходим
+        logout();
+        throw new Error('Unauthorized');
+      }
+      return res;
     }
 
-    // Загрузка постов
+    // ====== Загрузка постов ======
     async function loadPosts() {
       const container = document.getElementById('postsContainer');
       try {
-        const res = await fetch(`${SOCIAL_API}/posts`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await apiFetch(`${SOCIAL_API}/posts`);
         const posts = await res.json();
         container.innerHTML = posts.map(post => renderPost(post)).join('');
-      } catch (e) { container.innerHTML = '<p>Ошибка загрузки постов</p>'; }
+      } catch (e) {
+        if (e.message !== 'Unauthorized') {
+          container.innerHTML = '<p>Ошибка загрузки постов</p>';
+        }
+      }
     }
 
     function renderPost(post) {
@@ -182,102 +218,128 @@
         </div>`;
     }
 
-    // Отправка поста
+    // ====== Отправка поста ======
     document.getElementById('sendPost').addEventListener('click', async () => {
       const text = document.getElementById('postText').value.trim();
       if (!text) return;
-      await fetch(`${SOCIAL_API}/posts`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text })
-      });
-      document.getElementById('postText').value = '';
-      loadPosts();
+      try {
+        await apiFetch(`${SOCIAL_API}/posts`, {
+          method: 'POST',
+          body: JSON.stringify({ text })
+        });
+        document.getElementById('postText').value = '';
+        loadPosts();
+      } catch (e) {
+        if (e.message !== 'Unauthorized') alert('Ошибка отправки поста');
+      }
     });
 
-    // Лайки и дизлайки постов
+    // ====== Лайки / дизлайки ======
     window.likePost = async (id) => {
-      await fetch(`${SOCIAL_API}/posts/${id}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      loadPosts();
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${id}/like`, { method: 'POST' });
+        loadPosts();
+      } catch (e) {}
     };
     window.dislikePost = async (id) => {
-      await fetch(`${SOCIAL_API}/posts/${id}/dislike`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      loadPosts();
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${id}/dislike`, { method: 'POST' });
+        loadPosts();
+      } catch (e) {}
     };
 
-    // Удаление поста
+    // ====== Удаление поста ======
     window.deletePost = async (id) => {
       if (!confirm('Удалить пост?')) return;
-      await fetch(`${SOCIAL_API}/posts/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      loadPosts();
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${id}`, { method: 'DELETE' });
+        loadPosts();
+      } catch (e) {}
     };
 
-    // Комментарии
+    // ====== Комментарии ======
     window.toggleComments = async (postId) => {
       const block = document.getElementById('comments-' + postId);
       if (block.style.display === 'none' || !block.style.display) {
         block.style.display = 'block';
         const list = document.getElementById('comments-list-' + postId);
-        const res = await fetch(`${SOCIAL_API}/posts/${postId}/comments`, { headers: { Authorization: `Bearer ${token}` } });
-        const comments = await res.json();
-        list.innerHTML = comments.map(c => `
-          <div class="comment">
-            <strong>${escapeHtml(c.author)}</strong>: ${escapeHtml(c.text)}
-            <div class="comment-actions">
-              <button class="btn" onclick="likeComment('${postId}','${c.id}')">👍 ${c.likes.length}</button>
-              <button class="btn" onclick="dislikeComment('${postId}','${c.id}')">👎 ${c.dislikes.length}</button>
-              ${(c.skyid === currentUserSkyID || isAdmin) ? `<button class="btn btn-danger" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
-            </div>
-          </div>`).join('');
-      } else { block.style.display = 'none'; }
+        try {
+          const res = await apiFetch(`${SOCIAL_API}/posts/${postId}/comments`);
+          const comments = await res.json();
+          list.innerHTML = comments.map(c => `
+            <div class="comment">
+              <strong>${escapeHtml(c.author)}</strong>: ${escapeHtml(c.text)}
+              <div class="comment-actions">
+                <button class="btn" onclick="likeComment('${postId}','${c.id}')">👍 ${c.likes.length}</button>
+                <button class="btn" onclick="dislikeComment('${postId}','${c.id}')">👎 ${c.dislikes.length}</button>
+                ${(c.skyid === currentUserSkyID || isAdmin) ? `<button class="btn btn-danger" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
+              </div>
+            </div>`).join('');
+        } catch (e) {}
+      } else {
+        block.style.display = 'none';
+      }
     };
 
     window.addComment = async (postId) => {
       const input = document.getElementById('comment-input-' + postId);
       const text = input.value.trim();
       if (!text) return;
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text })
-      });
-      input.value = '';
-      window.toggleComments(postId);
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${postId}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ text })
+        });
+        input.value = '';
+        window.toggleComments(postId);
+      } catch (e) {}
     };
 
     window.likeComment = async (postId, commentId) => {
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      window.toggleComments(postId);
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}/like`, { method: 'POST' });
+        window.toggleComments(postId);
+      } catch (e) {}
     };
     window.dislikeComment = async (postId, commentId) => {
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}/dislike`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      window.toggleComments(postId);
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}/dislike`, { method: 'POST' });
+        window.toggleComments(postId);
+      } catch (e) {}
     };
     window.deleteComment = async (postId, commentId) => {
       if (!confirm('Удалить комментарий?')) return;
-      await fetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      window.toggleComments(postId);
+      try {
+        await apiFetch(`${SOCIAL_API}/posts/${postId}/comments/${commentId}`, { method: 'DELETE' });
+        window.toggleComments(postId);
+      } catch (e) {}
     };
 
-    // Бан пользователя (только админ)
+    // ====== Бан пользователя (только админ) ======
     window.banUser = async (skyid) => {
       if (!isAdmin) return;
       if (!confirm(`Забанить пользователя ${skyid}?`)) return;
-      await fetch(`${SOCIAL_API}/admin/ban`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ skyid })
-      });
-      alert('Пользователь забанен');
-      loadPosts();
+      try {
+        await apiFetch(`${SOCIAL_API}/admin/ban`, {
+          method: 'POST',
+          body: JSON.stringify({ skyid })
+        });
+        alert('Пользователь забанен');
+        loadPosts();
+      } catch (e) {}
     };
 
-    // Профиль
+    // ====== Профиль ======
     document.getElementById('profileBtn').addEventListener('click', async () => {
       const panel = document.getElementById('profilePanel');
       panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
       if (panel.style.display === 'block') {
-        const res = await fetch(`${SOCIAL_API}/profile`, { headers: { Authorization: `Bearer ${token}` } });
-        const profile = await res.json();
-        document.getElementById('profileName').value = profile.name || '';
-        document.getElementById('profileBio').value = profile.bio || '';
+        try {
+          const res = await apiFetch(`${SOCIAL_API}/profile`);
+          const profile = await res.json();
+          document.getElementById('profileName').value = profile.name || '';
+          document.getElementById('profileBio').value = profile.bio || '';
+        } catch (e) {}
       }
     });
     document.getElementById('closeProfile').addEventListener('click', () => {
@@ -286,13 +348,16 @@
     document.getElementById('saveProfile').addEventListener('click', async () => {
       const name = document.getElementById('profileName').value.trim();
       const bio = document.getElementById('profileBio').value.trim();
-      await fetch(`${SOCIAL_API}/profile`, {
-        method: 'PUT', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name, bio })
-      });
-      alert('Профиль обновлён');
+      try {
+        await apiFetch(`${SOCIAL_API}/profile`, {
+          method: 'PUT',
+          body: JSON.stringify({ name, bio })
+        });
+        alert('Профиль обновлён');
+      } catch (e) {}
     });
 
+    // ====== Вспомогательные функции ======
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
