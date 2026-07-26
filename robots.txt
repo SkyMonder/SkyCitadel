@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://skycitadel.onrender.com/sitemap.xml
