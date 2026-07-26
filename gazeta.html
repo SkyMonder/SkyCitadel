@@ -79,7 +79,7 @@
     function loadNews() {
       newsContainer.innerHTML = 'Загрузка новостей...';
       // Запрашиваем RSS через наш прокси, который не боится CORS
-      fetch(PROXY_URL + '?url=' + encodeURIComponent(RSS_URL))
+      SkyNetwork.fetch(PROXY_URL + '?url=' + encodeURIComponent(RSS_URL))
         .then(response => response.text())
         .then(str => {
           const parser = new DOMParser();
