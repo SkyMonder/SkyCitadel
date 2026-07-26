@@ -2,10 +2,128 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
-  <script>
-    // Перенаправляем на главную, сохраняя параметры (code, state)
-    window.location.href = '/' + window.location.search;
-  </script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Обработка входа...</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .loader {
+      text-align: center;
+    }
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top: 4px solid #5f7ecf;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .error {
+      color: #f48024;
+      margin-top: 1rem;
+    }
+  </style>
 </head>
-<body></body>
+<body>
+  <div class="loader" id="status">
+    <div class="spinner"></div>
+    <p>Вход в систему...</p>
+  </div>
+
+  <script>
+    (async function() {
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const error = params.get('error');
+
+      // Если есть ошибка от провайдера
+      if (error) {
+        document.getElementById('status').innerHTML = `
+          <p style="color:#f48024;">❌ Ошибка: ${error}</p>
+          <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
+        `;
+        return;
+      }
+
+      if (!code) {
+        document.getElementById('status').innerHTML = `
+          <p style="color:#f48024;">❌ Не передан код авторизации</p>
+          <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
+        `;
+        return;
+      }
+
+      // Определяем URL бэкенда (можно взять из переменной окружения или жёстко задать)
+      const SKYID_URL = 'https://skymutant.onrender.com'; // Замените на свой, если отличается
+
+      try {
+        // Обмениваем код на токен
+        const response = await fetch(`${SKYID_URL}/oauth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            client_id: 'skyvideo',         // или динамически из state, но пока жёстко
+            client_secret: 'skyvideo_secret' // опционально, если требуется
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.error || 'Ошибка обмена кода на токен');
+        }
+
+        const data = await response.json();
+        // Ожидаем: { access_token, token_type, expires_in, scope, skyid, ... }
+
+        // Сохраняем токен и связанные данные
+        localStorage.setItem('skyvideo_token', data.access_token);
+        localStorage.setItem('skyvideo_scope', data.scope || '');
+        localStorage.setItem('skyvideo_skyid', data.skyid || '');
+        if (data.refresh_token) {
+          localStorage.setItem('skyvideo_refresh_token', data.refresh_token);
+        }
+        if (data.expires_in) {
+          const expiresAt = Date.now() + data.expires_in * 1000;
+          localStorage.setItem('skyvideo_expires_at', expiresAt);
+        }
+
+        // Определяем, куда перенаправить пользователя после успешного входа
+        // Если в state передан URL, используем его, иначе на главную
+        let redirectUrl = '/';
+        if (state) {
+          try {
+            // state может быть простой строкой или URL-encoded
+            const decodedState = decodeURIComponent(state);
+            // Проверяем, что это относительный или абсолютный URL, но не внешний (безопасность)
+            if (decodedState.startsWith('/') || decodedState.startsWith(window.location.origin)) {
+              redirectUrl = decodedState;
+            }
+          } catch (e) {}
+        }
+
+        // Перенаправляем
+        window.location.href = redirectUrl;
+
+      } catch (err) {
+        document.getElementById('status').innerHTML = `
+          <p style="color:#f48024;">❌ Ошибка: ${err.message}</p>
+          <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
+        `;
+      }
+    })();
+  </script>
+</body>
 </html>
