@@ -16,7 +16,7 @@
     .video-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
     .video-card { background:var(--card); border-radius:12px; overflow:hidden; cursor:pointer; transition:transform .2s; }
     .video-card:hover { transform:scale(1.02); }
-    .video-card img { width:100%; height:150px; object-fit:cover; }
+    .video-card img { width:100%; height:150px; object-fit:cover; background:#1a233a; }
     .video-card .info { padding:0.8rem; }
     .video-card .title { font-weight:600; margin-bottom:0.3rem; }
     .video-card .meta { font-size:0.8rem; color:#8899cc; }
@@ -47,11 +47,9 @@
   <div id="auth-modal" class="modal-overlay">
     <div class="modal">
       <h2 id="auth-title">Вход</h2>
-      <input type="text" id="auth-login" placeholder="Логин">
-      <input type="password" id="auth-pass" placeholder="Пароль">
-      <button id="auth-submit" class="btn">Войти</button>
-      <button id="auth-switch" class="btn" style="background:#444;">Регистрация</button>
-      <button class="btn" style="background:#444;" onclick="document.getElementById('auth-modal').classList.remove('active')">Закрыть</button>
+      <p style="color:#8899cc; margin-bottom:0.5rem;">Вы будете перенаправлены на SkyID для авторизации</p>
+      <button id="auth-submit" class="btn" style="width:100%;">Войти через SkyID</button>
+      <button class="btn" style="background:#444; width:100%; margin-top:0.5rem;" onclick="document.getElementById('auth-modal').classList.remove('active')">Отмена</button>
       <div id="auth-error" style="color:#c44;margin-top:0.5rem;"></div>
     </div>
   </div>
@@ -85,7 +83,7 @@
   </div>
 
   <script>
-    const SKYVIDEO_URL = 'https://skyvideo.onrender.com'; // заменить
+    const SKYVIDEO_URL = 'https://skyvideo.onrender.com'; // замените на ваш адрес
     let token = localStorage.getItem('skyvideo_token');
     let currentUser = null;
 
@@ -99,24 +97,8 @@
 
     function login(user) {
       currentUser = user;
-      document.getElementById('user-info').textContent = user.login;
-      document.getElementById('login-btn').addEventListener('click', async () => {
-        const res = await fetch(`${SKYVIDEO_URL}/auth/login`);
-        const { loginUrl } = await res.json();
-        window.location.href = loginUrl;
-      });
-
-      // При загрузке проверяем наличие токена (после колбэка он будет в localStorage)
-      (async () => {
-        const token = localStorage.getItem('skyvideo_token');
-        if (token) {
-          try {
-            const me = await api('GET', '/profile'); // используем существующий метод api с токеном
-            login({ login: me.name });
-          } catch(e) { logout(); }
-        }
-        loadVideos();
-      })();
+      document.getElementById('user-info').textContent = user.login || user.name;
+      document.getElementById('login-btn').style.display = 'none';
       document.getElementById('upload-btn').style.display = 'inline-block';
       document.getElementById('profile-btn').style.display = 'inline-block';
       loadVideos();
@@ -124,6 +106,10 @@
     function logout() {
       token = null; currentUser = null;
       localStorage.removeItem('skyvideo_token');
+      localStorage.removeItem('skyvideo_scope');
+      localStorage.removeItem('skyvideo_skyid');
+      localStorage.removeItem('skyvideo_refresh_token');
+      localStorage.removeItem('skyvideo_expires_at');
       document.getElementById('user-info').textContent = '';
       document.getElementById('login-btn').style.display = 'inline-block';
       document.getElementById('upload-btn').style.display = 'none';
@@ -131,41 +117,61 @@
       loadVideos();
     }
 
-    // Авторизация
+    // Авторизация через OAuth (с использованием callback.html)
     document.getElementById('login-btn').addEventListener('click', () => {
-      document.getElementById('auth-modal').classList.add('active');
-      document.getElementById('auth-title').textContent = 'Вход';
-      document.getElementById('auth-submit').textContent = 'Войти';
-      document.getElementById('auth-switch').style.display = 'inline-block';
+      // Запрашиваем права: профиль и email (можно расширить)
+      const scope = 'profile email';
+      // Открываем окно авторизации
+      fetch(`${SKYVIDEO_URL}/auth/login?scope=${encodeURIComponent(scope)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.loginUrl) {
+            // Сохраняем текущий URL, чтобы вернуться после входа
+            localStorage.setItem('skyvideo_redirect_after_login', window.location.href);
+            window.location.href = data.loginUrl;
+          } else {
+            alert('Ошибка получения URL для входа');
+          }
+        })
+        .catch(err => {
+          document.getElementById('auth-error').textContent = 'Ошибка соединения с сервером';
+        });
     });
-    document.getElementById('auth-switch').addEventListener('click', function() {
-      const title = document.getElementById('auth-title');
-      if (title.textContent === 'Вход') {
-        title.textContent = 'Регистрация';
-        document.getElementById('auth-submit').textContent = 'Зарегистрироваться';
-        this.style.display = 'none';
-      }
-    });
-    document.getElementById('auth-submit').addEventListener('click', async () => {
-      const login = document.getElementById('auth-login').value.trim();
-      const pass = document.getElementById('auth-pass').value;
-      if (!login || !pass) return;
-      const isReg = document.getElementById('auth-title').textContent === 'Регистрация';
-      const endpoint = isReg ? '/auth/register' : '/auth/login';
-      try {
-        const data = await api('POST', endpoint, { login, password: pass });
-        if (data.token) {
-          token = data.token;
-          localStorage.setItem('skyvideo_token', token);
-          document.getElementById('auth-modal').classList.remove('active');
-          // получить профиль и пользователя
-          const me = await api('GET', '/profile');
-          login({ login: me.name || login });
-        } else {
-          document.getElementById('auth-error').textContent = data.error || 'Ошибка';
+
+    // Проверяем, не вернулись ли с callback (токен уже сохранён в localStorage через callback.html)
+    (async () => {
+      // Если есть токен, пытаемся получить профиль
+      if (token) {
+        try {
+          // Проверяем, не истёк ли токен (опционально)
+          const expiresAt = localStorage.getItem('skyvideo_expires_at');
+          if (expiresAt && Date.now() > parseInt(expiresAt)) {
+            // Токен истёк, можно попробовать обновить через refresh_token, но пока просто выходим
+            logout();
+            return;
+          }
+          // Получаем профиль с /profile (этот эндпоинт использует токен для определения пользователя)
+          const profile = await api('GET', '/profile');
+          if (profile.name) {
+            login({ login: profile.name, name: profile.name });
+          } else {
+            // Если профиль не получен, пробуем через /me (но /me требует scope, возможно, его нет)
+            // Вместо этого попробуем получить данные из localStorage skyid
+            const skyid = localStorage.getItem('skyvideo_skyid');
+            if (skyid) {
+              login({ login: skyid, name: skyid });
+            } else {
+              logout();
+            }
+          }
+        } catch (e) {
+          console.warn('Ошибка получения профиля:', e);
+          logout();
         }
-      } catch (e) { document.getElementById('auth-error').textContent = 'Ошибка соединения'; }
-    });
+      } else {
+        loadVideos();
+      }
+    })();
 
     // Профиль
     document.getElementById('profile-btn').addEventListener('click', async () => {
@@ -177,7 +183,7 @@
       const name = document.getElementById('channel-name').value.trim();
       await api('PUT', '/profile', { name });
       document.getElementById('profile-modal').classList.remove('active');
-      currentUser.login = name;
+      if (currentUser) currentUser.login = name;
       document.getElementById('user-info').textContent = name;
     });
 
@@ -205,10 +211,10 @@
       if (!Array.isArray(data)) return;
       container.innerHTML = data.map(v => `
         <div class="video-card" onclick="openPlayer('${v.id}')">
-          <img src="/placeholder-video.png" alt="preview">
+          <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='280' height='150' viewBox='0 0 280 150'%3E%3Crect width='280' height='150' fill='%231a233a'/%3E%3Ctext x='140' y='75' font-family='sans-serif' font-size='20' fill='%235f7ecf' text-anchor='middle' dy='.3em'%3E🎬%3C/text%3E%3C/svg%3E" alt="preview">
           <div class="info">
             <div class="title">${escapeHtml(v.title)}</div>
-            <div class="meta">${v.author} • ${v.views} просмотров</div>
+            <div class="meta">${escapeHtml(v.author)} • ${v.views} просмотров</div>
           </div>
         </div>`).join('');
     }
@@ -279,15 +285,14 @@
 
     function escapeHtml(t) { return String(t).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
-    // Авто-логин при наличии токена
-    (async () => {
-      if (token) {
-        try {
-          const profile = await api('GET', '/profile');
-          if (profile.name) login({ login: profile.name });
-        } catch (e) { logout(); }
+    // Обработка возврата из callback - если мы вернулись, то callback уже сохранил токен, просто перезагружаем страницу
+    // Проверяем, есть ли параметр ?code в URL (на случай, если callback почему-то не сработал)
+    (function checkUrlParams() {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('code')) {
+        // Если мы попали сюда с code, возможно callback не обработал, делаем редирект на callback
+        window.location.href = '/callback.html' + window.location.search;
       }
-      loadVideos();
     })();
   </script>
 </body>
