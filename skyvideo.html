@@ -12,8 +12,6 @@
     .logo { font-size:1.5rem; font-weight:700; }
     .btn { background:var(--accent); border:none; color:white; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; }
     .btn-danger { background:#c44; }
-    .btn-subscribe { background:#c00; }
-    .btn-subscribed { background:#4caf50; }
     .content { flex:1; overflow-y:auto; padding:1rem; }
     .video-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
     .video-card { background:var(--card); border-radius:12px; overflow:hidden; cursor:pointer; transition:transform .2s; }
@@ -26,11 +24,12 @@
     .modal { background:var(--card); border-radius:16px; padding:1.5rem; width:90%; max-width:800px; max-height:90vh; overflow-y:auto; border:1px solid var(--border); }
     .modal input, .modal textarea { width:100%; padding:0.7rem; margin:0.5rem 0; background:#0d1225; border:1px solid var(--border); color:white; border-radius:8px; }
     .comment-item { padding:0.5rem 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
-    .actions { display:flex; gap:0.5rem; align-items:center; flex-wrap:wrap; }
+    .actions { display:flex; gap:0.5rem; align-items:center; }
     .progress-bar { width:100%; height:20px; background:#1a233a; border-radius:10px; overflow:hidden; margin:10px 0; }
     .progress-fill { height:100%; background:var(--accent); transition:width 0.3s; }
     video { width:100%; max-height:500px; background:#000; border-radius:8px; }
-    .channel-info { display:flex; align-items:center; gap:1rem; margin:1rem 0; padding:0.5rem; background:#0d1225; border-radius:8px; }
+    .follow-btn { background:#2a2a2a; color:white; border:none; padding:0.3rem 0.8rem; border-radius:4px; cursor:pointer; }
+    .follow-btn.following { background:var(--accent); }
   </style>
 </head>
 <body>
@@ -85,6 +84,7 @@
     <div class="modal">
       <h2>Профиль канала</h2>
       <input type="text" id="channel-name" placeholder="Имя канала">
+      <textarea id="channel-bio" placeholder="О себе"></textarea>
       <button id="save-profile" class="btn">Сохранить</button>
       <button class="btn" style="background:#444;" onclick="document.getElementById('profile-modal').classList.remove('active')">Закрыть</button>
     </div>
@@ -99,6 +99,7 @@
 
     let token = localStorage.getItem('skyvideo_token') || null;
     let currentUser = null;
+    let currentSkyid = localStorage.getItem('skyvideo_skyid') || null;
 
     // ====== Авторизация ======
     async function verifyToken() {
@@ -110,9 +111,13 @@
           const profileRes = await fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
           if (profileRes.ok) {
             const profile = await profileRes.json();
-            currentUser = { login: me.login, skyid: me.skyid, name: profile.name || me.login };
+            currentUser = { login: me.login, name: profile.name || me.login, skyid: me.skyid };
+            currentSkyid = me.skyid;
+            localStorage.setItem('skyvideo_skyid', me.skyid);
           } else {
-            currentUser = { login: me.login, skyid: me.skyid, name: me.login };
+            currentUser = { login: me.login, name: me.login, skyid: me.skyid };
+            currentSkyid = me.skyid;
+            localStorage.setItem('skyvideo_skyid', me.skyid);
           }
           return true;
         } else { logout(); return false; }
@@ -129,7 +134,9 @@
     function logout() {
       token = null;
       localStorage.removeItem('skyvideo_token');
+      localStorage.removeItem('skyvideo_skyid');
       currentUser = null;
+      currentSkyid = null;
       document.getElementById('user-info').textContent = '';
       document.getElementById('login-btn').style.display = 'inline-block';
       document.getElementById('upload-btn').style.display = 'none';
@@ -139,6 +146,8 @@
 
     function login(user) {
       currentUser = user;
+      currentSkyid = user.skyid;
+      localStorage.setItem('skyvideo_skyid', user.skyid);
       document.getElementById('user-info').textContent = user.name || user.login;
       document.getElementById('login-btn').style.display = 'none';
       document.getElementById('upload-btn').style.display = 'inline-block';
@@ -172,16 +181,18 @@
         const res = await fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
         const profile = await res.json();
         document.getElementById('channel-name').value = profile.name || '';
+        document.getElementById('channel-bio').value = profile.bio || '';
         document.getElementById('profile-modal').classList.add('active');
       } catch (e) {}
     });
     document.getElementById('save-profile').addEventListener('click', async () => {
       const name = document.getElementById('channel-name').value.trim();
+      const bio = document.getElementById('channel-bio').value.trim();
       try {
         await fetch(`${SKYVIDEO_URL}/profile`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name })
+          body: JSON.stringify({ name, bio })
         });
         document.getElementById('profile-modal').classList.remove('active');
         if (currentUser) { currentUser.name = name; document.getElementById('user-info').textContent = name; }
@@ -200,13 +211,6 @@
       const file = document.getElementById('vid-file').files[0];
       if (!title || !file) return alert('Название и файл обязательны');
 
-  // Проверка размера (Render может иметь лимит 100 МБ)
-      const MAX_SIZE = 100 * 1024 * 1024; // 100 МБ
-      if (file.size > MAX_SIZE) {
-        alert('Файл слишком большой! Максимум 100 МБ для загрузки.');
-        return;
-      }
-
       const formData = new FormData();
       formData.append('title', title);
       formData.append('description', desc);
@@ -224,8 +228,7 @@
         const xhr = new XMLHttpRequest();
         xhr.open('POST', `${SKYVIDEO_URL}/upload`, true);
         xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.timeout = 600000; // 10 минут таймаут
-
+        xhr.timeout = 600000;
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
             const percent = Math.round((e.loaded / e.total) * 100);
@@ -233,30 +236,25 @@
             statusDiv.textContent = `Загрузка: ${percent}%`;
           }
         };
-
         const promise = new Promise((resolve, reject) => {
           xhr.onload = () => {
             if (xhr.status === 200) {
               try { resolve(JSON.parse(xhr.responseText)); }
               catch (e) { reject(new Error('Ошибка парсинга ответа')); }
             } else {
-              let errMsg = `Ошибка сервера (${xhr.status})`;
-              try {
-                const resp = JSON.parse(xhr.responseText);
-                if (resp.error) errMsg = resp.error;
-              } catch (e) {}
+              let errMsg = `Ошибка (${xhr.status})`;
+              try { const resp = JSON.parse(xhr.responseText); if (resp.error) errMsg = resp.error; } catch (e) {}
               reject(new Error(errMsg));
             }
           };
-          xhr.onerror = () => reject(new Error('Ошибка сети. Проверьте соединение.'));
-          xhr.ontimeout = () => reject(new Error('Превышено время ожидания.'));
+          xhr.onerror = () => reject(new Error('Сетевая ошибка'));
+          xhr.ontimeout = () => reject(new Error('Таймаут'));
         });
         xhr.send(formData);
 
         await promise;
         progressFill.style.width = '100%';
         statusDiv.textContent = '✅ Готово!';
-    
         document.getElementById('upload-modal').classList.remove('active');
         document.getElementById('vid-title').value = '';
         document.getElementById('vid-desc').value = '';
@@ -265,7 +263,7 @@
         progressBar.style.display = 'none';
         statusDiv.textContent = '';
         loadVideos();
-        alert('✅ Видео загружено и доступно для просмотра!');
+        alert('✅ Видео загружено!');
       } catch (e) {
         statusDiv.textContent = '❌ Ошибка: ' + e.message;
         console.error(e);
@@ -286,7 +284,7 @@
             <div style="width:100%;height:150px;background:#1a233a;display:flex;align-items:center;justify-content:center;font-size:3rem;">🎬</div>
             <div class="info">
               <div class="title">${escapeHtml(v.title)}</div>
-              <div class="meta">${escapeHtml(v.channelName || v.author)} • ${v.views} просмотров</div>
+              <div class="meta">${escapeHtml(v.author)} • ${v.views} просмотров</div>
             </div>
           </div>`).join('');
       } catch (e) {
@@ -308,40 +306,52 @@
       `;
       renderPlayerMeta(videoId, meta);
       fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method: 'POST' }).catch(()=>{});
+      // Проверка подписки
+      if (currentUser) {
+        checkFollowStatus(meta.authorSkyid);
+      }
     };
+
+    async function checkFollowStatus(skyid) {
+      if (!currentUser) return;
+      try {
+        const res = await fetch(`${SKYVIDEO_URL}/follow/check/${skyid}`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        const btn = document.getElementById('follow-btn');
+        if (btn) {
+          if (data.isFollowing) {
+            btn.textContent = '✔️ Подписан';
+            btn.classList.add('following');
+          } else {
+            btn.textContent = '➕ Подписаться';
+            btn.classList.remove('following');
+          }
+        }
+      } catch (e) {}
+    }
 
     function renderPlayerMeta(videoId, meta) {
       const container = document.getElementById('player-meta-' + videoId);
-      const isOwner = currentUser && meta.skyid === currentUser.skyid;
+      const isOwner = currentUser && meta.authorSkyid === currentUser.skyid;
       const isAdmin = currentUser && currentUser.login === 'SkyMonder';
-      
-      // Проверяем статус подписки
-      let subscribeBtnHtml = '';
-      if (currentUser && meta.skyid !== currentUser.skyid) {
-        subscribeBtnHtml = `<button class="btn" id="subscribe-btn" onclick="toggleSubscribe('${meta.skyid}')">Подписаться (${meta.subscribers || 0})</button>`;
-        // Проверим текущий статус
-        checkSubscriptionStatus(meta.skyid);
-      } else if (currentUser && meta.skyid === currentUser.skyid) {
-        subscribeBtnHtml = `<span style="color:#888;">Это ваш канал</span>`;
-      }
-
-      let html = `
-        <div class="channel-info">
-          <div><strong>${escapeHtml(meta.channelName || meta.author)}</strong></div>
-          <div style="flex:1;display:flex;gap:0.5rem;align-items:center;">
-            ${subscribeBtnHtml}
+      let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+          <div>
+            <h3>${escapeHtml(meta.title)}</h3>
+            <p style="font-size:0.9rem;color:#8899cc;">${escapeHtml(meta.author)}</p>
           </div>
+          ${currentUser && meta.authorSkyid !== currentUser.skyid ? `<button id="follow-btn" class="follow-btn" onclick="toggleFollow('${meta.authorSkyid}')">➕ Подписаться</button>` : ''}
         </div>
-        <h3>${escapeHtml(meta.title)}</h3>
         <p>${escapeHtml(meta.description)}</p>
         <p>Теги: ${meta.tags.join(', ')}</p>
         <div class="actions">
-          <button class="btn" onclick="likeVideo('${videoId}')">❤️ ${meta.likes.length}</button>
-          <button class="btn" onclick="dislikeVideo('${videoId}')">👎 ${meta.dislikes.length}</button>
+          <button class="btn" onclick="likeVideo('${videoId}')">❤️ <span id="like-count-${videoId}">${meta.likes.length}</span></button>
+          <button class="btn" onclick="dislikeVideo('${videoId}')">👎 <span id="dislike-count-${videoId}">${meta.dislikes.length}</span></button>
           <span>👀 ${meta.views}</span>
           ${ (isOwner || isAdmin) ? `<button class="btn btn-danger" onclick="deleteVideo('${videoId}')">🗑️</button>` : '' }
-        </div>
-        <div class="comments"><h4>Комментарии</h4>`;
+        </div>`;
+      html += `<div class="comments"><h4>Комментарии</h4>`;
       meta.comments.forEach(c => {
         html += `<div class="comment-item">
           <div><strong>${escapeHtml(c.author)}</strong>: ${escapeHtml(c.text)}</div>
@@ -352,108 +362,106 @@
       });
       html += `</div>`;
       if (currentUser) {
-        html += `<div style="margin-top:0.5rem;"><input type="text" id="new-comment" placeholder="Комментарий..."><button class="btn" onclick="addComment('${videoId}')">➤</button></div>`;
+        html += `<div style="margin-top:0.5rem;display:flex;gap:0.5rem;">
+          <input type="text" id="new-comment" placeholder="Комментарий..." style="flex:1;padding:0.5rem;background:#0d1225;border:1px solid var(--border);color:white;border-radius:8px;">
+          <button class="btn" onclick="addComment('${videoId}')">➤</button>
+        </div>`;
       }
       container.innerHTML = html;
     }
 
     // ====== Подписки ======
-    async function checkSubscriptionStatus(channelSkyId) {
-      try {
-        const res = await fetch(`${SKYVIDEO_URL}/subscribe/status/${channelSkyId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        const btn = document.getElementById('subscribe-btn');
-        if (btn) {
-          if (data.subscribed) {
-            btn.textContent = `✅ Подписан (${data.count})`;
-            btn.style.background = '#4caf50';
-          } else {
-            btn.textContent = `➕ Подписаться (${data.count})`;
-            btn.style.background = '#c00';
-          }
-        }
-      } catch (e) {}
-    }
-
-    window.toggleSubscribe = async (channelSkyId) => {
-      const btn = document.getElementById('subscribe-btn');
+    window.toggleFollow = async (skyid) => {
+      if (!currentUser) return alert('Войдите в аккаунт');
+      const btn = document.getElementById('follow-btn');
       if (!btn) return;
-      const currentText = btn.textContent;
       try {
-        // Проверим текущий статус
-        const statusRes = await fetch(`${SKYVIDEO_URL}/subscribe/status/${channelSkyId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const statusData = await statusRes.json();
-        let method, newText;
-        if (statusData.subscribed) {
-          method = 'DELETE';
-          newText = 'Отписка...';
+        if (btn.classList.contains('following')) {
+          // Отписаться
+          await fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
+          btn.textContent = '➕ Подписаться';
+          btn.classList.remove('following');
         } else {
-          method = 'POST';
-          newText = 'Подписка...';
+          // Подписаться
+          await fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+          btn.textContent = '✔️ Подписан';
+          btn.classList.add('following');
         }
-        btn.textContent = newText;
-        const res = await fetch(`${SKYVIDEO_URL}/subscribe/${channelSkyId}`, {
-          method: method,
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await res.json();
-        if (data.subscribed) {
-          btn.textContent = `✅ Подписан (${data.count})`;
-          btn.style.background = '#4caf50';
-        } else {
-          btn.textContent = `➕ Подписаться (${data.count})`;
-          btn.style.background = '#c00';
-        }
-        // Обновим метаданные видео (subscribers count)
-        // Можно перезагрузить метаданные
-        // Но проще закрыть и открыть плеер заново? Лучше обновить число в кнопке.
-        // Для этого достаточно обновить текст кнопки, как мы уже сделали.
-        // Также обновим количество подписчиков в других местах.
-        // Перезагрузка метаданных не требуется, т.к. число подписчиков уже обновлено в БД.
-        // При следующем открытии плеера будет актуальное значение.
       } catch (e) {
-        alert('Ошибка подписки: ' + e.message);
-        // Восстанавливаем текст кнопки
-        checkSubscriptionStatus(channelSkyId);
+        alert('Ошибка: ' + e.message);
       }
     };
 
-    // ====== Лайки/комментарии ======
+    // ====== Лайки ======
     window.likeVideo = async (id) => {
-      await fetch(`${SKYVIDEO_URL}/video/${id}/like`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      refreshMeta(id);
+      if (!currentUser) return alert('Войдите в аккаунт');
+      try {
+        const res = await fetch(`${SKYVIDEO_URL}/video/${id}/like`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        document.getElementById('like-count-' + id).textContent = data.likes;
+        document.getElementById('dislike-count-' + id).textContent = data.dislikes;
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
     };
     window.dislikeVideo = async (id) => {
-      await fetch(`${SKYVIDEO_URL}/video/${id}/dislike`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
-      refreshMeta(id);
+      if (!currentUser) return alert('Войдите в аккаунт');
+      try {
+        const res = await fetch(`${SKYVIDEO_URL}/video/${id}/dislike`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await res.json();
+        document.getElementById('like-count-' + id).textContent = data.likes;
+        document.getElementById('dislike-count-' + id).textContent = data.dislikes;
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
     };
-    window.deleteVideo = async (id) => {
-      if (!confirm('Удалить видео?')) return;
-      await fetch(`${SKYVIDEO_URL}/video/${id}`, { method: 'DELETE', headers: { Authorization: `Bearer ${token}` } });
-      document.getElementById('player-modal').classList.remove('active');
-      loadVideos();
-    };
+
+    // ====== Комментарии ======
     window.addComment = async (videoId) => {
+      if (!currentUser) return alert('Войдите в аккаунт');
       const text = document.getElementById('new-comment').value.trim();
       if (!text) return;
-      await fetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ text })
-      });
-      refreshMeta(videoId);
+      try {
+        await fetch(`${SKYVIDEO_URL}/video/${videoId}/comment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ text })
+        });
+        refreshMeta(videoId);
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
     };
     window.deleteComment = async (videoId, commentId) => {
       if (!confirm('Удалить комментарий?')) return;
-      await fetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
-        method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      refreshMeta(videoId);
+      try {
+        await fetch(`${SKYVIDEO_URL}/video/${videoId}/comment/${commentId}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        refreshMeta(videoId);
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
+    };
+    window.deleteVideo = async (id) => {
+      if (!confirm('Удалить видео?')) return;
+      try {
+        await fetch(`${SKYVIDEO_URL}/video/${id}`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        document.getElementById('player-modal').classList.remove('active');
+        loadVideos();
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
     };
     async function refreshMeta(videoId) {
       const res = await fetch(`${SKYVIDEO_URL}/video/${videoId}/meta`);
