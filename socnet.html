@@ -13,7 +13,6 @@
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     .login-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
     .login-box { background: var(--card); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 300px; text-align: center; }
-    .login-box input { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 10px; }
     .login-box button { width: 100%; padding: 0.7rem; background: var(--accent); border: none; color: white; border-radius: 10px; cursor: pointer; font-weight: bold; }
     .error { color: #f48024; font-size: 0.8rem; margin-top: 0.5rem; }
     .app { display: none; width: 100%; height: 100%; flex-direction: column; }
@@ -39,13 +38,8 @@
   <div id="loginScreen" class="login-screen">
     <div class="login-box">
       <h3>Вход через SkyID</h3>
-      <input type="text" id="loginInput" placeholder="Логин">
-      <input type="password" id="passInput" placeholder="Пароль">
-      <button id="loginBtn">Войти</button>
+      <button id="loginBtn">Войти через SkyID</button>
       <div class="error" id="loginError"></div>
-      <p style="margin-top:0.8rem; font-size:0.8rem; color:#8899cc;">
-        Нет аккаунта? <a href="#" id="registerLink" style="color:#5f7ecf;">Зарегистрировать SkyID</a>
-      </p>
     </div>
   </div>
 
@@ -74,39 +68,17 @@
   </div>
 
   <script>
-    const SKYID_URL = 'https://sky-mutant--rilloperdagelo.replit.app';
-    const SOCIAL_API = 'https://sky-mutant--rilloperdagelo.replit.app';
-
-    // ========== Функции шифрования ==========
-    const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
-    async function getKey() {
-      const keyBytes = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
-      return await crypto.subtle.importKey('raw', keyBytes, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-    }
-    async function encryptPayload(plainObj) {
-      const key = await getKey();
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const encoded = new TextEncoder().encode(JSON.stringify(plainObj));
-      const cipherBuffer = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
-      const combined = new Uint8Array(iv.byteLength + cipherBuffer.byteLength);
-      combined.set(iv, 0);
-      combined.set(new Uint8Array(cipherBuffer), iv.byteLength);
-      return btoa(String.fromCharCode(...combined));
-    }
-    async function decryptPayload(combinedBase64) {
-      const key = await getKey();
-      const combined = Uint8Array.from(atob(combinedBase64), c => c.charCodeAt(0));
-      const iv = combined.slice(0, 12);
-      const data = combined.slice(12);
-      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-      return JSON.parse(new TextDecoder().decode(decrypted));
-    }
+    const SKYID_URL = 'https://skymutant.onrender.com'; // замените на ваш URL
+    const SOCIAL_API = 'https://skymutant.onrender.com';
+    const CLIENT_ID = 'skysocial';
+    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html'; // общий callback
 
     let token = localStorage.getItem('skysocial_token') || null;
     let currentUserSkyID = null;
     let isAdmin = false;
+    let currentLogin = null;
 
-    // Автологин
+    // Проверяем токен при загрузке
     (async () => {
       if (token) {
         try {
@@ -114,62 +86,26 @@
           if (res.ok) {
             const me = await res.json();
             currentUserSkyID = me.skyid;
+            currentLogin = me.login || me.skyid;
             isAdmin = (me.login === 'SkyMonder');
             showApp();
             loadPosts();
-          } else { token = null; localStorage.removeItem('skysocial_token'); }
-        } catch (e) {}
+          } else {
+            logout();
+          }
+        } catch (e) {
+          logout();
+        }
       }
     })();
 
-    // Вход
-    document.getElementById('loginBtn').addEventListener('click', async () => {
-      const login = document.getElementById('loginInput').value.trim();
-      const password = document.getElementById('passInput').value;
-      const errorDiv = document.getElementById('loginError');
-      errorDiv.textContent = '';
-      if (!login || !password) return errorDiv.textContent = 'Заполни поля';
-      try {
-        const encrypted = await encryptPayload({ login, password });
-        const res = await fetch(`${SKYID_URL}/login`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: encrypted })
-        });
-        if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'Ошибка входа'); }
-        const json = await res.json();
-        if (!json.data) throw new Error('Нет зашифрованного ответа');
-        const data = await decryptPayload(json.data);
-        token = data.token;
-        localStorage.setItem('skysocial_token', token);
-        const meRes = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
-        const me = await meRes.json();
-        currentUserSkyID = me.skyid;
-        isAdmin = (me.login === 'SkyMonder');
-        showApp();
-        loadPosts();
-      } catch (e) { errorDiv.textContent = e.message; }
-    });
-
-    // Регистрация
-    document.getElementById('registerLink').addEventListener('click', async (e) => {
-      e.preventDefault();
-      const login = document.getElementById('loginInput').value.trim();
-      const password = document.getElementById('passInput').value;
-      if (!login || !password) return document.getElementById('loginError').textContent = 'Введите логин и пароль';
-      try {
-        const encrypted = await encryptPayload({ login, password });
-        const res = await fetch(`${SKYID_URL}/register`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: encrypted })
-        });
-        if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error || 'Ошибка регистрации'); }
-        const json = await res.json();
-        if (!json.data) throw new Error('Нет зашифрованного ответа');
-        const data = await decryptPayload(json.data);
-        alert('Регистрация успешна! Ваш SkyID: ' + data.skyid + '\nТеперь войдите.');
-        document.getElementById('loginInput').value = '';
-        document.getElementById('passInput').value = '';
-      } catch (e) { document.getElementById('loginError').textContent = e.message; }
+    // Вход через OAuth
+    document.getElementById('loginBtn').addEventListener('click', () => {
+      // Запрашиваем scope: profile, social (для доступа к соцсети)
+      const scope = 'profile social';
+      const state = encodeURIComponent(window.location.href); // вернуться на эту же страницу
+      const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
+      window.location.href = authUrl;
     });
 
     function showApp() {
@@ -180,9 +116,33 @@
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('app').style.display = 'none';
     }
-    document.getElementById('logoutBtn').addEventListener('click', () => {
-      token = null; localStorage.removeItem('skysocial_token'); hideApp();
-    });
+    function logout() {
+      token = null;
+      localStorage.removeItem('skysocial_token');
+      localStorage.removeItem('skysocial_scope');
+      localStorage.removeItem('skysocial_skyid');
+      hideApp();
+    }
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    // Проверяем, не вернулись ли с callback (токен уже сохранён в localStorage через callback.html)
+    // Если есть токен, но мы ещё не вошли (произошёл редирект обратно), то повторно проверим
+    if (token && !currentUserSkyID) {
+      // Попытаемся получить данные
+      fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } })
+        .then(res => {
+          if (res.ok) return res.json();
+          else throw new Error('invalid');
+        })
+        .then(me => {
+          currentUserSkyID = me.skyid;
+          currentLogin = me.login || me.skyid;
+          isAdmin = (me.login === 'SkyMonder');
+          showApp();
+          loadPosts();
+        })
+        .catch(() => logout());
+    }
 
     // Загрузка постов
     async function loadPosts() {
