@@ -67,7 +67,7 @@
   <div id="sources">
     <strong>Источник:</strong> Интерфакс (RSS)
   </div>
-  <script src="sky-network.js"></script>
+
   <script>
     // Адрес твоего сервера с прокси
     const PROXY_URL = 'https://sky-mutant--rilloperdagelo.replit.app/proxy-cors';
@@ -79,7 +79,7 @@
     function loadNews() {
       newsContainer.innerHTML = 'Загрузка новостей...';
       // Запрашиваем RSS через наш прокси, который не боится CORS
-      SkyNetwork.fetch(PROXY_URL + '?url=' + encodeURIComponent(RSS_URL))
+      fetch(PROXY_URL + '?url=' + encodeURIComponent(RSS_URL))
         .then(response => response.text())
         .then(str => {
           const parser = new DOMParser();
