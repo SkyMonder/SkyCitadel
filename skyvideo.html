@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyVideo</title>
+  <style>
+    :root { --bg:#0a0f1e; --panel:#111827; --card:#1a233a; --border:#2a3450; --text:#e0e8ff; --accent:#5f7ecf; }
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { font-family:'Segoe UI',sans-serif; background:var(--bg); color:var(--text); height:100vh; display:flex; flex-direction:column; overflow:hidden; }
+    header { padding:1rem; background:var(--panel); border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+    .logo { font-size:1.5rem; font-weight:700; }
+    .btn { background:var(--accent); border:none; color:white; padding:0.5rem 1rem; border-radius:8px; cursor:pointer; }
+    .btn-danger { background:#c44; }
+    .content { flex:1; overflow-y:auto; padding:1rem; }
+    .video-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
+    .video-card { background:var(--card); border-radius:12px; overflow:hidden; cursor:pointer; transition:transform .2s; }
+    .video-card:hover { transform:scale(1.02); }
+    .video-card img { width:100%; height:150px; object-fit:cover; }
+    .video-card .info { padding:0.8rem; }
+    .video-card .title { font-weight:600; margin-bottom:0.3rem; }
+    .video-card .meta { font-size:0.8rem; color:#8899cc; }
+    .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,0.8); display:none; align-items:center; justify-content:center; z-index:50; }
+    .modal-overlay.active { display:flex; }
+    .modal { background:var(--card); border-radius:16px; padding:1.5rem; width:90%; max-width:800px; max-height:90vh; overflow-y:auto; border:1px solid var(--border); }
+    .modal input, .modal textarea { width:100%; padding:0.7rem; margin:0.5rem 0; background:#0d1225; border:1px solid var(--border); color:white; border-radius:8px; }
+    .comment-item { padding:0.5rem 0; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; }
+    .actions { display:flex; gap:0.5rem; align-items:center; }
+    .admin-panel { margin-top:1rem; padding:1rem; background:#151e36; border-radius:8px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="logo">🎬 SkyVideo</div>
+    <div>
+      <span id="user-info"></span>
+      <button id="login-btn" class="btn">Войти</button>
+      <button id="upload-btn" class="btn" style="display:none;">📤 Загрузить</button>
+      <button id="profile-btn" class="btn" style="display:none;">👤</button>
+    </div>
+  </header>
+  <div class="content">
+    <div id="video-feed" class="video-grid"></div>
+  </div>
+
+  <!-- Модалки -->
+  <div id="auth-modal" class="modal-overlay">
+    <div class="modal">
+      <h2 id="auth-title">Вход</h2>
+      <input type="text" id="auth-login" placeholder="Логин">
+      <input type="password" id="auth-pass" placeholder="Пароль">
+      <button id="auth-submit" class="btn">Войти</button>
+      <button id="auth-switch" class="btn" style="background:#444;">Регистрация</button>
+      <button class="btn" style="background:#444;" onclick="document.getElementById('auth-modal').classList.remove('active')">Закрыть</button>
+      <div id="auth-error" style="color:#c44;margin-top:0.5rem;"></div>
+    </div>
+  </div>
+
+  <div id="upload-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>Загрузить видео</h2>
+      <input type="text" id="vid-title" placeholder="Название">
+      <textarea id="vid-desc" placeholder="Описание"></textarea>
+      <input type="text" id="vid-tags" placeholder="Теги (через запятую)">
+      <input type="file" id="vid-file" accept="video/*">
+      <button id="vid-submit" class="btn">Загрузить</button>
+      <button class="btn" style="background:#444;" onclick="document.getElementById('upload-modal').classList.remove('active')">Отмена</button>
+    </div>
+  </div>
+
+  <div id="player-modal" class="modal-overlay">
+    <div class="modal">
+      <button class="btn" style="float:right;background:#c44;" onclick="document.getElementById('player-modal').classList.remove('active')">✖</button>
+      <div id="player-container"></div>
+    </div>
+  </div>
+
+  <div id="profile-modal" class="modal-overlay">
+    <div class="modal">
+      <h2>Профиль канала</h2>
+      <input type="text" id="channel-name" placeholder="Имя канала">
+      <button id="save-profile" class="btn">Сохранить</button>
+      <button class="btn" style="background:#444;" onclick="document.getElementById('profile-modal').classList.remove('active')">Закрыть</button>
+    </div>
+  </div>
+
+  <script>
+    const SKYVIDEO_URL = 'https://skyvideo-xxxx.onrender.com'; // заменить
+    let token = localStorage.getItem('skyvideo_token');
+    let currentUser = null;
+
+    async function api(method, path, body) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(SKYVIDEO_URL + path, { method, headers, body: body ? JSON.stringify(body) : undefined });
+      if (res.status === 401) { logout(); throw new Error('Unauthorized'); }
+      return res.json();
+    }
+
+    function login(user) {
+      currentUser = user;
+      document.getElementById('user-info').textContent = user.login;
+      document.getElementById('login-btn').style.display = 'none';
+      document.getElementById('upload-btn').style.display = 'inline-block';
+      document.getElementById('profile-btn').style.display = 'inline-block';
+      loadVideos();
+    }
+    function logout() {
+      token = null; currentUser = null;
+      localStorage.removeItem('skyvideo_token');
+      document.getElementById('user-info').textContent = '';
+      document.getElementById('login-btn').style.display = 'inline-block';
+      document.getElementById('upload-btn').style.display = 'none';
+      document.getElementById('profile-btn').style.display = 'none';
+      loadVideos();
+    }
+
+    // Авторизация
+    document.getElementById('login-btn').addEventListener('click', () => {
+      document.getElementById('auth-modal').classList.add('active');
+      document.getElementById('auth-title').textContent = 'Вход';
+      document.getElementById('auth-submit').textContent = 'Войти';
+      document.getElementById('auth-switch').style.display = 'inline-block';
+    });
+    document.getElementById('auth-switch').addEventListener('click', function() {
+      const title = document.getElementById('auth-title');
+      if (title.textContent === 'Вход') {
+        title.textContent = 'Регистрация';
+        document.getElementById('auth-submit').textContent = 'Зарегистрироваться';
+        this.style.display = 'none';
+      }
+    });
+    document.getElementById('auth-submit').addEventListener('click', async () => {
+      const login = document.getElementById('auth-login').value.trim();
+      const pass = document.getElementById('auth-pass').value;
+      if (!login || !pass) return;
+      const isReg = document.getElementById('auth-title').textContent === 'Регистрация';
+      const endpoint = isReg ? '/auth/register' : '/auth/login';
+      try {
+        const data = await api('POST', endpoint, { login, password: pass });
+        if (data.token) {
+          token = data.token;
+          localStorage.setItem('skyvideo_token', token);
+          document.getElementById('auth-modal').classList.remove('active');
+          // получить профиль и пользователя
+          const me = await api('GET', '/profile');
+          login({ login: me.name || login });
+        } else {
+          document.getElementById('auth-error').textContent = data.error || 'Ошибка';
+        }
+      } catch (e) { document.getElementById('auth-error').textContent = 'Ошибка соединения'; }
+    });
+
+    // Профиль
+    document.getElementById('profile-btn').addEventListener('click', async () => {
+      const profile = await api('GET', '/profile');
+      document.getElementById('channel-name').value = profile.name || '';
+      document.getElementById('profile-modal').classList.add('active');
+    });
+    document.getElementById('save-profile').addEventListener('click', async () => {
+      const name = document.getElementById('channel-name').value.trim();
+      await api('PUT', '/profile', { name });
+      document.getElementById('profile-modal').classList.remove('active');
+      currentUser.login = name;
+      document.getElementById('user-info').textContent = name;
+    });
+
+    // Загрузка
+    document.getElementById('upload-btn').addEventListener('click', () => document.getElementById('upload-modal').classList.add('active'));
+    document.getElementById('vid-submit').addEventListener('click', async () => {
+      const title = document.getElementById('vid-title').value.trim();
+      const desc = document.getElementById('vid-desc').value.trim();
+      const tags = document.getElementById('vid-tags').value.trim();
+      const file = document.getElementById('vid-file').files[0];
+      if (!title || !file) return alert('Название и файл обязательны');
+      const fd = new FormData(); fd.append('title', title); fd.append('description', desc); fd.append('tags', tags); fd.append('video', file);
+      const res = await fetch(SKYVIDEO_URL + '/upload', { method:'POST', headers:{ Authorization: `Bearer ${token}` }, body: fd });
+      if (res.ok) {
+        alert('Видео загружено');
+        document.getElementById('upload-modal').classList.remove('active');
+        loadVideos();
+      } else alert('Ошибка загрузки');
+    });
+
+    // Лента
+    async function loadVideos() {
+      const data = await api('GET', '/list');
+      const container = document.getElementById('video-feed');
+      if (!Array.isArray(data)) return;
+      container.innerHTML = data.map(v => `
+        <div class="video-card" onclick="openPlayer('${v.id}')">
+          <img src="/placeholder-video.png" alt="preview">
+          <div class="info">
+            <div class="title">${escapeHtml(v.title)}</div>
+            <div class="meta">${v.author} • ${v.views} просмотров</div>
+          </div>
+        </div>`).join('');
+    }
+
+    // Плеер
+    window.openPlayer = async (videoId) => {
+      document.getElementById('player-modal').classList.add('active');
+      const pc = document.getElementById('player-container');
+      pc.innerHTML = `<video controls autoplay width="100%"><source src="${SKYVIDEO_URL}/video/${videoId}" type="video/mp4"></video><div id="player-meta-${videoId}"></div>`;
+      const meta = await api('GET', `/video/${videoId}/meta`);
+      renderPlayerMeta(videoId, meta);
+      api('POST', `/video/${videoId}/view`);
+    };
+
+    function renderPlayerMeta(videoId, meta) {
+      const container = document.getElementById('player-meta-' + videoId);
+      const isOwner = currentUser && meta.skyid === currentUser.login;
+      const isAdmin = currentUser && currentUser.login === 'SkyMonder';
+      let html = `<h3>${escapeHtml(meta.title)}</h3><p>${escapeHtml(meta.description)}</p><p>Теги: ${meta.tags.join(', ')}</p>
+        <div class="actions">
+          <button class="btn" onclick="likeVideo('${videoId}')">❤️ ${meta.likes.length}</button>
+          <button class="btn" onclick="dislikeVideo('${videoId}')">👎 ${meta.dislikes.length}</button>
+          <span>👀 ${meta.views}</span>
+          ${ (isOwner || isAdmin) ? `<button class="btn btn-danger" onclick="deleteVideo('${videoId}')">🗑️</button>` : '' }
+        </div>`;
+      html += `<div class="comments"><h4>Комментарии</h4>`;
+      meta.comments.forEach(c => {
+        html += `<div class="comment-item">
+          <div><strong>${escapeHtml(c.author)}</strong>: <span id="ctext-${c.id}">${escapeHtml(c.text)}</span></div>
+          <div class="actions">
+            ${ (currentUser && (c.skyid === currentUser.login || isAdmin)) ? `<button class="btn" onclick="editComment('${videoId}','${c.id}')">✏️</button><button class="btn btn-danger" onclick="deleteComment('${videoId}','${c.id}')">×</button>` : '' }
+          </div>
+        </div>`;
+      });
+      html += `</div>`;
+      if (currentUser) {
+        html += `<div style="margin-top:0.5rem;"><input type="text" id="new-comment" placeholder="Комментарий..."><button class="btn" onclick="addComment('${videoId}')">➤</button></div>`;
+      }
+      container.innerHTML = html;
+    }
+
+    window.likeVideo = async (id) => { await api('POST', `/video/${id}/like`); refreshMeta(id); };
+    window.dislikeVideo = async (id) => { await api('POST', `/video/${id}/dislike`); refreshMeta(id); };
+    window.deleteVideo = async (id) => { if (confirm('Удалить видео?')) { await api('DELETE', `/video/${id}`); document.getElementById('player-modal').classList.remove('active'); loadVideos(); } };
+    window.addComment = async (videoId) => {
+      const text = document.getElementById('new-comment').value.trim();
+      if (!text) return;
+      await api('POST', `/video/${videoId}/comment`, { text });
+      refreshMeta(videoId);
+    };
+    window.editComment = async (videoId, commentId) => {
+      const newText = prompt('Новый текст');
+      if (newText) {
+        await api('PUT', `/video/${videoId}/comment/${commentId}`, { text: newText });
+        refreshMeta(videoId);
+      }
+    };
+    window.deleteComment = async (videoId, commentId) => {
+      if (confirm('Удалить комментарий?')) {
+        await api('DELETE', `/video/${videoId}/comment/${commentId}`);
+        refreshMeta(videoId);
+      }
+    };
+    async function refreshMeta(videoId) {
+      const meta = await api('GET', `/video/${videoId}/meta`);
+      renderPlayerMeta(videoId, meta);
+    }
+
+    function escapeHtml(t) { return String(t).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    // Авто-логин при наличии токена
+    (async () => {
+      if (token) {
+        try {
+          const profile = await api('GET', '/profile');
+          if (profile.name) login({ login: profile.name });
+        } catch (e) { logout(); }
+      }
+      loadVideos();
+    })();
+  </script>
+</body>
+</html>
