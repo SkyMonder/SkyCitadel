@@ -35,6 +35,7 @@
     .back-link { color:var(--accent); cursor:pointer; margin-right:1rem; }
     .player-container { padding:1rem 0; }
     .header-left { display:flex; align-items:center; gap:1rem; flex-wrap:wrap; }
+    .subscribers { font-size:0.8rem; color:#8899cc; margin-left:0.5rem; }
   </style>
 </head>
 <body>
@@ -91,7 +92,6 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
     // ====== Конфигурация ======
     const SKYVIDEO_URL = 'https://skyvideo.onrender.com';
@@ -310,7 +310,10 @@
                 <img src="${v.thumbnail ? SKYVIDEO_URL + v.thumbnail : 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'280\' height=\'150\' viewBox=\'0 0 280 150\'%3E%3Crect width=\'280\' height=\'150\' fill=\'%231a233a\'/%3E%3Ctext x=\'140\' y=\'75\' font-family=\'sans-serif\' font-size=\'20\' fill=\'%235f7ecf\' text-anchor=\'middle\' dy=\'.3em\'%3E🎬%3C/text%3E%3C/svg%3E'}" alt="Превью">
                 <div class="info">
                   <div class="title">${escapeHtml(v.title)}</div>
-                  <div class="meta">${escapeHtml(v.author)} • ${v.views} просмотров</div>
+                  <div class="meta">
+                    ${escapeHtml(v.author)} • ${v.views} просмотров
+                    <span class="subscribers">👥 ${v.followersCount || 0} подписчиков</span>
+                  </div>
                 </div>
               </div>
             `).join('')}
@@ -335,7 +338,6 @@
         console.log('📦 Метаданные получены:', meta);
         if (meta.status !== 'ready') {
           container.innerHTML = `<p style="text-align:center;color:#f48024;">⏳ Видео обрабатывается, подождите немного...</p><span class="back-link" onclick="goHome()">← На главную</span>`;
-          // Проверяем статус раз в 3 секунды
           const checkStatus = setInterval(async () => {
             const statusRes = await fetch(`${SKYVIDEO_URL}/video/${videoId}/status`);
             const statusData = await statusRes.json();
@@ -347,43 +349,19 @@
           return;
         }
 
-        let playerHtml = '';
-        // Если есть HLS, используем hls.js
-        if (meta.hlsMaster) {
-          playerHtml = `
-            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-              <span class="back-link" onclick="goHome()">← На главную</span>
-            </div>
-            <div class="player-container">
-              <video id="hls-video" controls autoplay style="width:100%;max-height:500px;background:#000;border-radius:8px;"></video>
-              <div id="player-meta-${videoId}"></div>
-            </div>
-          `;
-          container.innerHTML = playerHtml;
-          const video = document.getElementById('hls-video');
-          if (Hls.isSupported()) {
-            const hls = new Hls();
-            hls.loadSource(`${SKYVIDEO_URL}${meta.hlsMaster}`);
-            hls.attachMedia(video);
-            hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-          } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-            video.src = `${SKYVIDEO_URL}${meta.hlsMaster}`;
-          }
-        } else {
-          // Fallback на MP4
-          playerHtml = `
-            <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
-              <span class="back-link" onclick="goHome()">← На главную</span>
-            </div>
-            <div class="player-container">
-              <video controls autoplay style="width:100%;max-height:500px;background:#000;border-radius:8px;">
-                <source src="${SKYVIDEO_URL}/video/${videoId}" type="${meta.mimetype || 'video/mp4'}">
-              </video>
-              <div id="player-meta-${videoId}"></div>
-            </div>
-          `;
-          container.innerHTML = playerHtml;
-        }
+        // Показываем плеер с MP4 (без HLS для простоты и скорости)
+        const playerHtml = `
+          <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+            <span class="back-link" onclick="goHome()">← На главную</span>
+          </div>
+          <div class="player-container">
+            <video controls autoplay style="width:100%;max-height:500px;background:#000;border-radius:8px;">
+              <source src="${SKYVIDEO_URL}/video/${videoId}" type="${meta.mimetype || 'video/mp4'}">
+            </video>
+            <div id="player-meta-${videoId}"></div>
+          </div>
+        `;
+        container.innerHTML = playerHtml;
         renderPlayerMeta(videoId, meta);
         fetch(`${SKYVIDEO_URL}/video/${videoId}/view`, { method: 'POST' }).catch(()=>{});
         if (currentUser) {
@@ -412,7 +390,10 @@
       let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
           <div>
             <h3>${escapeHtml(meta.title)}</h3>
-            <p style="font-size:0.9rem;color:#8899cc;">${escapeHtml(meta.author)}</p>
+            <p style="font-size:0.9rem;color:#8899cc;">
+              ${escapeHtml(meta.author)}
+              <span class="subscribers">👥 ${meta.followersCount || 0} подписчиков</span>
+            </p>
           </div>
           ${currentUser && meta.authorSkyid !== currentUser.skyid ? `<button id="follow-btn" class="follow-btn" onclick="toggleFollow('${meta.authorSkyid}')">➕ Подписаться</button>` : ''}
         </div>
@@ -477,6 +458,13 @@
           await fetch(`${SKYVIDEO_URL}/follow/${skyid}`, { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
           btn.textContent = '✔️ Подписан';
           btn.classList.add('following');
+        }
+        // Обновляем количество подписчиков (перезагружаем метаданные)
+        const metaRes = await fetch(`${SKYVIDEO_URL}/video/${new URLSearchParams(window.location.search).get('v')}/meta`);
+        if (metaRes.ok) {
+          const meta = await metaRes.json();
+          const subSpan = document.querySelector('.subscribers');
+          if (subSpan) subSpan.textContent = `👥 ${meta.followersCount || 0} подписчиков`;
         }
       } catch (e) {
         alert('Ошибка: ' + e.message);
