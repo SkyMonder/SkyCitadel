@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Радио SkyCitadel</title>
+  <style>
+    /* ====== ГЛОБАЛЬНЫЕ СТИЛИ (только для этой страницы) ====== */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .radio-container {
+      max-width: 500px;
+      width: 100%;
+      background: #111827;
+      border-radius: 24px;
+      border: 1px solid #2a3450;
+      padding: 2rem 1.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+      text-align: center;
+    }
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 1rem;
+      background: #2f4b8c;
+      color: white;
+      border: none;
+      padding: 0.5rem 1.2rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+      text-decoration: none;
+    }
+    .back-btn:hover {
+      background: #4a6bb0;
+    }
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      color: #b7ceff;
+      letter-spacing: 2px;
+    }
+    .subtitle {
+      font-size: 0.9rem;
+      color: #8899cc;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ====== КОЛЕСО ====== */
+    .wheel-wrapper {
+      position: relative;
+      width: 200px;
+      height: 200px;
+      margin: 0 auto 1rem;
+    }
+    #radio-wheel {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 4px solid #3a4660;
+      background: radial-gradient(circle at 30% 30%, #1e2744, #0d1225);
+      box-shadow: 0 0 30px rgba(95,126,207,0.3);
+    }
+    .center-dot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: #2f4b8c;
+      border: 2px solid #5f7ecf;
+      box-shadow: inset 0 0 10px #5f7ecf;
+    }
+    #station-markers {
+      position: absolute;
+      inset: 0;
+    }
+    .station-marker {
+      position: absolute;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: transparent;
+      color: #8899cc;
+      font-size: 0.7rem;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      border: 2px solid transparent;
+      user-select: none;
+    }
+    .station-marker.active {
+      color: #fff;
+      border-color: #5f7ecf;
+      background: rgba(95,126,207,0.3);
+      transform: scale(1.2);
+    }
+
+    /* ====== УПРАВЛЕНИЕ ====== */
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 0.8rem;
+      margin: 1rem 0;
+    }
+    .ctrl-btn {
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      font-size: 1.5rem;
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      transition: background 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .ctrl-btn:hover {
+      background: #4a6bb0;
+    }
+    .ctrl-btn:active {
+      transform: scale(0.95);
+    }
+
+    /* ====== ИНФОРМАЦИЯ ====== */
+    .station-info {
+      margin-top: 0.5rem;
+      min-height: 80px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    #fm-frequency {
+      font-size: 2rem;
+      font-weight: bold;
+      color: #b7ceff;
+    }
+    #fm-station-name {
+      font-size: 1.2rem;
+      color: #cfdbff;
+      min-height: 2rem;
+    }
+
+    /* ====== ПОЛЬЗОВАТЕЛЬСКИЙ ПОТОК ====== */
+    .custom-stream {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 1rem;
+    }
+    .custom-stream input {
+      flex: 1;
+      padding: 0.6rem;
+      background: #0d1225;
+      border: 1px solid #3a4660;
+      color: white;
+      border-radius: 10px;
+      font-size: 0.9rem;
+    }
+    .custom-stream button {
+      padding: 0.6rem 1.2rem;
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    /* ====== АДАПТИВ ====== */
+    @media (max-width: 600px) {
+      .radio-container { padding: 1rem; }
+      .wheel-wrapper { width: 160px; height: 160px; }
+      .station-marker { font-size: 0.6rem; width: 24px; height: 24px; }
+      .ctrl-btn { width: 42px; height: 42px; font-size: 1.2rem; }
+      #fm-frequency { font-size: 1.6rem; }
+      #fm-station-name { font-size: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="radio-container">
+    <a href="/" class="back-btn">🏰 Вернуться в крепость</a>
+    <h1>📻 Радио</h1>
+    <div class="subtitle">Настройка как на старом приёмнике</div>
+
+    <!-- Колесо -->
+    <div class="wheel-wrapper">
+      <div id="radio-wheel">
+        <div class="center-dot"></div>
+        <div id="station-markers"></div>
+      </div>
+    </div>
+
+    <!-- Кнопки управления -->
+    <div class="controls">
+      <button class="ctrl-btn" id="radio-prev">◀</button>
+      <button class="ctrl-btn" id="radio-playpause">⏸️</button>
+      <button class="ctrl-btn" id="radio-next">▶</button>
+    </div>
+
+    <!-- Информация о станции -->
+    <div class="station-info">
+      <div id="fm-frequency">91.2</div>
+      <div id="fm-station-name">Europa Plus</div>
+    </div>
+
+    <!-- Аудио (скрыто) -->
+    <audio id="radio-audio" style="display:none;"></audio>
+
+    <!-- Пользовательский поток -->
+    <div class="custom-stream">
+      <input type="text" id="custom-stream" placeholder="URL своего потока...">
+      <button id="play-custom-stream">▶ Играть</button>
+    </div>
+  </div>
+
+  <script>
+    // ====== СТАНЦИИ ======
+    const stations = [
+      { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3', freq: 91.2 },
+      { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp', freq: 97.0 },
+      { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp', freq: 102.5 },
+      { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp', freq: 106.2 }
+    ];
+
+    let currentStationIndex = 0;
+    let isPlaying = false;
+    const audio = document.getElementById('radio-audio');
+    const freqDisplay = document.getElementById('fm-frequency');
+    const nameDisplay = document.getElementById('fm-station-name');
+    const markersContainer = document.getElementById('station-markers');
+    const playPauseBtn = document.getElementById('radio-playpause');
+
+    // ====== ОТРИСОВКА МЕТОК ======
+    function renderMarkers() {
+      markersContainer.innerHTML = '';
+      const radius = 75;
+      const centerX = 100;
+      const centerY = 100;
+      stations.forEach((st, i) => {
+        const angle = (i / stations.length) * 2 * Math.PI - Math.PI / 2;
+        const x = centerX + radius * Math.cos(angle);
+        const y = centerY + radius * Math.sin(angle);
+        const marker = document.createElement('div');
+        marker.className = 'station-marker';
+        marker.textContent = st.freq.toFixed(1);
+        marker.style.left = (x - 15) + 'px';
+        marker.style.top = (y - 15) + 'px';
+        marker.dataset.index = i;
+        marker.addEventListener('click', () => selectStation(i, false));
+        markersContainer.appendChild(marker);
+      });
+      updateWheel();
+    }
+
+    function updateWheel() {
+      const markers = markersContainer.querySelectorAll('.station-marker');
+      markers.forEach((el, i) => {
+        el.classList.toggle('active', i === currentStationIndex);
+      });
+      const st = stations[currentStationIndex];
+      freqDisplay.textContent = st.freq.toFixed(1);
+      nameDisplay.textContent = st.name;
+      if (audio.src !== st.url) {
+        const wasPlaying = isPlaying;
+        audio.src = st.url;
+        audio.load();
+        if (wasPlaying) audio.play().catch(() => {});
+      }
+    }
+
+    function selectStation(index, autoplay = false) {
+      if (index < 0) index = stations.length - 1;
+      if (index >= stations.length) index = 0;
+      currentStationIndex = index;
+      updateWheel();
+      if (autoplay && !isPlaying) {
+        audio.play().catch(() => {});
+        isPlaying = true;
+        playPauseBtn.textContent = '⏸️';
+      }
+    }
+
+    // ====== КНОПКИ ======
+    playPauseBtn.addEventListener('click', function() {
+      if (!audio.src) return;
+      if (isPlaying) {
+        audio.pause();
+        isPlaying = false;
+        this.textContent = '▶️';
+      } else {
+        audio.play().catch(() => {});
+        isPlaying = true;
+        this.textContent = '⏸️';
+      }
+    });
+
+    audio.addEventListener('ended', () => {
+      isPlaying = false;
+      playPauseBtn.textContent = '▶️';
+    });
+
+    document.getElementById('radio-prev').addEventListener('click', () => selectStation(currentStationIndex - 1, true));
+    document.getElementById('radio-next').addEventListener('click', () => selectStation(currentStationIndex + 1, true));
+
+    // ====== ПОЛЬЗОВАТЕЛЬСКИЙ ПОТОК ======
+    document.getElementById('play-custom-stream').addEventListener('click', function() {
+      const url = document.getElementById('custom-stream').value.trim();
+      if (!url) return;
+      audio.src = url;
+      audio.load();
+      audio.play().catch(() => {});
+      isPlaying = true;
+      playPauseBtn.textContent = '⏸️';
+      freqDisplay.textContent = '--.--';
+      nameDisplay.textContent = '🔊 Пользовательский поток';
+    });
+
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
+    renderMarkers();
+    selectStation(0, false);
+    playPauseBtn.textContent = '▶️';
+  </script>
+</body>
+</html>
