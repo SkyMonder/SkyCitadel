@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Газета SkyCitadel</title>
   <style>
-    /* стили без изменений (те же, что были) */
     * {
       margin: 0;
       padding: 0;
@@ -162,19 +161,45 @@
       <small>Свежие новости из Интерфакса</small>
     </div>
 
-    <div class="page-container" id="pageContainer"></div>
+    <div class="page-container" id="pageContainer">
+      <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">
+        Загрузка новостей...
+      </div>
+    </div>
 
     <div class="nav-controls">
       <button class="nav-btn" id="prevBtn" disabled>◀ Назад</button>
-      <span class="page-indicator" id="pageIndicator">Страница 1 из 1</span>
-      <button class="nav-btn" id="nextBtn">Вперед ▶</button>
+      <span class="page-indicator" id="pageIndicator">Страница 0 из 0</span>
+      <button class="nav-btn" id="nextBtn" disabled>Вперед ▶</button>
     </div>
   </div>
 
   <script>
-    // ====== ИСПОЛЬЗУЕМ СВОЙ ПРОКСИ ======
+    // ====== РЕЗЕРВНЫЕ НОВОСТИ (если прокси не сработают) ======
+    const FALLBACK_ARTICLES = [
+      {
+        title: 'Новости временно недоступны',
+        text: 'Не удалось загрузить свежие новости из-за проблем с соединением. Попробуйте обновить страницу позже.',
+        pubDate: 'Сегодня',
+        image: null
+      },
+      {
+        title: 'SkyCitadel — ваша цифровая крепость',
+        text: 'Мы строим открытую экосистему, где вас не цензурят, не отслеживают и не показывают рекламу. Присоединяйтесь!',
+        pubDate: 'Сегодня',
+        image: null
+      }
+    ];
+
+    // ====== ПРОКСИ (перебираем по очереди) ======
+    const PROXY_LIST = [
+      'https://corsproxy.io/?',
+      'https://cors-proxy.htmldriven.com/?url=',
+      // Если ваш бэкенд заработает — можно добавить и его:
+      // '/proxy?url='
+    ];
+
     const RSS_URL = 'https://www.interfax.ru/rss';
-    const PROXY_URL = 'https://skymutant.onrender.com/proxy?url=';
 
     let articles = [];
     let currentPage = 0;
@@ -185,58 +210,52 @@
     const nextBtn = document.getElementById('nextBtn');
     const indicator = document.getElementById('pageIndicator');
 
-    // ====== ЗАГРУЗКА ======
+    // ====== ЗАГРУЗКА ЧЕРЕЗ ПРОКСИ ======
     async function loadNews() {
-      try {
-        console.log('🔄 Загрузка новостей через свой прокси...');
-        const response = await fetch(PROXY_URL + encodeURIComponent(RSS_URL));
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, 'text/xml');
-        const items = xml.querySelectorAll('item');
-        console.log(`📰 Найдено ${items.length} новостей`);
-
-        articles = [];
-        items.forEach(item => {
-          const title = item.querySelector('title')?.textContent || 'Без заголовка';
-          const link = item.querySelector('link')?.textContent || '#';
-          const pubDate = item.querySelector('pubDate')?.textContent;
-          const description = item.querySelector('description')?.textContent || '';
-          let imageUrl = null;
-          const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch) imageUrl = imgMatch[1];
-          const textContent = description.replace(/<[^>]+>/g, '').trim();
-          articles.push({
-            title,
-            link,
-            pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
-            text: textContent || 'Подробнее по ссылке...',
-            image: imageUrl || null
-          });
-        });
-
-        if (articles.length === 0) {
-          articles = [{
-            title: 'Новости не загрузились',
-            text: 'Попробуйте обновить страницу позже.',
-            pubDate: '',
-            image: null,
-            link: '#'
-          }];
+      let loaded = false;
+      for (const proxy of PROXY_LIST) {
+        try {
+          console.log(`🔄 Пробуем прокси: ${proxy}`);
+          const response = await fetch(proxy + encodeURIComponent(RSS_URL));
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const text = await response.text();
+          const parser = new DOMParser();
+          const xml = parser.parseFromString(text, 'text/xml');
+          const items = xml.querySelectorAll('item');
+          if (items.length > 0) {
+            console.log(`✅ Прокси сработал: ${proxy}`);
+            articles = [];
+            items.forEach(item => {
+              const title = item.querySelector('title')?.textContent || 'Без заголовка';
+              const link = item.querySelector('link')?.textContent || '#';
+              const pubDate = item.querySelector('pubDate')?.textContent;
+              const description = item.querySelector('description')?.textContent || '';
+              let imageUrl = null;
+              const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+              if (imgMatch) imageUrl = imgMatch[1];
+              const textContent = description.replace(/<[^>]+>/g, '').trim();
+              articles.push({
+                title,
+                link,
+                pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
+                text: textContent || 'Подробнее по ссылке...',
+                image: imageUrl || null
+              });
+            });
+            loaded = true;
+            break;
+          }
+        } catch (error) {
+          console.warn(`⚠️ Прокси ${proxy} не сработал:`, error.message);
         }
-        renderPages();
-      } catch (error) {
-        console.error('❌ Ошибка загрузки RSS:', error);
-        articles = [{
-          title: 'Ошибка загрузки',
-          text: 'Не удалось загрузить новости. Проверьте соединение.',
-          pubDate: '',
-          image: null,
-          link: '#'
-        }];
-        renderPages();
       }
+
+      if (!loaded) {
+        console.warn('⚠️ Все прокси не сработали. Используем резервные новости.');
+        articles = FALLBACK_ARTICLES;
+      }
+
+      renderPages();
     }
 
     // ====== РЕНДЕР ======
@@ -251,7 +270,7 @@
         pageDiv.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">${article.pubDate || 'Сегодня'}</div>
-          ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy">` : ''}
+          ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy" style="max-height:150px; width:100%; object-fit:cover;">` : ''}
           <div class="news-text">${escapeHtml(article.text)}</div>
         `;
         container.appendChild(pageDiv);
@@ -268,8 +287,8 @@
         p.style.pointerEvents = i === currentPage ? 'auto' : 'none';
       });
       indicator.textContent = `Страница ${currentPage+1} из ${articles.length}`;
-      prevBtn.disabled = (currentPage === 0);
-      nextBtn.disabled = (currentPage === articles.length - 1);
+      prevBtn.disabled = (currentPage === 0) || (articles.length === 0);
+      nextBtn.disabled = (currentPage === articles.length - 1) || (articles.length === 0);
     }
 
     function goToPage(index) {
@@ -317,6 +336,7 @@
       return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
     }
 
+    // ====== СТАРТ ======
     loadNews();
   </script>
 </body>
