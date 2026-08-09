@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Газета SkyCitadel</title>
   <style>
+    /* стили без изменений (те же, что были) */
     * {
       margin: 0;
       padding: 0;
@@ -171,9 +172,9 @@
   </div>
 
   <script>
-    // ====== ИСПРАВЛЕННЫЙ ПРОКСИ ======
+    // ====== ИСПОЛЬЗУЕМ СВОЙ ПРОКСИ ======
     const RSS_URL = 'https://www.interfax.ru/rss';
-    const PROXY = 'https://corsproxy.io/?';  // <-- рабочий прокси
+    const PROXY_URL = 'https://skymutant.onrender.com/proxy?url=';
 
     let articles = [];
     let currentPage = 0;
@@ -187,8 +188,8 @@
     // ====== ЗАГРУЗКА ======
     async function loadNews() {
       try {
-        console.log('🔄 Загрузка новостей...');
-        const response = await fetch(PROXY + encodeURIComponent(RSS_URL));
+        console.log('🔄 Загрузка новостей через свой прокси...');
+        const response = await fetch(PROXY_URL + encodeURIComponent(RSS_URL));
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const text = await response.text();
         const parser = new DOMParser();
