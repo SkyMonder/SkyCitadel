@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Газета • Ежедневные новости</title>
+  <title>Газета • Компактный выпуск</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -13,25 +13,25 @@
       align-items: center;
       min-height: 100vh;
       font-family: 'Georgia', 'Times New Roman', serif;
-      padding: 20px;
+      padding: 16px;
       user-select: none;
     }
     .book-wrapper {
-      perspective: 2200px;
+      perspective: 2000px;
       width: 100%;
-      max-width: 1050px;
+      max-width: 960px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 28px;
+      gap: 20px;
     }
     .book {
       position: relative;
       width: 100%;
-      aspect-ratio: 1.45 / 1;
+      aspect-ratio: 1.2 / 1; /* стала более квадратной, меньше пустот */
       transform-style: preserve-3d;
-      border-radius: 6px 18px 18px 6px;
-      box-shadow: 0 30px 60px rgba(0,0,0,0.7), 0 10px 20px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,215,175,0.15);
+      border-radius: 4px 14px 14px 4px;
+      box-shadow: 0 24px 48px rgba(0,0,0,0.7), 0 8px 16px rgba(0,0,0,0.4), inset 0 0 0 1px rgba(255,215,175,0.12);
     }
     .page {
       position: absolute;
@@ -39,9 +39,9 @@
       width:100%; height:100%;
       transform-style: preserve-3d;
       transform-origin: left center;
-      transition: transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1);
+      transition: transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1);
       backface-visibility: hidden;
-      border-radius: 0 12px 12px 0;
+      border-radius: 0 10px 10px 0;
       will-change: transform;
     }
     .page-front, .page-back {
@@ -49,13 +49,13 @@
       top:0; left:0;
       width:100%; height:100%;
       backface-visibility: hidden;
-      border-radius: 0 12px 12px 0;
+      border-radius: 0 10px 10px 0;
       background: #fcf6ed;
-      padding: 20px 24px 18px 24px;
-      overflow: hidden; /* больше не скроллится */
+      padding: 14px 18px 12px 18px; /* уменьшены отступы */
+      overflow: hidden;
       display: flex;
       flex-direction: column;
-      background-image: radial-gradient(ellipse at 20% 50%, rgba(235,215,190,0.12) 0%, transparent 70%);
+      background-image: radial-gradient(ellipse at 20% 50%, rgba(235,215,190,0.10) 0%, transparent 70%);
     }
     .page-back {
       transform: rotateY(180deg);
@@ -67,26 +67,26 @@
       display: flex;
       flex-direction: column;
       color: #1f1a16;
-      line-height: 1.4;
+      line-height: 1.35;
     }
     .masthead {
       text-align: center;
-      border-bottom: 3px double #2a221c;
-      padding-bottom: 5px;
-      margin-bottom: 10px;
+      border-bottom: 2px double #2a221c;
+      padding-bottom: 4px;
+      margin-bottom: 8px;
       flex-shrink: 0;
     }
     .masthead .edition {
-      font-size: 0.65rem;
+      font-size: 0.5rem;
       letter-spacing: 2px;
       text-transform: uppercase;
       color: #5a4a3a;
       font-family: 'Arial', sans-serif;
     }
     .masthead h1 {
-      font-size: 2.4rem;
+      font-size: 1.8rem; /* уменьшен */
       font-weight: 700;
-      letter-spacing: 4px;
+      letter-spacing: 3px;
       text-transform: uppercase;
       font-family: 'Times New Roman', serif;
       color: #1a1410;
@@ -95,38 +95,38 @@
     .masthead .date-line {
       display: flex;
       justify-content: space-between;
-      font-size: 0.6rem;
+      font-size: 0.5rem;
       text-transform: uppercase;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       color: #4a3d32;
       border-top: 1px solid #d4c8b8;
-      padding-top: 3px;
-      margin-top: 2px;
+      padding-top: 2px;
+      margin-top: 1px;
       font-family: 'Arial', sans-serif;
     }
     .columns {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 14px;
+      gap: 12px;
       flex: 1;
       min-height: 0;
     }
     .column {
       display: flex;
       flex-direction: column;
-      gap: 6px;
+      gap: 4px;
       overflow: hidden;
     }
     .article-card {
       border-bottom: 1px solid #e4d8ca;
-      padding-bottom: 5px;
+      padding-bottom: 4px;
       margin-bottom: 3px;
     }
-    .article-card:last-child { border-bottom: none; padding-bottom:0; }
+    .article-card:last-child { border-bottom: none; padding-bottom:0; margin-bottom:0; }
     .article-card .headline {
-      font-size: 0.95rem;
+      font-size: 0.82rem;
       font-weight: 700;
-      line-height: 1.2;
+      line-height: 1.15;
       color: #1a1410;
       font-family: 'Georgia', serif;
       cursor: pointer;
@@ -135,26 +135,26 @@
     .article-card .headline:hover { color: #7a3f2a; }
     .article-card .headline a { color: inherit; text-decoration: none; }
     .article-card .meta {
-      font-size: 0.55rem;
+      font-size: 0.5rem;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
       color: #7a6a5a;
       font-family: 'Arial', sans-serif;
       display: flex;
-      gap: 8px;
+      gap: 6px;
       align-items: center;
       margin-bottom: 1px;
     }
     .article-card .meta .tag {
       background: #d4c8b8;
       color: #2a221c;
-      padding: 0 6px;
+      padding: 0 5px;
       border-radius: 2px;
-      font-size: 0.5rem;
+      font-size: 0.45rem;
     }
     .article-card .summary {
-      font-size: 0.7rem;
-      line-height: 1.3;
+      font-size: 0.62rem;
+      line-height: 1.25;
       color: #2d241e;
       font-family: 'Georgia', serif;
       display: -webkit-box;
@@ -162,18 +162,18 @@
       -webkit-box-orient: vertical;
       overflow: hidden;
     }
-    .article-card.featured .headline { font-size: 1.15rem; }
-    .article-card.featured .summary { font-size: 0.78rem; -webkit-line-clamp: 3; }
-    .article-card.featured { border-bottom: 2px solid #2a221c; padding-bottom: 6px; margin-bottom: 5px; }
+    .article-card.featured .headline { font-size: 0.95rem; }
+    .article-card.featured .summary { font-size: 0.68rem; -webkit-line-clamp: 2; }
+    .article-card.featured { border-bottom: 2px solid #2a221c; padding-bottom: 5px; margin-bottom: 4px; }
     .page-number {
       text-align: center;
-      font-size: 0.55rem;
-      letter-spacing: 2px;
+      font-size: 0.5rem;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
       color: #7a6a5a;
       font-family: 'Arial', sans-serif;
       border-top: 1px solid #e4d8ca;
-      padding-top: 5px;
+      padding-top: 4px;
       margin-top: auto;
       flex-shrink: 0;
     }
@@ -181,36 +181,36 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 24px;
+      gap: 20px;
       width: 100%;
-      max-width: 480px;
-      padding: 8px 0;
+      max-width: 400px;
+      padding: 6px 0;
     }
     .nav-btn {
       background: #fcf6ed;
       border: 1px solid #b8a898;
       color: #2a221c;
-      padding: 8px 24px;
+      padding: 6px 20px;
       font-family: 'Arial', sans-serif;
-      font-size: 0.75rem;
-      letter-spacing: 1.5px;
+      font-size: 0.7rem;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
       border-radius: 30px;
       cursor: pointer;
       transition: all 0.25s ease;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.08);
       background: linear-gradient(145deg, #fcf6ed, #f0e8dc);
     }
-    .nav-btn:hover { background: #2a221c; color: #fcf6ed; border-color: #2a221c; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,0.25); }
+    .nav-btn:hover { background: #2a221c; color: #fcf6ed; border-color: #2a221c; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(0,0,0,0.2); }
     .nav-btn:disabled { opacity:0.3; pointer-events:none; transform:none !important; }
-    .nav-btn .icon { font-size:1rem; line-height:1; }
+    .nav-btn .icon { font-size:0.9rem; line-height:1; }
     .page-indicator {
       font-family: 'Arial', sans-serif;
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       letter-spacing: 1px;
       color: #d4c8b8;
-      background: rgba(0,0,0,0.2);
-      padding: 4px 16px;
+      background: rgba(0,0,0,0.15);
+      padding: 2px 14px;
       border-radius: 20px;
     }
     .loading-state {
@@ -221,12 +221,12 @@
       height: 100%;
       color: #5a4a3a;
       font-family: 'Georgia', serif;
-      font-size: 1rem;
-      gap: 10px;
+      font-size: 0.9rem;
+      gap: 8px;
     }
     .loading-state .spinner {
-      width: 28px;
-      height: 28px;
+      width: 24px;
+      height: 24px;
       border: 3px solid #e4d8ca;
       border-top: 3px solid #2a221c;
       border-radius: 50%;
@@ -235,43 +235,43 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .flip-hint {
       position: absolute;
-      bottom: 14px;
-      right: 18px;
-      font-size: 0.5rem;
+      bottom: 10px;
+      right: 14px;
+      font-size: 0.45rem;
       font-family: 'Arial', sans-serif;
       color: #b8a898;
-      letter-spacing: 1px;
+      letter-spacing: 0.8px;
       text-transform: uppercase;
-      background: rgba(252,246,237,0.6);
-      padding: 2px 10px;
-      border-radius: 12px;
+      background: rgba(252,246,237,0.5);
+      padding: 2px 8px;
+      border-radius: 10px;
       backdrop-filter: blur(2px);
       pointer-events: none;
-      opacity: 0.6;
+      opacity: 0.5;
       z-index: 10;
     }
+    /* Адаптив */
     @media (max-width: 820px) {
-      .book { aspect-ratio: 0.85 / 1; }
-      .page-front, .page-back { padding: 14px 14px 12px; }
-      .masthead h1 { font-size: 1.8rem; letter-spacing: 2px; }
-      .columns { grid-template-columns: 1fr; gap: 8px; }
-      .article-card .headline { font-size: 0.85rem; }
-      .article-card .summary { font-size: 0.65rem; }
-      .article-card.featured .headline { font-size: 1rem; }
-      .article-card.featured .summary { font-size: 0.7rem; }
+      .book { aspect-ratio: 0.9 / 1; }
+      .page-front, .page-back { padding: 12px 14px 10px; }
+      .masthead h1 { font-size: 1.5rem; letter-spacing: 2px; }
+      .columns { grid-template-columns: 1fr; gap: 6px; }
+      .article-card .headline { font-size: 0.8rem; }
+      .article-card .summary { font-size: 0.6rem; }
+      .article-card.featured .headline { font-size: 0.9rem; }
     }
     @media (max-width: 480px) {
-      body { padding: 10px; }
-      .book { aspect-ratio: 0.7 / 1; }
+      body { padding: 8px; }
+      .book { aspect-ratio: 0.75 / 1; }
       .page-front, .page-back { padding: 10px 10px 8px; }
-      .masthead h1 { font-size: 1.4rem; letter-spacing: 1px; }
-      .masthead .edition { font-size: 0.5rem; }
-      .article-card .headline { font-size: 0.75rem; }
-      .article-card .summary { font-size: 0.6rem; -webkit-line-clamp: 2; }
-      .article-card.featured .headline { font-size: 0.9rem; }
-      .article-card.featured .summary { font-size: 0.65rem; -webkit-line-clamp: 2; }
-      .nav-btn { padding: 6px 16px; font-size: 0.6rem; }
-      .page-indicator { font-size: 0.55rem; padding: 2px 10px; }
+      .masthead h1 { font-size: 1.2rem; letter-spacing: 1px; }
+      .masthead .edition { font-size: 0.45rem; }
+      .article-card .headline { font-size: 0.7rem; }
+      .article-card .summary { font-size: 0.55rem; -webkit-line-clamp: 2; }
+      .article-card.featured .headline { font-size: 0.8rem; }
+      .article-card.featured .summary { font-size: 0.6rem; }
+      .nav-btn { padding: 5px 14px; font-size: 0.55rem; }
+      .page-indicator { font-size: 0.5rem; padding: 2px 10px; }
     }
   </style>
 </head>
@@ -332,7 +332,7 @@
       return `<div class="newspaper">
         <div class="masthead"><div class="edition">Ежедневный выпуск</div><h1>ГАЗЕТА</h1>
         <div class="date-line"><span>${formatDate(new Date())}</span><span>№ ${String(pageNum).padStart(3,'0')}</span></div></div>
-        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#8a7a6a;font-style:italic;">Нет статей</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#8a7a6a;font-style:italic;font-size:0.8rem;">Нет статей</div>
         <div class="page-number">Стр. ${pageNum} / ${total}</div>
       </div>`;
     }
@@ -346,7 +346,7 @@
       const link = item.link || '#';
       const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
       let desc = (item.description || '').replace(/<[^>]*>/g,'').replace(/\s+/g,' ').trim();
-      if (desc.length > 120) desc = desc.slice(0,120)+'…';
+      if (desc.length > 110) desc = desc.slice(0,110)+'…';
       const tag = (item.categories && item.categories.length) ? item.categories[0] : 'Новость';
       return `<div class="article-card ${isFeatured?'featured':''}">
         <div class="headline"><a href="${link}" target="_blank">${title}</a></div>
@@ -356,7 +356,7 @@
     }).join('');
 
     const col1html = renderCol(col1, true);
-    const col2html = renderCol(col2, false) || `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#b8a898;font-style:italic;font-size:0.7rem;">— конец полосы —</div>`;
+    const col2html = renderCol(col2, false) || `<div style="display:flex;align-items:center;justify-content:center;height:100%;color:#b8a898;font-style:italic;font-size:0.6rem;">— конец полосы —</div>`;
 
     return `<div class="newspaper">
       <div class="masthead">
@@ -376,8 +376,8 @@
   function buildPages(articles) {
     pagesContainer.innerHTML = '';
     if (!articles.length) {
-      pagesContainer.innerHTML = `<div class="page-front" style="position:relative;background:#fcf6ed;display:flex;align-items:center;justify-content:center;border-radius:0 12px 12px 0;">
-        <div class="loading-state"><span style="font-size:2.5rem;">📰</span><p>Нет новостей</p><small>Попробуйте обновить</small></div>
+      pagesContainer.innerHTML = `<div class="page-front" style="position:relative;background:#fcf6ed;display:flex;align-items:center;justify-content:center;border-radius:0 10px 10px 0;">
+        <div class="loading-state"><span style="font-size:2rem;">📰</span><p>Нет новостей</p><small>Попробуйте обновить</small></div>
       </div>`;
       totalPages = 1; currentPage = 0; updateNav(); return;
     }
@@ -405,9 +405,9 @@
         const nextGroup = groups[idx+1];
         back.innerHTML = renderSpread(nextGroup, idx+2, groups.length);
       } else {
-        back.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:#5a4a3a;gap:8px;">
-          <span style="font-size:3rem;opacity:0.3;">◈</span>
-          <p style="font-family:'Georgia',serif;font-size:1rem;letter-spacing:2px;text-transform:uppercase;color:#8a7a6a;">Конец выпуска</p>
+        back.innerHTML = `<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:#5a4a3a;gap:6px;">
+          <span style="font-size:2.5rem;opacity:0.3;">◈</span>
+          <p style="font-family:'Georgia',serif;font-size:0.9rem;letter-spacing:2px;text-transform:uppercase;color:#8a7a6a;">Конец выпуска</p>
           <small style="font-family:'Arial',sans-serif;color:#b8a898;">Ежедневная газета</small>
         </div>`;
       }
@@ -440,11 +440,11 @@
     const from = currentPage, to = index;
 
     if (to > from) {
-      const cur = pages[from]; if(cur) { cur.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)'; cur.classList.add('flipped'); cur.style.transform = 'rotateY(-180deg)'; }
-      const nxt = pages[to]; if(nxt) { nxt.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)'; nxt.classList.remove('flipped'); nxt.style.transform = 'rotateY(0deg)'; }
+      const cur = pages[from]; if(cur) { cur.style.transition = 'transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1)'; cur.classList.add('flipped'); cur.style.transform = 'rotateY(-180deg)'; }
+      const nxt = pages[to]; if(nxt) { nxt.style.transition = 'transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1)'; nxt.classList.remove('flipped'); nxt.style.transform = 'rotateY(0deg)'; }
     } else {
-      const prv = pages[to]; if(prv) { prv.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)'; prv.classList.remove('flipped'); prv.style.transform = 'rotateY(0deg)'; }
-      const cur = pages[from]; if(cur) { cur.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)'; cur.classList.add('flipped'); cur.style.transform = 'rotateY(-180deg)'; }
+      const prv = pages[to]; if(prv) { prv.style.transition = 'transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1)'; prv.classList.remove('flipped'); prv.style.transform = 'rotateY(0deg)'; }
+      const cur = pages[from]; if(cur) { cur.style.transition = 'transform 0.8s cubic-bezier(0.645, 0.045, 0.355, 1)'; cur.classList.add('flipped'); cur.style.transform = 'rotateY(-180deg)'; }
     }
 
     currentPage = to;
@@ -460,7 +460,7 @@
       for (let i=0; i<currentPage; i++) { const p=pages[i]; if(p){ p.classList.add('flipped'); p.style.transform='rotateY(-180deg)'; } }
       for (let i=currentPage+1; i<pages.length; i++) { const p=pages[i]; if(p){ p.classList.add('flipped'); p.style.transform='rotateY(-180deg)'; } }
       updateNav();
-    }, 900);
+    }, 800);
   }
 
   function nextPage() { if (currentPage < totalPages-1) flipTo(currentPage+1); }
@@ -480,8 +480,8 @@
 
   // ─── Инициализация ────────────────────────────────────────────────────
   async function init() {
-    pagesContainer.innerHTML = `<div class="page-front" style="position:relative;background:#fcf6ed;display:flex;align-items:center;justify-content:center;border-radius:0 12px 12px 0;">
-      <div class="loading-state"><div class="spinner"></div><p>Загрузка новостей...</p><small>источники: ТАСС, РИА, Интерфакс</small></div>
+    pagesContainer.innerHTML = `<div class="page-front" style="position:relative;background:#fcf6ed;display:flex;align-items:center;justify-content:center;border-radius:0 10px 10px 0;">
+      <div class="loading-state"><div class="spinner"></div><p>Загрузка новостей...</p><small>ТАСС, РИА, Интерфакс</small></div>
     </div>`;
     totalPages = 1; currentPage = 0; updateNav();
     const articles = await loadAllNews();
@@ -504,7 +504,7 @@
   });
 
   init();
-  setInterval(init, 600000); // обновление каждые 10 минут
+  setInterval(init, 600000);
 </script>
 </body>
 </html>
