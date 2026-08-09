@@ -62,7 +62,7 @@
         return;
       }
 
-      // ====== Парсим state (исправлено) ======
+      // ====== Парсим state ======
       let redirectPath = '/';
       let clientId = 'skyvideo';
       let clientSecret = 'skyvideo_secret';
@@ -71,6 +71,7 @@
       if (state) {
         try {
           decodedState = decodeURIComponent(state);
+          // Пробуем как JSON
           const stateData = JSON.parse(decodedState);
           if (stateData.path) redirectPath = stateData.path;
           if (stateData.client_id) {
@@ -78,11 +79,18 @@
             clientSecret = stateData.client_id === 'skysocial' ? 'skysocial_secret' : 'skyvideo_secret';
           }
         } catch (e) {
-          // Если state не JSON, считаем что это просто путь (для обратной совместимости)
-          if (decodedState.startsWith('/')) redirectPath = decodedState;
+          // Если не JSON, то это просто путь
+          if (decodedState.startsWith('/')) {
+            redirectPath = decodedState;
+            // Определяем client_id по пути (временный костыль)
+            if (decodedState.includes('socnet')) {
+              clientId = 'skysocial';
+              clientSecret = 'skysocial_secret';
+            }
+          }
         }
       }
-      
+
       console.log('📦 state:', state);
       console.log('📦 decodedState:', decodedState);
       console.log('📦 clientId:', clientId);
