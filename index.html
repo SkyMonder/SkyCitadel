@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  <title>SkyCitadel — цифровая крепость: приватный мессенджер, видеохостинг, соцсеть</title>
+  <title>SkyCitadel — Цифровая крепость</title>
+  <!-- Мета-теги для SEO (уже были) -->
   <meta name="description" content="SkyCitadel — открытая экосистема с мессенджером, видеохостингом без цензуры, соцсетью, картами, радио, погодой и музыкой. Без слежки и рекламы." />
   <meta name="keywords" content="SkyCitadel, цифровая крепость, приватный мессенджер, видеохостинг без цензуры, соцсеть без слежки, открытая экосистема" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+  <!-- Подключаем стили с async/defer (не блокируют рендеринг) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" media="print" onload="this.media='all'">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" media="print" onload="this.media='all'">
+  
+  <!-- Основной CSS (встроен в файл для скорости) -->
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -127,6 +129,8 @@
     .announce-item { background: #151e36; padding: 1rem; border-radius: 14px; margin-bottom: 0.7rem; border-left: 4px solid #ffb347; }
     .search-result-item { background: #151e36; padding: 0.8rem; margin-bottom: 0.6rem; border-radius: 10px; border-left: 3px solid #5f7ecf; }
     #video-iframe { width: 100%; height: 100%; border: none; min-height: 600px; }
+    /* Анимация загрузки для контента */
+    .loading-placeholder { opacity: 0.5; filter: blur(2px); transition: all 0.3s; }
   </style>
 </head>
 <body>
@@ -151,7 +155,7 @@
       <div class="nav-items" style="display: none;">
         <button class="nav-btn" data-section="radio">📻 Радио</button>
         <button class="nav-btn" data-section="music">🎵 МузЦентр</button>
-        <button class="nav-btn" data-section="video" onclick="window.location.href='skyvideo.html'">🎬 Видео</button>
+        <button class="nav-btn" data-section="video">🎬 Видео</button>
       </div>
     </div>
     <div class="nav-section">
@@ -212,17 +216,17 @@
       </div>
     </div>
 
-    <!-- Мессенджер -->
+    <!-- Мессенджер (ленивая загрузка) -->
     <div id="messenger" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="skymessage.html" allow="microphone; camera" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="skymessage.html" allow="microphone; camera" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
 
-    <!-- Соцсеть -->
+    <!-- Соцсеть (ленивая загрузка) -->
     <div id="social" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="socnet.html" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe src="socnet.html" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
       </div>
     </div>
 
@@ -231,16 +235,16 @@
       <div class="card">
         <h2>📰 Автообновляемая газета</h2>
         <p style="margin-bottom:0.8rem;">Источник: Интерфакс</p>
-        <iframe id="news-iframe" class="news-frame" src="gazeta.html"></iframe>
+        <iframe id="news-iframe" class="news-frame" src="gazeta.html" loading="lazy"></iframe>
         <button id="refresh-news" style="margin-top:0.7rem; background:#2f4b8c; border:none; color:white; padding:0.5rem 1.5rem; border-radius:10px;">🔄 Обновить</button>
       </div>
     </div>
 
-    <!-- Объявления -->
+    <!-- Объявления (загружаются асинхронно) -->
     <div id="announce" class="section">
       <div class="card">
         <h2>📢 Специальные объявления (только от создателя)</h2>
-        <div id="announce-container">Загрузка...</div>
+        <div id="announce-container"><div class="loading-placeholder">Загрузка...</div></div>
       </div>
     </div>
 
@@ -347,424 +351,611 @@
       </div>
     </div>
 
-    <!-- Заметки -->
-    <div id="notes" class="section">
+    <!-- Заметки (отключены для скорости) -->
+    <div id="notes" class="section" style="display:none;">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe src="https://skynotes-n17c.onrender.com" style="width:100%; height:100%; border:none;"></iframe>
+        <div style="padding:2rem; text-align:center; color:#8899cc;">📝 Заметки скоро появятся</div>
       </div>
     </div>
 
-    <!-- Видео (SkyVideo в iframe) -->
+    <!-- Видео -->
     <div id="video" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-        <iframe id="video-iframe" src="skyvideo.html" style="width:100%; height:100%; border:none;"></iframe>
+        <iframe id="video-iframe" src="skyvideo.html" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
       </div>
-    </div>
-      <div id="seo-text" style="display:block; padding: 1rem;">
-        <div class="card">
-            <h2>Что такое SkyCitadel?</h2>
-            <p>SkyCitadel — это цифровая крепость, которая объединяет все необходимые сервисы в одном месте: мессенджер с защищёнными звонками, видеохостинг без цензуры и рекламы, соцсеть с постами и комментариями, карты с маршрутами, поиск, радио, погода, календарь, калькулятор и музыкальный центр. Все сервисы работают без слежки и сбора данных. Присоединяйтесь к свободному интернету!</p>
-            <p><strong>Ключевые возможности:</strong></p>
-            <ul>
-                <li><strong>Приватный мессенджер</strong> — аудио/видеозвонки, E2EE шифрование.</li>
-                <li><strong>Видеохостинг без цензуры</strong> — загружайте и смотрите видео без рекламы.</li>
-                <li><strong>Социальная сеть без слежки</strong> — делитесь мыслями и комментируйте.</li>
-                <li><strong>Карты и маршруты</strong> — бесплатно, без трекинга.</li>
-                <li><strong>И многое другое</strong> — радио, погода, калькулятор, заметки.</li>
-            </ul>
-            <p>Начните использовать прямо сейчас: <a href="https://skycitadel.onrender.com" style="color:#5f7ecf;">https://skycitadel.onrender.com</a></p>
-        </div>
     </div>
   </div>
 
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+  <!-- Скрипты с async/defer для неблокирующей загрузки -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js" defer></script>
+
   <script>
-    (function() {
-      const SERVICE2_URL = 'https://skymutant.onrender.com';
-      const SERVICE4_URL = 'https://skymutant.onrender.com';
-      const SKYID_URL = 'https://skymutant.onrender.com';
+    // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
+    const SERVICE2_URL = 'https://skymutant.onrender.com';
+    const SERVICE4_URL = 'https://skymutant.onrender.com';
+    const SKYID_URL = 'https://skymutant.onrender.com';
 
-      // Аккордеон
-      document.querySelectorAll('.section-title').forEach(title => {
-        title.addEventListener('click', () => {
-          const items = title.nextElementSibling;
-          const arrow = title.querySelector('.arrow');
-          if (items.style.display === 'none' || !items.style.display) {
-            items.style.display = 'block';
-            arrow.textContent = '▼';
-          } else {
-            items.style.display = 'none';
-            arrow.textContent = '▶';
+    // ====== КЕШИРОВАННЫЙ FETCH ======
+    async function cachedFetch(url, ttl = 60000) {
+      const key = `cache_${url}`;
+      const cached = localStorage.getItem(key);
+      if (cached) {
+        try {
+          const { data, timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < ttl) {
+            console.log(`📦 Кеш для ${url}`);
+            return data;
           }
-        });
-      });
-
-      const navButtons = document.querySelectorAll('.nav-btn');
-      const sections = document.querySelectorAll('.section');
-      navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          navButtons.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          const targetId = btn.getAttribute('data-section');
-          sections.forEach(sec => sec.classList.remove('active'));
-          document.getElementById(targetId).classList.add('active');
-          if (targetId === 'maps') setTimeout(() => map.invalidateSize(), 100);
-          if (targetId === 'calendar') { renderCalendar(); updateSelectedDate(); }
-          if (targetId === 'news') refreshNewsIframe();
-          if (targetId === 'announce') loadAnnouncements();
-        });
-      });
-
-      // ========== ШИФРОВАНИЕ ==========
-      const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
-      async function getKey() { const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0)); return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt','decrypt']); }
-      async function encryptPayload(obj) { const key = await getKey(); const iv = crypto.getRandomValues(new Uint8Array(12)); const enc = new TextEncoder().encode(JSON.stringify(obj)); const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc); const combo = new Uint8Array(iv.byteLength + c.byteLength); combo.set(iv); combo.set(new Uint8Array(c), iv.byteLength); return btoa(String.fromCharCode(...combo)); }
-      async function decryptPayload(b64) { const key = await getKey(); const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0)); const iv = combo.slice(0,12); const data = combo.slice(12); const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data); return JSON.parse(new TextDecoder().decode(dec)); }
-      async function secureFetch(url, payload) { const enc = await encryptPayload(payload); const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: enc }) }); if (!r.ok) throw new Error('fail'); const j = await r.json(); if (!j.data) throw new Error('no data'); return decryptPayload(j.data); }
-
-      // ========== КАРТЫ ==========
-      const map = L.map('map').setView([55.751244, 37.618423], 10);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-        subdomains: 'abcd', maxZoom: 20
-      }).addTo(map);
-      let routingControl = null, userLocationMarker = null;
-
-      document.getElementById('geolocate-btn').addEventListener('click', () => {
-        if (!navigator.geolocation) return alert('Геолокация не поддерживается');
-        navigator.geolocation.getCurrentPosition(pos => {
-          const lat = pos.coords.latitude, lon = pos.coords.longitude;
-          map.setView([lat, lon], 15);
-          if (userLocationMarker) map.removeLayer(userLocationMarker);
-          userLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('📍 Вы здесь').openPopup();
-          document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-        }, err => alert('Ошибка: ' + err.message), { enableHighAccuracy: true });
-      });
-
-      document.getElementById('map-search-btn').addEventListener('click', async () => {
-        const q = document.getElementById('map-search-input').value.trim();
-        if (!q) return;
-        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
-        const d = await r.json();
-        if (d && d.length > 0) {
-          const { lat, lon } = d[0];
-          map.setView([lat, lon], 13);
-          L.marker([lat, lon]).addTo(map).bindPopup(q).openPopup();
-        }
-      });
-
-      document.getElementById('route-go').addEventListener('click', async () => {
-        const startInput = document.getElementById('route-start').value.trim();
-        const endInput = document.getElementById('route-end').value.trim();
-        if (!startInput || !endInput) return alert('Укажите начало и конец');
-        const geocode = async (addr) => {
-          const m = addr.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
-          if (m) return L.latLng(parseFloat(m[1]), parseFloat(m[2]));
-          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
-          const d = await r.json();
-          if (d && d.length > 0) return L.latLng(d[0].lat, d[0].lon);
-          throw new Error('Адрес не найден');
-        };
-        try {
-          const start = await geocode(startInput), end = await geocode(endInput);
-          if (routingControl) map.removeControl(routingControl);
-          routingControl = L.Routing.control({ waypoints: [start, end], routeWhileDragging: true, lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] } }).addTo(map);
-        } catch (e) { alert('Ошибка: ' + e.message); }
-      });
-
-      // ========== РАДИО ==========
-      const stations = [
-        { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
-        { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
-        { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
-        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
-      ];
-      const radioAudio = document.getElementById('radio-audio');
-      function renderRadioButtons(container, audio) {
-        container.innerHTML = '';
-        stations.forEach(st => {
-          const btn = document.createElement('button');
-          btn.className = 'station-btn';
-          btn.textContent = st.name;
-          btn.addEventListener('click', () => { audio.src = st.url; audio.load(); audio.play().catch(()=>{}); container.querySelectorAll('.station-btn').forEach(b=>b.classList.remove('playing')); btn.classList.add('playing'); });
-          container.appendChild(btn);
-        });
+        } catch (e) {}
       }
-      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
-      document.getElementById('play-custom-stream').addEventListener('click', () => {
-        const url = document.getElementById('custom-stream').value.trim();
-        if (url) { radioAudio.src = url; radioAudio.load(); radioAudio.play().catch(()=>{}); }
-      });
+      console.log(`🌐 Запрос к ${url}`);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
+      return data;
+    }
 
-      // ========== НОВОСТИ ==========
-      function refreshNewsIframe() { const f = document.getElementById('news-iframe'); f.src = f.src; }
-      document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
-      setInterval(refreshNewsIframe, 5*60*1000);
+    // ====== ФУНКЦИЯ БЕЗОПАСНОГО ВЫПОЛНЕНИЯ ======
+    function safeExecute(fn, fallback = null) {
+      try { return fn(); } catch (e) { console.warn('⚠️ Ошибка:', e); return fallback; }
+    }
 
-      // ========== ОБЪЯВЛЕНИЯ ==========
-      async function loadAnnouncements() {
-        const c = document.getElementById('announce-container');
-        try {
-          const r = await fetch(`${SERVICE2_URL}/announcements`);
-          const j = await r.json();
-          if (!j.data) throw new Error('no data');
-          const items = await decryptPayload(j.data);
-          c.innerHTML = items.length ? items.map(i=>`<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('') : '<p>Объявлений пока нет</p>';
-        } catch (e) { c.innerHTML = '<p>Ошибка</p>'; }
-      }
-      loadAnnouncements();
-
-      // ========== КАЛЕНДАРЬ ==========
-      let calDate = new Date(), selectedDate = new Date().toISOString().split('T')[0];
-      let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
-      function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
-      function renderCalendar() {
-        const y = calDate.getFullYear(), m = calDate.getMonth();
-        const first = new Date(y, m, 1).getDay() || 7, days = new Date(y, m+1, 0).getDate();
-        document.getElementById('cal-month-year').textContent = calDate.toLocaleDateString('ru-RU', { month:'long', year:'numeric' });
-        const grid = document.getElementById('cal-days'); grid.innerHTML = '';
-        ['Пн','Вт','Ср','Чт','Пт','Сб','Вс'].forEach(d => { const div = document.createElement('div'); div.className='cal-day-name'; div.textContent=d; grid.appendChild(div); });
-        for (let i=1; i<first; i++) grid.appendChild(document.createElement('div'));
-        const today = new Date();
-        for (let d=1; d<=days; d++) {
-          const div = document.createElement('div'); div.className='cal-day'; div.textContent = d;
-          const ds = `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-          if (events[ds]?.length) div.classList.add('has-events');
-          if (y===today.getFullYear() && m===today.getMonth() && d===today.getDate()) div.classList.add('today');
-          div.addEventListener('click', () => { selectedDate = ds; document.querySelectorAll('.cal-day').forEach(el=>el.style.background=''); div.style.background='#3f62b0'; updateSelectedDate(); });
-          grid.appendChild(div);
-        }
-        if (selectedDate.startsWith(`${y}-${String(m+1).padStart(2,'0')}`)) {
-          const day = +selectedDate.split('-')[2];
-          const cells = grid.querySelectorAll('.cal-day');
-          const target = cells[first-1+day];
-          if (target) target.style.background='#3f62b0';
-        }
-      }
-      function updateSelectedDate() {
-        document.getElementById('selected-date').textContent = selectedDate;
-        const c = document.getElementById('events-container');
-        const dayEvents = events[selectedDate] || [];
-        c.innerHTML = dayEvents.map(ev=>`<div class="event-item"><span>${escapeHtml(ev.text)}</span><button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button></div>`).join('');
-        document.getElementById('event-date').value = selectedDate;
-      }
-      document.getElementById('add-event').addEventListener('click', () => {
-        const text = document.getElementById('event-text').value.trim();
-        if (!text) return;
-        const date = document.getElementById('event-date').value || selectedDate;
-        if (!events[date]) events[date] = [];
-        events[date].push({ id: Date.now().toString(), text });
-        saveEvents(); document.getElementById('event-text').value=''; renderCalendar(); updateSelectedDate();
-      });
-      window.deleteEvent = (id) => {
-        for (const d in events) { events[d] = events[d].filter(ev=>ev.id!==id); if (!events[d].length) delete events[d]; }
-        saveEvents(); renderCalendar(); updateSelectedDate();
-      };
-      document.getElementById('cal-prev').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()-1); renderCalendar(); });
-      document.getElementById('cal-next').addEventListener('click', ()=>{ calDate.setMonth(calDate.getMonth()+1); renderCalendar(); });
-      renderCalendar(); updateSelectedDate();
-
-      // ========== КАЛЬКУЛЯТОР ==========
-      let calcExpr = '', calcHistory = JSON.parse(localStorage.getItem('calc_history')||'[]'), isEngineer = false;
-      const basic = [['C','(',')','/'],['7','8','9','*'],['4','5','6','-'],['1','2','3','+'],['0','.','⌫','=']];
-      const eng = [['C','(',')','sin','cos'],['7','8','9','tan','log'],['4','5','6','sqrt','^'],['1','2','3','EXP','PI'],['0','.','⌫','+','=']];
-      function buildCalc(layout) {
-        const c = document.getElementById('calc-buttons'); c.innerHTML = '';
-        layout.forEach(row => row.forEach(key => {
-          const btn = document.createElement('button');
-          btn.className = 'calc-btn'; if ('C(/*-+='.includes(key)||'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator'); if (key==='=') btn.classList.add('equal');
-          btn.textContent = key; btn.addEventListener('click', ()=>handleCalc(key)); c.appendChild(btn);
-        }));
-      }
-      buildCalc(basic);
-      function handleCalc(key) {
-        if (key==='C') calcExpr='';
-        else if (key==='⌫') calcExpr=calcExpr.slice(0,-1);
-        else if (key==='=') {
-          try {
-            let res;
-            if (isEngineer) {
-              const expr = calcExpr.replace(/sin/g,'Math.sin').replace(/cos/g,'Math.cos').replace(/tan/g,'Math.tan').replace(/log/g,'Math.log10').replace(/sqrt/g,'Math.sqrt').replace(/\^/g,'**').replace(/EXP/g,'*10**').replace(/PI/g,'Math.PI');
-              res = eval(expr);
-            } else res = eval(calcExpr);
-            calcHistory.unshift(calcExpr+' = '+res); if (calcHistory.length>10) calcHistory.pop();
-            localStorage.setItem('calc_history', JSON.stringify(calcHistory)); renderHist();
-            calcExpr = res.toString();
-          } catch { calcExpr = 'Ошибка'; }
-        } else calcExpr += key;
-        document.getElementById('calc-display').textContent = calcExpr || '0';
-      }
-      function renderHist() { document.getElementById('calc-history').innerHTML = calcHistory.map(h=>`<div style="font-size:0.9rem;padding:0.2rem 0;">${h}</div>`).join(''); }
-      renderHist();
-      document.getElementById('toggle-mode').addEventListener('click', ()=>{ isEngineer=!isEngineer; buildCalc(isEngineer?eng:basic); document.getElementById('toggle-mode').textContent = isEngineer?'Обычный':'Инженерный'; });
-
-      // ========== ПОГОДА ==========
-      document.getElementById('weather-btn').addEventListener('click', async () => {
-        const city = document.getElementById('city-input').value.trim();
-        if (!city) return;
-        document.getElementById('weather-result').textContent = 'Запрос...';
-        try {
-          const res = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
-          document.getElementById('weather-result').innerHTML = `🌡️ ${res.temp}°C, ${res.desc}<br>📍 ${res.city}`;
-        } catch (e) { document.getElementById('weather-result').textContent = 'Ошибка'; }
-      });
-
-      // ========== ПОИСК ==========
-      const searchQ = document.getElementById('search-query'), searchBtn = document.getElementById('search-btn'), searchRes = document.getElementById('search-results'), searchStat = document.getElementById('search-status');
-      searchBtn.addEventListener('click', async () => {
-        const q = searchQ.value.trim();
-        if (!q) return;
-        searchStat.textContent = 'Поиск...'; searchRes.innerHTML = '';
-        try {
-          const resp = await secureFetch(`${SERVICE4_URL}/api/search`, { query: q });
-          searchRes.innerHTML = resp.results.length ? resp.results.map(r=>`<div class="search-result-item"><div style="font-size:0.8rem;color:#5f7ecf;">${r.source}</div><a href="${r.url||'#'}" target="_blank" style="color:#cfdbff;font-weight:bold;">${escapeHtml(r.title)}</a><p style="font-size:0.85rem;color:#b0c0e0;">${escapeHtml(r.text||'')}</p>${r.icon?`<img src="${r.icon}" style="max-height:40px;margin-top:0.3rem;">`:''}</div>`).join('') : '<p>Ничего не найдено</p>';
-          searchStat.textContent = `Найдено: ${resp.results.length}`;
-        } catch (e) { searchStat.textContent = 'Ошибка поиска'; }
-      });
-      searchQ.addEventListener('keypress', e => { if (e.key==='Enter') searchBtn.click(); });
-
-      // ========== SkyID ==========
-      document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
-        const login = document.getElementById('skyid-reg-login').value.trim(), pass = document.getElementById('skyid-reg-password').value;
-        if (!login||!pass) return alert('Заполни поля');
-        try {
-          const payload = await encryptPayload({ login, password: pass });
-          const res = await fetch(`${SKYID_URL}/register`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
-          if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Ошибка'); }
-          const json = await res.json();
-          const data = await decryptPayload(json.data);
-          document.getElementById('skyid-result').innerHTML = `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
-        } catch (e) { document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`; }
-      });
-      document.getElementById('skyid-login-btn').addEventListener('click', async () => {
-        const login = document.getElementById('skyid-login-login').value.trim(), pass = document.getElementById('skyid-login-password').value;
-        if (!login||!pass) return alert('Заполни поля');
-        try {
-          const payload = await encryptPayload({ login, password: pass });
-          const res = await fetch(`${SKYID_URL}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ data: payload }) });
-          if (!res.ok) { const e = await res.json().catch(()=>({})); throw new Error(e.error||'Ошибка'); }
-          const json = await res.json();
-          const data = await decryptPayload(json.data);
-          document.getElementById('skyid-result').innerHTML = `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
-        } catch (e) { document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`; }
-      });
-
-      // ========== SPOTIFY ==========
-      const SPOTIFY_CLIENT_ID = 'ТВОЙ_ID';
-      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
-      let spotifyToken = null;
-      async function loadSpotifyToken() {
-        const t = localStorage.getItem('skyid_token');
-        if (!t) return;
-        try {
-          const r = await fetch(`${SERVICE2_URL}/spotify/get-token`, { headers: { Authorization: `Bearer ${t}` } });
-          const d = await r.json();
-          if (d.access_token) { spotifyToken = d.access_token; document.getElementById('spotify-logged-out').style.display='none'; document.getElementById('spotify-logged-in').style.display='block'; initSpotifyPlayer(); }
-        } catch(e) {}
-      }
-      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
-        const cv = generateRandomString(64); localStorage.setItem('spotify_code_verifier', cv);
-        const cc = await generateCodeChallenge(cv); const state = generateRandomString(16); localStorage.setItem('spotify_state', state);
-        window.location.href = 'https://accounts.spotify.com/authorize?' + new URLSearchParams({ response_type:'code', client_id: SPOTIFY_CLIENT_ID, scope:'streaming user-read-email user-read-private', redirect_uri: REDIRECT_URI, state, code_challenge_method:'S256', code_challenge: cc }).toString();
-      });
-      async function handleSpotifyCallback() {
-        const p = new URLSearchParams(location.search); const code = p.get('code'), state = p.get('state');
-        if (!code || state !== localStorage.getItem('spotify_state')) return;
-        const cv = localStorage.getItem('spotify_code_verifier'); if (!cv) return;
-        try {
-          const r = await fetch(`${SERVICE2_URL}/spotify/token`, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI }) });
-          const d = await r.json();
-          if (d.access_token) {
-            spotifyToken = d.access_token;
-            const skyToken = localStorage.getItem('skyid_token');
-            if (skyToken) await fetch(`${SERVICE2_URL}/spotify/save-token`, { method:'POST', headers:{'Content-Type':'application/json', Authorization:`Bearer ${skyToken}`}, body: JSON.stringify({ spotify_token: d.access_token, spotify_refresh: d.refresh_token, expires_at: d.expires_in ? Date.now()+d.expires_in*1000 : null }) });
-            document.getElementById('spotify-logged-out').style.display='none'; document.getElementById('spotify-logged-in').style.display='block'; initSpotifyPlayer();
-            history.replaceState({}, document.title, location.pathname);
-          }
-        } catch(e) { console.error(e); }
-      }
-      function initSpotifyPlayer() {
-        if (window.Spotify) {
-          const player = new Spotify.Player({
-            name: 'SkyCitadel Music',
-            getOAuthToken: cb => { cb(spotifyToken); }
-          });
-          player.connect();
-          player.on('ready', (device_id) => { console.log('Spotify Ready', device_id); });
-          document.getElementById('spotify-player').appendChild(player);
+    // ====== АККОРДЕОН ======
+    document.querySelectorAll('.section-title').forEach(title => {
+      title.addEventListener('click', () => {
+        const items = title.nextElementSibling;
+        const arrow = title.querySelector('.arrow');
+        if (items.style.display === 'none' || !items.style.display) {
+          items.style.display = 'block';
+          arrow.textContent = '▼';
         } else {
-          window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
+          items.style.display = 'none';
+          arrow.textContent = '▶';
         }
-      }
-      function generateRandomString(l) { let s=''; const ch='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'; for(let i=0;i<l;i++) s+=ch.charAt(Math.floor(Math.random()*ch.length)); return s; }
-      async function generateCodeChallenge(v) { const d = new TextEncoder().encode(v); const h = await crypto.subtle.digest('SHA-256', d); return btoa(String.fromCharCode(...new Uint8Array(h))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
-      handleSpotifyCallback(); loadSpotifyToken();
+      });
+    });
 
-      // ====== ОБРАБОТКА ВИДЕО (iframe + параметр ?v=) ======
-      const videoIframe = document.getElementById('video-iframe');
-      if (videoIframe) {
-        // При загрузке страницы проверяем параметр v
-        const params = new URLSearchParams(window.location.search);
-        const videoId = params.get('v');
-        if (videoId) {
-          console.log('🎬 Загружаем видео по параметру v:', videoId);
-          videoIframe.src = `skyvideo.html?v=${videoId}`;
+    // ====== НАВИГАЦИЯ ======
+    const navButtons = document.querySelectorAll('.nav-btn');
+    const sections = document.querySelectorAll('.section');
+    navButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        navButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const targetId = btn.getAttribute('data-section');
+        sections.forEach(sec => sec.classList.remove('active'));
+        document.getElementById(targetId).classList.add('active');
+        if (targetId === 'maps') setTimeout(() => safeExecute(() => map.invalidateSize()), 100);
+        if (targetId === 'calendar') { safeExecute(() => renderCalendar()); safeExecute(() => updateSelectedDate()); }
+        if (targetId === 'news') safeExecute(refreshNewsIframe);
+        if (targetId === 'announce') safeExecute(loadAnnouncementsAsync);
+      });
+    });
+
+    // ====== ШИФРОВАНИЕ (было) ======
+    const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
+    async function getKey() {
+      const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+      return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    }
+    async function encryptPayload(obj) {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder().encode(JSON.stringify(obj));
+      const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+      const combo = new Uint8Array(iv.byteLength + c.byteLength);
+      combo.set(iv);
+      combo.set(new Uint8Array(c), iv.byteLength);
+      return btoa(String.fromCharCode(...combo));
+    }
+    async function decryptPayload(b64) {
+      const key = await getKey();
+      const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const iv = combo.slice(0, 12);
+      const data = combo.slice(12);
+      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      return JSON.parse(new TextDecoder().decode(dec));
+    }
+    async function secureFetch(url, payload) {
+      const enc = await encryptPayload(payload);
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: enc })
+      });
+      if (!r.ok) throw new Error('fail');
+      const j = await r.json();
+      if (!j.data) throw new Error('no data');
+      return decryptPayload(j.data);
+    }
+
+    // ====== КАРТЫ ======
+    const map = L.map('map').setView([55.751244, 37.618423], 10);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd', maxZoom: 20
+    }).addTo(map);
+    let routingControl = null, userLocationMarker = null;
+
+    document.getElementById('geolocate-btn').addEventListener('click', () => {
+      if (!navigator.geolocation) return alert('Геолокация не поддерживается');
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+        map.setView([lat, lon], 15);
+        if (userLocationMarker) map.removeLayer(userLocationMarker);
+        userLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('📍 Вы здесь').openPopup();
+        document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      }, err => alert('Ошибка: ' + err.message), { enableHighAccuracy: true });
+    });
+
+    document.getElementById('map-search-btn').addEventListener('click', async () => {
+      const q = document.getElementById('map-search-input').value.trim();
+      if (!q) return;
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      if (d && d.length > 0) {
+        const { lat, lon } = d[0];
+        map.setView([lat, lon], 13);
+        L.marker([lat, lon]).addTo(map).bindPopup(q).openPopup();
+      }
+    });
+
+    document.getElementById('route-go').addEventListener('click', async () => {
+      const startInput = document.getElementById('route-start').value.trim();
+      const endInput = document.getElementById('route-end').value.trim();
+      if (!startInput || !endInput) return alert('Укажите начало и конец');
+      const geocode = async (addr) => {
+        const m = addr.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+        if (m) return L.latLng(parseFloat(m[1]), parseFloat(m[2]));
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+        const d = await r.json();
+        if (d && d.length > 0) return L.latLng(d[0].lat, d[0].lon);
+        throw new Error('Адрес не найден');
+      };
+      try {
+        const start = await geocode(startInput), end = await geocode(endInput);
+        if (routingControl) map.removeControl(routingControl);
+        routingControl = L.Routing.control({
+          waypoints: [start, end],
+          routeWhileDragging: true,
+          lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] }
+        }).addTo(map);
+      } catch (e) { alert('Ошибка: ' + e.message); }
+    });
+
+    // ====== РАДИО ======
+    const stations = [
+      { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
+      { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
+      { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
+      { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
+    ];
+    const radioAudio = document.getElementById('radio-audio');
+    function renderRadioButtons(container, audio) {
+      container.innerHTML = '';
+      stations.forEach(st => {
+        const btn = document.createElement('button');
+        btn.className = 'station-btn';
+        btn.textContent = st.name;
+        btn.addEventListener('click', () => {
+          audio.src = st.url;
+          audio.load();
+          audio.play().catch(() => {});
+          container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
+          btn.classList.add('playing');
+        });
+        container.appendChild(btn);
+      });
+    }
+    renderRadioButtons(document.getElementById('radio-list'), radioAudio);
+    document.getElementById('play-custom-stream').addEventListener('click', () => {
+      const url = document.getElementById('custom-stream').value.trim();
+      if (url) { radioAudio.src = url; radioAudio.load(); radioAudio.play().catch(() => {}); }
+    });
+
+    // ====== НОВОСТИ ======
+    function refreshNewsIframe() {
+      const f = document.getElementById('news-iframe');
+      f.src = f.src;
+    }
+    document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
+    setInterval(refreshNewsIframe, 5 * 60 * 1000);
+
+    // ====== ОБЪЯВЛЕНИЯ (кешированные) ======
+    async function loadAnnouncementsAsync() {
+      const container = document.getElementById('announce-container');
+      try {
+        const items = await cachedFetch(`${SERVICE2_URL}/announcements`, 120000); // 2 минуты
+        container.innerHTML = items.length
+          ? items.map(i => `<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('')
+          : '<p>Объявлений пока нет</p>';
+      } catch (e) {
+        console.warn('⚠️ Ошибка объявлений:', e);
+        container.innerHTML = '<p>Ошибка загрузки объявлений</p>';
+      }
+    }
+
+    // ====== КАЛЕНДАРЬ ======
+    let calDate = new Date(),
+      selectedDate = new Date().toISOString().split('T')[0];
+    let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
+    function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
+    function renderCalendar() {
+      const y = calDate.getFullYear(),
+        m = calDate.getMonth();
+      const first = new Date(y, m, 1).getDay() || 7,
+        days = new Date(y, m + 1, 0).getDate();
+      document.getElementById('cal-month-year').textContent = calDate.toLocaleDateString('ru-RU', {
+        month: 'long',
+        year: 'numeric'
+      });
+      const grid = document.getElementById('cal-days');
+      grid.innerHTML = '';
+      ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => {
+        const div = document.createElement('div');
+        div.className = 'cal-day-name';
+        div.textContent = d;
+        grid.appendChild(div);
+      });
+      for (let i = 1; i < first; i++) grid.appendChild(document.createElement('div'));
+      const today = new Date();
+      for (let d = 1; d <= days; d++) {
+        const div = document.createElement('div');
+        div.className = 'cal-day';
+        div.textContent = d;
+        const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        if (events[ds]?.length) div.classList.add('has-events');
+        if (y === today.getFullYear() && m === today.getMonth() && d === today.getDate()) div.classList.add('today');
+        div.addEventListener('click', () => {
+          selectedDate = ds;
+          document.querySelectorAll('.cal-day').forEach(el => el.style.background = '');
+          div.style.background = '#3f62b0';
+          updateSelectedDate();
+        });
+        grid.appendChild(div);
+      }
+      if (selectedDate.startsWith(`${y}-${String(m + 1).padStart(2, '0')}`)) {
+        const day = +selectedDate.split('-')[2];
+        const cells = grid.querySelectorAll('.cal-day');
+        const target = cells[first - 1 + day];
+        if (target) target.style.background = '#3f62b0';
+      }
+    }
+    function updateSelectedDate() {
+      document.getElementById('selected-date').textContent = selectedDate;
+      const c = document.getElementById('events-container');
+      const dayEvents = events[selectedDate] || [];
+      c.innerHTML = dayEvents.map(ev =>
+        `<div class="event-item"><span>${escapeHtml(ev.text)}</span><button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button></div>`
+      ).join('');
+      document.getElementById('event-date').value = selectedDate;
+    }
+    document.getElementById('add-event').addEventListener('click', () => {
+      const text = document.getElementById('event-text').value.trim();
+      if (!text) return;
+      const date = document.getElementById('event-date').value || selectedDate;
+      if (!events[date]) events[date] = [];
+      events[date].push({ id: Date.now().toString(), text });
+      saveEvents();
+      document.getElementById('event-text').value = '';
+      renderCalendar();
+      updateSelectedDate();
+    });
+    window.deleteEvent = (id) => {
+      for (const d in events) {
+        events[d] = events[d].filter(ev => ev.id !== id);
+        if (!events[d].length) delete events[d];
+      }
+      saveEvents();
+      renderCalendar();
+      updateSelectedDate();
+    };
+    document.getElementById('cal-prev').addEventListener('click', () => {
+      calDate.setMonth(calDate.getMonth() - 1);
+      renderCalendar();
+    });
+    document.getElementById('cal-next').addEventListener('click', () => {
+      calDate.setMonth(calDate.getMonth() + 1);
+      renderCalendar();
+    });
+    renderCalendar();
+    updateSelectedDate();
+
+    // ====== КАЛЬКУЛЯТОР ======
+    let calcExpr = '',
+      calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]'),
+      isEngineer = false;
+    const basic = [
+      ['C', '(', ')', '/'],
+      ['7', '8', '9', '*'],
+      ['4', '5', '6', '-'],
+      ['1', '2', '3', '+'],
+      ['0', '.', '⌫', '=']
+    ];
+    const eng = [
+      ['C', '(', ')', 'sin', 'cos'],
+      ['7', '8', '9', 'tan', 'log'],
+      ['4', '5', '6', 'sqrt', '^'],
+      ['1', '2', '3', 'EXP', 'PI'],
+      ['0', '.', '⌫', '+', '=']
+    ];
+    function buildCalc(layout) {
+      const c = document.getElementById('calc-buttons');
+      c.innerHTML = '';
+      layout.forEach(row => row.forEach(key => {
+        const btn = document.createElement('button');
+        btn.className = 'calc-btn';
+        if ('C(/*-+='.includes(key) || 'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator');
+        if (key === '=') btn.classList.add('equal');
+        btn.textContent = key;
+        btn.addEventListener('click', () => handleCalc(key));
+        c.appendChild(btn);
+      }));
+    }
+    buildCalc(basic);
+    function handleCalc(key) {
+      if (key === 'C') calcExpr = '';
+      else if (key === '⌫') calcExpr = calcExpr.slice(0, -1);
+      else if (key === '=') {
+        try {
+          let res;
+          if (isEngineer) {
+            const expr = calcExpr.replace(/sin/g, 'Math.sin').replace(/cos/g, 'Math.cos').replace(/tan/g, 'Math.tan')
+              .replace(/log/g, 'Math.log10').replace(/sqrt/g, 'Math.sqrt').replace(/\^/g, '**')
+              .replace(/EXP/g, '*10**').replace(/PI/g, 'Math.PI');
+            res = eval(expr);
+          } else res = eval(calcExpr);
+          calcHistory.unshift(calcExpr + ' = ' + res);
+          if (calcHistory.length > 10) calcHistory.pop();
+          localStorage.setItem('calc_history', JSON.stringify(calcHistory));
+          renderHist();
+          calcExpr = res.toString();
+        } catch { calcExpr = 'Ошибка'; }
+      } else calcExpr += key;
+      document.getElementById('calc-display').textContent = calcExpr || '0';
+    }
+    function renderHist() {
+      document.getElementById('calc-history').innerHTML = calcHistory.map(h =>
+        `<div style="font-size:0.9rem;padding:0.2rem 0;">${h}</div>`
+      ).join('');
+    }
+    renderHist();
+    document.getElementById('toggle-mode').addEventListener('click', () => {
+      isEngineer = !isEngineer;
+      buildCalc(isEngineer ? eng : basic);
+      document.getElementById('toggle-mode').textContent = isEngineer ? 'Обычный' : 'Инженерный';
+    });
+
+    // ====== ПОГОДА ======
+    document.getElementById('weather-btn').addEventListener('click', async () => {
+      const city = document.getElementById('city-input').value.trim();
+      if (!city) return;
+      document.getElementById('weather-result').textContent = 'Запрос...';
+      try {
+        const res = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
+        document.getElementById('weather-result').innerHTML = `🌡️ ${res.temp}°C, ${res.desc}<br>📍 ${res.city}`;
+      } catch (e) {
+        document.getElementById('weather-result').textContent = 'Ошибка';
+      }
+    });
+
+    // ====== ПОИСК ======
+    const searchQ = document.getElementById('search-query'),
+      searchBtn = document.getElementById('search-btn'),
+      searchRes = document.getElementById('search-results'),
+      searchStat = document.getElementById('search-status');
+    searchBtn.addEventListener('click', async () => {
+      const q = searchQ.value.trim();
+      if (!q) return;
+      searchStat.textContent = 'Поиск...';
+      searchRes.innerHTML = '';
+      try {
+        const resp = await secureFetch(`${SERVICE4_URL}/api/search`, { query: q });
+        searchRes.innerHTML = resp.results.length ?
+          resp.results.map(r =>
+            `<div class="search-result-item">
+              <div style="font-size:0.8rem;color:#5f7ecf;">${r.source}</div>
+              <a href="${r.url||'#'}" target="_blank" style="color:#cfdbff;font-weight:bold;">${escapeHtml(r.title)}</a>
+              <p style="font-size:0.85rem;color:#b0c0e0;">${escapeHtml(r.text||'')}</p>
+              ${r.icon?`<img src="${r.icon}" style="max-height:40px;margin-top:0.3rem;">`:''}
+            </div>`
+          ).join('') :
+          '<p>Ничего не найдено</p>';
+        searchStat.textContent = `Найдено: ${resp.results.length}`;
+      } catch (e) {
+        searchStat.textContent = 'Ошибка поиска';
+      }
+    });
+    searchQ.addEventListener('keypress', e => { if (e.key === 'Enter') searchBtn.click(); });
+
+    // ====== SkyID ======
+    document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
+      const login = document.getElementById('skyid-reg-login').value.trim(),
+        pass = document.getElementById('skyid-reg-password').value;
+      if (!login || !pass) return alert('Заполни поля');
+      try {
+        const payload = await encryptPayload({ login, password: pass });
+        const res = await fetch(`${SKYID_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload })
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(e.error || 'Ошибка');
         }
-        function openVideo() {
-          // Переход на skyvideo.html с сохранением текущего параметра v (если есть)
-          const params = new URLSearchParams(window.location.search);
-          const videoId = params.get('v');
-          const url = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
-          window.location.href = url;
+        const json = await res.json();
+        const data = await decryptPayload(json.data);
+        document.getElementById('skyid-result').innerHTML =
+          `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+      } catch (e) {
+        document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+      }
+    });
+    document.getElementById('skyid-login-btn').addEventListener('click', async () => {
+      const login = document.getElementById('skyid-login-login').value.trim(),
+        pass = document.getElementById('skyid-login-password').value;
+      if (!login || !pass) return alert('Заполни поля');
+      try {
+        const payload = await encryptPayload({ login, password: pass });
+        const res = await fetch(`${SKYID_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload })
+        });
+        if (!res.ok) {
+          const e = await res.json().catch(() => ({}));
+          throw new Error(e.error || 'Ошибка');
         }
-        // Слушаем сообщения от iframe
-        window.addEventListener('message', (event) => {
-          console.log('📨 Получено сообщение от iframe:', event.data);
-          if (event.data && event.data.type === 'navigateVideo') {
-            const videoId = event.data.videoId;
-            if (videoId) {
-              // Меняем URL в адресной строке (без перезагрузки)
-              const url = new URL(window.location);
-              url.search = `?v=${videoId}`;
-              window.history.pushState({}, '', url);
-              // Обновляем iframe, чтобы загрузить видео
-              if (videoIframe) {
-                videoIframe.src = `skyvideo.html?v=${videoId}`;
-              }
-              console.log('✅ URL обновлён, iframe перезагружен');
-            }
-          } else if (event.data && event.data.type === 'navigateHome') {
-            // Возврат на главную страницу видео
+        const json = await res.json();
+        const data = await decryptPayload(json.data);
+        document.getElementById('skyid-result').innerHTML =
+          `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+      } catch (e) {
+        document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+      }
+    });
+
+    // ====== SPOTIFY ======
+    const SPOTIFY_CLIENT_ID = 'ТВОЙ_ID';
+    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
+    let spotifyToken = null;
+    async function loadSpotifyToken() {
+      const t = localStorage.getItem('skyid_token');
+      if (!t) return;
+      try {
+        const r = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
+          headers: { Authorization: `Bearer ${t}` }
+        });
+        const d = await r.json();
+        if (d.access_token) {
+          spotifyToken = d.access_token;
+          document.getElementById('spotify-logged-out').style.display = 'none';
+          document.getElementById('spotify-logged-in').style.display = 'block';
+          initSpotifyPlayer();
+        }
+      } catch (e) {}
+    }
+    document.getElementById('spotify-login-btn').addEventListener('click', async () => {
+      const cv = generateRandomString(64);
+      localStorage.setItem('spotify_code_verifier', cv);
+      const cc = await generateCodeChallenge(cv);
+      const state = generateRandomString(16);
+      localStorage.setItem('spotify_state', state);
+      window.location.href = 'https://accounts.spotify.com/authorize?' +
+        new URLSearchParams({
+          response_type: 'code',
+          client_id: SPOTIFY_CLIENT_ID,
+          scope: 'streaming user-read-email user-read-private',
+          redirect_uri: REDIRECT_URI,
+          state,
+          code_challenge_method: 'S256',
+          code_challenge: cc
+        }).toString();
+    });
+    async function handleSpotifyCallback() {
+      const p = new URLSearchParams(location.search);
+      const code = p.get('code'),
+        state = p.get('state');
+      if (!code || state !== localStorage.getItem('spotify_state')) return;
+      const cv = localStorage.getItem('spotify_code_verifier');
+      if (!cv) return;
+      try {
+        const r = await fetch(`${SERVICE2_URL}/spotify/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI })
+        });
+        const d = await r.json();
+        if (d.access_token) {
+          spotifyToken = d.access_token;
+          const skyToken = localStorage.getItem('skyid_token');
+          if (skyToken) {
+            await fetch(`${SERVICE2_URL}/spotify/save-token`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
+              body: JSON.stringify({
+                spotify_token: d.access_token,
+                spotify_refresh: d.refresh_token,
+                expires_at: d.expires_in ? Date.now() + d.expires_in * 1000 : null
+              })
+            });
+          }
+          document.getElementById('spotify-logged-out').style.display = 'none';
+          document.getElementById('spotify-logged-in').style.display = 'block';
+          initSpotifyPlayer();
+          history.replaceState({}, document.title, location.pathname);
+        }
+      } catch (e) { console.error(e); }
+    }
+    function initSpotifyPlayer() {
+      if (window.Spotify) {
+        const player = new Spotify.Player({
+          name: 'SkyCitadel Music',
+          getOAuthToken: cb => { cb(spotifyToken); }
+        });
+        player.connect();
+        player.on('ready', (device_id) => { console.log('Spotify Ready', device_id); });
+        document.getElementById('spotify-player').appendChild(player);
+      } else {
+        window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
+      }
+    }
+    function generateRandomString(l) {
+      let s = '';
+      const ch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+      for (let i = 0; i < l; i++) s += ch.charAt(Math.floor(Math.random() * ch.length));
+      return s;
+    }
+    async function generateCodeChallenge(v) {
+      const d = new TextEncoder().encode(v);
+      const h = await crypto.subtle.digest('SHA-256', d);
+      return btoa(String.fromCharCode(...new Uint8Array(h)))
+        .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+    }
+    handleSpotifyCallback();
+    loadSpotifyToken();
+
+    // ====== ОБРАБОТКА ВИДЕО ======
+    const videoIframe = document.getElementById('video-iframe');
+    if (videoIframe) {
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get('v');
+      if (videoId) {
+        videoIframe.src = `skyvideo.html?v=${videoId}`;
+      }
+      window.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'navigateVideo') {
+          const videoId = event.data.videoId;
+          if (videoId) {
             const url = new URL(window.location);
-            url.search = '';
+            url.search = `?v=${videoId}`;
             window.history.pushState({}, '', url);
             if (videoIframe) {
-              videoIframe.src = 'skyvideo.html';
+              videoIframe.src = `skyvideo.html?v=${videoId}`;
             }
-            console.log('🏠 Возврат на главную страницу видео');
           }
-        });
-
-        // Обработка навигации браузера (назад/вперёд)
-        window.addEventListener('popstate', () => {
-          const params = new URLSearchParams(window.location.search);
-          const videoId = params.get('v');
+        } else if (event.data && event.data.type === 'navigateHome') {
+          const url = new URL(window.location);
+          url.search = '';
+          window.history.pushState({}, '', url);
           if (videoIframe) {
-            videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
-            console.log('🔄 Навигация назад/вперёд, загружено:', videoId || 'главная');
+            videoIframe.src = 'skyvideo.html';
           }
-        });
-      }
+        }
+      });
+      window.addEventListener('popstate', () => {
+        const params = new URLSearchParams(window.location.search);
+        const videoId = params.get('v');
+        if (videoIframe) {
+          videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
+        }
+      });
+    }
 
-      function escapeHtml(t) { return String(t).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-      setTimeout(() => { if (document.getElementById('maps').classList.contains('active')) map.invalidateSize(); }, 200);
-    })();
-  </script>
-
-  <!-- Счётчик (не трогал) -->
-  <script>
+    // ====== СЧЁТЧИК ======
     (function() {
       const site = 'skycitadel.onrender.com';
       const apiUrl = 'https://sky-counter-wine.vercel.app/checkvizit';
@@ -778,6 +969,29 @@
         .then(data => console.log('Visits counter:', data.status))
         .catch(() => {});
     })();
+
+    function escapeHtml(t) {
+      return String(t).replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }));
+    }
+
+    // ====== ИНИЦИАЛИЗАЦИЯ ПОСЛЕ ЗАГРУЗКИ ======
+    // Выполняем отложенную загрузку объявлений (не блокирует рендеринг)
+    setTimeout(() => {
+      safeExecute(loadAnnouncementsAsync);
+    }, 2000);
+
+    // Карта инициализируется при активации
+    setTimeout(() => {
+      if (document.getElementById('maps').classList.contains('active')) {
+        safeExecute(() => map.invalidateSize());
+      }
+    }, 500);
   </script>
 </body>
 </html>
