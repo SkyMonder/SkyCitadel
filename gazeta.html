@@ -222,6 +222,12 @@
   </div>
 
   <script>
+    // ====== НАСТРОЙКА ПРОКСИ ======
+    // Используем предоставленный прокси
+    const PROXY_HOST = 'wayback.protoweb.org';
+    const PROXY_PORT = 7851;
+    const PROXY_PROTOCOL = 'http';
+
     // ====== ИСТОЧНИКИ ======
     const SOURCES = [
       { name: 'Интерфакс', url: 'https://www.interfax.ru/rss' },
@@ -229,12 +235,6 @@
       { name: 'ТАСС', url: 'https://tass.ru/rss/v2.xml' },
       { name: 'Lenta.ru', url: 'https://lenta.ru/rss' }
     ];
-
-    // ====== ПРОКСИ ======
-    // Ваш собственный прокси (если работает)
-    const PROXY_URL = '/proxy?url=';
-    // Резервный публичный прокси (rss2json)
-    const RSS2JSON_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
 
     let articles = [];
     let currentPage = 0;
@@ -247,103 +247,74 @@
     const updateInfo = document.getElementById('updateInfo');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // ====== ФУНКЦИЯ ИЗВЛЕЧЕНИЯ ТЕКСТА ======
-    function extractText(item) {
-      let text = item.description || item.content || item.summary || '';
-      text = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-      if (!text || text.length < 10) {
-        text = item.title || 'Текст отсутствует';
-      }
-      if (text.length > 400) {
-        text = text.slice(0, 400) + '...';
-      }
-      return text;
-    }
-
-    // ====== ЗАГРУЗКА ЧЕРЕЗ ПРОКСИ (XML) ======
+    // ====== ЗАГРУЗКА RSS ЧЕРЕЗ ПРОКСИ ======
     async function fetchRSSviaProxy(source) {
       try {
-        const url = PROXY_URL + encodeURIComponent(source.url);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const text = await res.text();
+        // Формируем URL для прокси: http://wayback.protoweb.org:7851/?url=...
+        const proxyUrl = `${PROXY_PROTOCOL}://${PROXY_HOST}:${PROXY_PORT}/?url=${encodeURIComponent(source.url)}`;
+        console.log(`🔄 Загрузка ${source.name} через прокси: ${proxyUrl}`);
+        
+        const response = await fetch(proxyUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const text = await response.text();
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
+        
+        console.log(`📰 ${source.name}: загружено ${items.length} новостей через прокси`);
+
         const parsed = [];
         items.forEach(item => {
           const title = item.querySelector('title')?.textContent || 'Без заголовка';
           const link = item.querySelector('link')?.textContent || '#';
           const pubDate = item.querySelector('pubDate')?.textContent;
           const description = item.querySelector('description')?.textContent || '';
-          const content = item.querySelector('content\\:encoded')?.textContent || '';
-          const summary = item.querySelector('summary')?.textContent || '';
-          let image = item.querySelector('enclosure')?.getAttribute('url') || null;
+          // Извлекаем текст (без тегов)
+          let textContent = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+          if (!textContent) {
+            // если description пуст, пробуем content:encoded
+            const contentEncoded = item.querySelector('content\\:encoded')?.textContent || '';
+            if (contentEncoded) {
+              textContent = contentEncoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+            }
+          }
+          if (!textContent) {
+            textContent = 'Подробнее по ссылке...';
+          }
+          if (textContent.length > 400) {
+            textContent = textContent.slice(0, 400) + '...';
+          }
+
+          // Извлекаем картинку из description
+          let imageUrl = null;
+          const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch) imageUrl = imgMatch[1];
+
           parsed.push({
             title,
             link,
             pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
-            text: extractText({ title, description, content, summary }),
-            image,
+            text: textContent,
+            image: imageUrl || null,
             source: source.name
           });
         });
-        console.log(`📰 ${source.name} (прокси): загружено ${parsed.length} новостей`);
         return parsed;
       } catch (e) {
-        console.warn(`⚠️ Прокси для ${source.name} не сработал:`, e.message);
+        console.warn(`⚠️ ${source.name} через прокси не загружен:`, e.message);
         return [];
       }
     }
 
-    // ====== ЗАГРУЗКА ЧЕРЕЗ RSS2JSON (запасной) ======
-    async function fetchRSSviaRSS2JSON(source) {
-      try {
-        const url = RSS2JSON_API + encodeURIComponent(source.url);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (data.status !== 'ok') throw new Error('RSS2JSON error');
-        console.log(`📰 ${source.name} (rss2json): загружено ${data.items.length} новостей`);
-        return data.items.map(item => {
-          const text = extractText(item);
-          return {
-            title: item.title || 'Без заголовка',
-            link: item.link || '#',
-            pubDate: item.pubDate ? new Date(item.pubDate).toLocaleDateString('ru-RU') : '',
-            text: text,
-            image: item.enclosure?.link || null,
-            source: source.name
-          };
-        });
-      } catch (e) {
-        console.warn(`⚠️ rss2json для ${source.name} не сработал:`, e.message);
-        return [];
-      }
-    }
-
-    // ====== ЗАГРУЗКА ВСЕХ С ПЕРЕКЛЮЧЕНИЕМ ======
+    // ====== ЗАГРУЗКА ВСЕХ ИСТОЧНИКОВ ======
     async function loadAllNews() {
       container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Обновление...</div>';
 
-      // Сначала пробуем через свой прокси (если он работает)
-      let results = await Promise.allSettled(SOURCES.map(fetchRSSviaProxy));
+      const results = await Promise.allSettled(SOURCES.map(fetchRSSviaProxy));
       let all = [];
-      let anyProxySuccess = false;
       for (const r of results) {
-        if (r.status === 'fulfilled' && r.value.length > 0) {
-          all = all.concat(r.value);
-          anyProxySuccess = true;
-        }
-      }
-
-      // Если прокси не дал результатов, пробуем rss2json
-      if (!anyProxySuccess) {
-        console.warn('⚠️ Прокси не сработал, пробуем rss2json...');
-        results = await Promise.allSettled(SOURCES.map(fetchRSSviaRSS2JSON));
-        for (const r of results) {
-          if (r.status === 'fulfilled') all = all.concat(r.value);
-        }
+        if (r.status === 'fulfilled') all = all.concat(r.value);
       }
 
       console.log(`📰 Всего новостей: ${all.length}`);
@@ -352,7 +323,7 @@
         all = [
           {
             title: 'Новости временно недоступны',
-            text: 'Не удалось загрузить новости. Попробуйте позже.',
+            text: 'Не удалось загрузить новости через прокси. Попробуйте позже.',
             pubDate: new Date().toLocaleDateString('ru-RU'),
             source: 'Система',
             image: null
@@ -366,6 +337,7 @@
           }
         ];
       } else {
+        // Сортируем по дате
         all.sort((a, b) => {
           const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
           const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
@@ -389,7 +361,8 @@
         div.style.transform = idx === 0 ? 'translateX(0)' : 'translateX(100%)';
         div.style.opacity = idx === 0 ? '1' : '0';
         div.dataset.index = idx;
-        const displayText = article.text || 'Текст не найден';
+
+        const displayText = article.text || article.title || 'Текст не найден';
         div.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">
