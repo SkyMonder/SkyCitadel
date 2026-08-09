@@ -144,12 +144,34 @@
       </div>
     </div>
 
+    <!-- Радио -->
     <div id="radio" class="section">
       <div class="card">
-        <h2>📻 Радио — Прямые потоки</h2>
-        <div class="radio-stations" id="radio-list"></div>
-        <audio id="radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
-        <div style="margin-top:1rem; display:flex; gap:0.5rem;">
+        <h2>📻 Радио — настройка как на старом приёмнике</h2>
+        <div style="display:flex; flex-direction:column; align-items:center; margin:1rem 0;">
+          <!-- Колесо -->
+          <div style="position:relative; width:200px; height:200px; margin:0 auto;">
+            <div id="radio-wheel" style="position:relative; width:100%; height:100%; border-radius:50%; border:4px solid #3a4660; background:radial-gradient(circle at 30% 30%, #1e2744, #0d1225); box-shadow: 0 0 30px rgba(95,126,207,0.3);">
+              <!-- Центральная точка -->
+              <div style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:30px; height:30px; border-radius:50%; background:#2f4b8c; border:2px solid #5f7ecf; box-shadow: inset 0 0 10px #5f7ecf;"></div>
+              <!-- Метки станций (будут добавлены JS) -->
+              <div id="station-markers" style="position:absolute; inset:0;"></div>
+            </div>
+            <!-- Кнопки вращения -->
+            <div style="display:flex; justify-content:center; gap:1rem; margin-top:0.5rem;">
+              <button id="radio-prev" style="background:#2f4b8c; border:none; color:white; font-size:1.5rem; width:48px; height:48px; border-radius:50%; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.5);">◀</button>
+              <button id="radio-next" style="background:#2f4b8c; border:none; color:white; font-size:1.5rem; width:48px; height:48px; border-radius:50%; cursor:pointer; box-shadow:0 2px 10px rgba(0,0,0,0.5);">▶</button>
+            </div>
+          </div>
+          <!-- Информация о текущей станции -->
+          <div style="text-align:center; margin-top:1rem;">
+            <div id="fm-frequency" style="font-size:2rem; font-weight:bold; color:#b7ceff;">91.2</div>
+            <div id="fm-station-name" style="font-size:1.2rem; color:#cfdbff; min-height:2rem;">Europa Plus</div>
+            <audio id="radio-audio" controls style="width:100%; max-width:300px; margin-top:0.5rem;"></audio>
+          </div>
+        </div>
+        <!-- Кастомный URL -->
+        <div style="display:flex; gap:0.5rem; margin-top:0.5rem;">
           <input type="text" id="custom-stream" placeholder="URL своего потока..." style="flex:1; padding:0.6rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
           <button id="play-custom-stream" style="padding:0.6rem 1.2rem; background:#2f4b8c; border:none; color:white; border-radius:10px;">▶ Играть</button>
         </div>
@@ -457,35 +479,116 @@
       }
 
       // ====== РАДИО ======
-      const stations = [
-        { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
-        { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
-        { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
-        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
-      ];
-      const radioAudio = document.getElementById('radio-audio');
-      function renderRadioButtons(container, audio) {
-        container.innerHTML = '';
-        stations.forEach(st => {
-          const btn = document.createElement('button');
-          btn.className = 'station-btn';
-          btn.textContent = st.name;
-          btn.addEventListener('click', () => {
-            audio.src = st.url;
-            audio.load();
-            audio.play().catch(() => {});
-            container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
-            btn.classList.add('playing');
-          });
-          container.appendChild(btn);
-        });
-      }
-      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
-      document.getElementById('play-custom-stream').addEventListener('click', () => {
-        const url = document.getElementById('custom-stream').value.trim();
-        if (url) { radioAudio.src = url; radioAudio.load(); radioAudio.play().catch(() => {}); }
-      });
+      			// ====== РАДИО С КОЛЕСОМ ======
+			const stations = [
+			  { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3', freq: 91.2 },
+			  { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp', freq: 97.0 },
+			  { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp', freq: 102.5 },
+			  { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp', freq: 106.2 }
+			];
 
+			let currentStationIndex = 0;
+			const radioAudio = document.getElementById('radio-audio');
+			const fmFrequency = document.getElementById('fm-frequency');
+			const fmStationName = document.getElementById('fm-station-name');
+			const wheel = document.getElementById('radio-wheel');
+			const markersContainer = document.getElementById('station-markers');
+
+			// Рендерим метки станций на колесе
+			function renderMarkers() {
+			  markersContainer.innerHTML = '';
+			  const count = stations.length;
+			  const radius = 75; // радиус расположения меток
+			  const centerX = 100; // половина ширины колеса
+			  const centerY = 100;
+
+			  stations.forEach((st, i) => {
+			    const angle = (i / count) * 2 * Math.PI - Math.PI / 2;
+			    const x = centerX + radius * Math.cos(angle);
+			    const y = centerY + radius * Math.sin(angle);
+			    const marker = document.createElement('div');
+			    marker.textContent = st.freq.toFixed(1);
+			    marker.style.cssText = `
+			      position: absolute;
+			      left: ${x-15}px;
+			      top: ${y-15}px;
+			      width: 30px;
+			      height: 30px;
+			      border-radius: 50%;
+			      background: transparent;
+			      color: #8899cc;
+			      font-size: 0.7rem;
+			      font-weight: bold;
+			      display: flex;
+			      align-items: center;
+			      justify-content: center;
+			      cursor: pointer;
+			      transition: all 0.3s;
+			      border: 2px solid transparent;
+			      user-select: none;
+			    `;
+			    marker.dataset.index = i;
+			    marker.addEventListener('click', () => {
+			      selectStation(i);
+			    });
+			    markersContainer.appendChild(marker);
+			  });
+			  updateWheel();
+			}
+
+			// Обновление активной станции на колесе
+			function updateWheel() {
+			  const markers = markersContainer.querySelectorAll('div');
+			  markers.forEach((el, i) => {
+			    const isActive = (i === currentStationIndex);
+			    el.style.color = isActive ? '#fff' : '#8899cc';
+			    el.style.borderColor = isActive ? '#5f7ecf' : 'transparent';
+			    el.style.background = isActive ? 'rgba(95,126,207,0.3)' : 'transparent';
+			    el.style.transform = isActive ? 'scale(1.2)' : 'scale(1)';
+			  });
+			  // Обновляем информацию
+			  const st = stations[currentStationIndex];
+			  fmFrequency.textContent = st.freq.toFixed(1);
+			  fmStationName.textContent = st.name;
+			  if (radioAudio.src !== st.url) {
+			    radioAudio.src = st.url;
+			    radioAudio.load();
+			    radioAudio.play().catch(() => {});
+			  }
+			}
+
+			// Выбор станции
+			function selectStation(index) {
+			  if (index < 0) index = stations.length - 1;
+			  if (index >= stations.length) index = 0;
+			  currentStationIndex = index;
+			  updateWheel();
+			}
+
+			// Кнопки навигации
+			document.getElementById('radio-prev').addEventListener('click', () => {
+			  selectStation(currentStationIndex - 1);
+			});
+			document.getElementById('radio-next').addEventListener('click', () => {
+			  selectStation(currentStationIndex + 1);
+			});
+
+			// Инициализация
+			renderMarkers();
+			selectStation(0); // По умолчанию первая станция
+
+			// Кастомный URL
+			document.getElementById('play-custom-stream').addEventListener('click', () => {
+			  const url = document.getElementById('custom-stream').value.trim();
+			  if (url) {
+			    radioAudio.src = url;
+			    radioAudio.load();
+			    radioAudio.play().catch(() => {});
+			    fmFrequency.textContent = '--.--';
+			    fmStationName.textContent = '🔊 Пользовательский поток';
+			  }
+			});
+      
       // ====== НОВОСТИ ======
       function refreshNewsIframe() {
         const f = document.getElementById('news-iframe');
