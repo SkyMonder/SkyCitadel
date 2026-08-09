@@ -1,464 +1,983 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Газета SkyCitadel</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    body {
-      background: #2c2c2c;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      font-family: 'Times New Roman', Times, serif;
-      padding: 16px;
-    }
-    .newspaper-container {
-      background: #f4f0eb;
-      border-radius: 16px;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
-      padding: 20px;
-      max-width: 720px;
-      width: 100%;
-      max-height: 95vh;
-      display: flex;
-      flex-direction: column;
-    }
-    .newspaper-header {
-      text-align: center;
-      border-bottom: 3px double #333;
-      padding-bottom: 10px;
-      margin-bottom: 16px;
-      flex-shrink: 0;
-    }
-    .newspaper-header h1 {
-      font-size: 2rem;
-      font-weight: bold;
-      letter-spacing: 4px;
-      color: #1a1a1a;
-    }
-    .newspaper-header small {
-      font-size: 0.8rem;
-      display: block;
-      font-weight: normal;
-      letter-spacing: 2px;
-      color: #555;
-    }
-    .newspaper-header .update-info {
-      font-size: 0.75rem;
-      color: #777;
-      margin-top: 4px;
-      letter-spacing: 0.5px;
-    }
-    .page-container {
-      flex: 1;
-      min-height: 0;
-      position: relative;
-      overflow: hidden;
-      border-radius: 8px;
-      background: white;
-    }
-    .page {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: white;
-      border-radius: 8px;
-      padding: 20px 24px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      color: #222;
-      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: transform, opacity;
-    }
-    .news-title {
-      font-size: 1.5rem;
-      font-weight: bold;
-      margin-bottom: 0.2rem;
-      line-height: 1.2;
-      color: #1a1a1a;
-      flex-shrink: 0;
-    }
-    .news-date {
-      font-size: 0.8rem;
-      color: #777;
-      margin-bottom: 0.6rem;
-      border-bottom: 1px solid #ddd;
-      padding-bottom: 0.4rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      flex-shrink: 0;
-    }
-    .source-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      background: #eaeaea;
-      color: #333;
-      padding: 1px 10px;
-      border-radius: 12px;
-    }
-    .news-image {
-      width: 100%;
-      max-height: 150px;
-      object-fit: cover;
-      border-radius: 6px;
-      margin-bottom: 0.8rem;
-      background: #eaeaea;
-      flex-shrink: 0;
-    }
-    .news-text {
-      font-size: 0.95rem;
-      line-height: 1.5;
-      color: #222;
-      overflow-y: auto;
-      flex: 1;
-      padding-right: 4px;
-      min-height: 60px;
-      white-space: pre-wrap;
-      word-break: break-word;
-      background: #fafafa;
-      padding: 8px 10px;
-      border-radius: 4px;
-      border-left: 3px solid #ddd;
-    }
-    .news-text::-webkit-scrollbar {
-      width: 4px;
-    }
-    .news-text::-webkit-scrollbar-thumb {
-      background: #ccc;
-      border-radius: 2px;
-    }
-    .nav-controls {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 16px;
-      flex-shrink: 0;
-      padding-top: 12px;
-      border-top: 1px solid #ddd;
-      flex-wrap: wrap;
-      gap: 8px;
-    }
-    .nav-btn {
-      background: #333;
-      color: white;
-      border: none;
-      padding: 8px 18px;
-      border-radius: 30px;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .nav-btn:hover:not(:disabled) {
-      background: #555;
-    }
-    .nav-btn:disabled {
-      opacity: 0.4;
-      cursor: not-allowed;
-    }
-    .page-indicator {
-      font-size: 0.95rem;
-      color: #555;
-    }
-    .refresh-btn {
-      background: #6c8b9f;
-      padding: 6px 16px;
-      border-radius: 30px;
-      border: none;
-      color: white;
-      cursor: pointer;
-      font-size: 0.9rem;
-      transition: background 0.2s;
-    }
-    .refresh-btn:hover {
-      background: #55758a;
-    }
-    .refresh-btn:active {
-      transform: scale(0.96);
-    }
-    @media (max-width: 600px) {
-      .newspaper-container { padding: 12px; }
-      .newspaper-header h1 { font-size: 1.6rem; }
-      .page { padding: 16px; }
-      .news-title { font-size: 1.2rem; }
-      .news-text { font-size: 0.85rem; }
-      .nav-btn { padding: 6px 14px; font-size: 0.9rem; }
-    }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Газета • Ежедневные новости</title>
+    <style>
+        /* ── Reset & Base ── */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #3a2e2a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Times New Roman', 'Georgia', serif;
+            padding: 30px 20px;
+            user-select: none;
+        }
+
+        /* ── Book Container ── */
+        .book-wrapper {
+            perspective: 2200px;
+            width: 100%;
+            max-width: 1100px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 28px;
+        }
+
+        .book {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1.4 / 1;
+            /* шире для разворота */
+            transform-style: preserve-3d;
+            transition: transform 0.6s ease;
+            border-radius: 6px 18px 18px 6px;
+            box-shadow:
+                0 30px 60px rgba(0, 0, 0, 0.7),
+                0 10px 20px rgba(0, 0, 0, 0.4),
+                inset 0 0 0 1px rgba(255, 215, 175, 0.15);
+        }
+
+        /* ── Pages ── */
+        .page {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            transform-style: preserve-3d;
+            transform-origin: left center;
+            transition: transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1);
+            backface-visibility: hidden;
+            border-radius: 0 12px 12px 0;
+            box-shadow: inset 0 0 0 1px rgba(255, 215, 175, 0.08);
+            will-change: transform;
+        }
+
+        .page-front,
+        .page-back {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            backface-visibility: hidden;
+            border-radius: 0 12px 12px 0;
+            background: #fcf6ed;
+            padding: 28px 32px 24px 32px;
+            overflow-y: auto;
+            box-shadow: inset 0 0 0 1px rgba(255, 215, 175, 0.2);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page-front {
+            background: #fcf6ed;
+            /* цвет бумаги */
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(235, 215, 190, 0.15) 0%, transparent 70%),
+                radial-gradient(ellipse at 80% 50%, rgba(235, 215, 190, 0.10) 0%, transparent 60%);
+        }
+
+        .page-back {
+            transform: rotateY(180deg);
+            background: #f8f0e4;
+            background-image:
+                radial-gradient(ellipse at 20% 50%, rgba(225, 205, 180, 0.12) 0%, transparent 70%),
+                radial-gradient(ellipse at 80% 50%, rgba(225, 205, 180, 0.08) 0%, transparent 60%);
+        }
+
+        /* ── Page state ── */
+        .page.flipped {
+            transform: rotateY(-180deg);
+        }
+
+        .page.hidden {
+            display: none;
+        }
+
+        /* ── Scrollbar styling for pages ── */
+        .page-front::-webkit-scrollbar,
+        .page-back::-webkit-scrollbar {
+            width: 4px;
+        }
+        .page-front::-webkit-scrollbar-track,
+        .page-back::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.04);
+            border-radius: 4px;
+        }
+        .page-front::-webkit-scrollbar-thumb,
+        .page-back::-webkit-scrollbar-thumb {
+            background: rgba(160, 130, 100, 0.3);
+            border-radius: 4px;
+        }
+
+        /* ── Newspaper Typography ── */
+        .newspaper {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: #1f1a16;
+            line-height: 1.45;
+        }
+
+        /* Masthead */
+        .masthead {
+            text-align: center;
+            border-bottom: 3px double #2a221c;
+            padding-bottom: 6px;
+            margin-bottom: 12px;
+            flex-shrink: 0;
+        }
+
+        .masthead .edition {
+            font-size: 0.7rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #5a4a3a;
+            font-weight: 400;
+            font-family: 'Arial', sans-serif;
+            margin-bottom: 2px;
+        }
+
+        .masthead h1 {
+            font-size: 2.8rem;
+            font-weight: 700;
+            letter-spacing: 6px;
+            text-transform: uppercase;
+            font-family: 'Times New Roman', serif;
+            color: #1a1410;
+            text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.04);
+            line-height: 1.1;
+        }
+
+        .masthead .date-line {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            color: #4a3d32;
+            border-top: 1px solid #d4c8b8;
+            padding-top: 4px;
+            margin-top: 2px;
+            font-family: 'Arial', sans-serif;
+            font-weight: 400;
+        }
+
+        .masthead .date-line span {
+            background: #fcf6ed;
+            padding: 0 6px;
+        }
+
+        /* Columns layout */
+        .columns {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .columns.three {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .column {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow: hidden;
+        }
+
+        /* Article styles */
+        .article-card {
+            border-bottom: 1px solid #e4d8ca;
+            padding-bottom: 8px;
+            margin-bottom: 4px;
+        }
+
+        .article-card:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .article-card .headline {
+            font-size: 1.05rem;
+            font-weight: 700;
+            line-height: 1.2;
+            color: #1a1410;
+            margin-bottom: 2px;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .article-card .headline:hover {
+            color: #7a3f2a;
+        }
+
+        .article-card .headline a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .article-card .meta {
+            font-size: 0.6rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #7a6a5a;
+            font-family: 'Arial', sans-serif;
+            margin-bottom: 3px;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .article-card .meta .tag {
+            background: #d4c8b8;
+            color: #2a221c;
+            padding: 0 8px;
+            border-radius: 2px;
+            font-size: 0.55rem;
+            letter-spacing: 0.8px;
+        }
+
+        .article-card .summary {
+            font-size: 0.78rem;
+            line-height: 1.4;
+            color: #2d241e;
+            font-family: 'Georgia', serif;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .article-card .summary em {
+            font-style: italic;
+            color: #5a4a3a;
+        }
+
+        /* Featured article (larger) */
+        .article-card.featured .headline {
+            font-size: 1.4rem;
+            line-height: 1.15;
+        }
+
+        .article-card.featured .summary {
+            font-size: 0.85rem;
+            -webkit-line-clamp: 4;
+        }
+
+        .article-card.featured {
+            border-bottom: 2px solid #2a221c;
+            padding-bottom: 10px;
+            margin-bottom: 8px;
+        }
+
+        /* Divider */
+        .divider {
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(to right, transparent, #b8a898, transparent);
+            margin: 4px 0 8px 0;
+            flex-shrink: 0;
+        }
+
+        .divider.thin {
+            height: 1px;
+            background: linear-gradient(to right, transparent, #d4c8b8, transparent);
+            margin: 2px 0 6px 0;
+        }
+
+        /* Page number */
+        .page-number {
+            text-align: center;
+            font-size: 0.6rem;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            color: #7a6a5a;
+            font-family: 'Arial', sans-serif;
+            border-top: 1px solid #e4d8ca;
+            padding-top: 6px;
+            margin-top: auto;
+            flex-shrink: 0;
+        }
+
+        /* ── Navigation ── */
+        .nav-controls {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 24px;
+            width: 100%;
+            max-width: 500px;
+            padding: 10px 0 4px 0;
+        }
+
+        .nav-btn {
+            background: #fcf6ed;
+            border: 1px solid #b8a898;
+            color: #2a221c;
+            padding: 10px 28px;
+            font-family: 'Arial', sans-serif;
+            font-size: 0.8rem;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: linear-gradient(145deg, #fcf6ed, #f0e8dc);
+        }
+
+        .nav-btn:hover {
+            background: #2a221c;
+            color: #fcf6ed;
+            border-color: #2a221c;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+        }
+
+        .nav-btn:active {
+            transform: translateY(0px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.3;
+            pointer-events: none;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .nav-btn .icon {
+            font-size: 1.1rem;
+            line-height: 1;
+        }
+
+        .page-indicator {
+            font-family: 'Arial', sans-serif;
+            font-size: 0.75rem;
+            letter-spacing: 1px;
+            color: #d4c8b8;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 4px 18px;
+            border-radius: 20px;
+            font-weight: 400;
+            backdrop-filter: blur(2px);
+        }
+
+        /* ── Loading / Empty ── */
+        .loading-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #5a4a3a;
+            font-family: 'Georgia', serif;
+            font-size: 1.1rem;
+            gap: 12px;
+        }
+
+        .loading-state .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #e4d8ca;
+            border-top: 3px solid #2a221c;
+            border-radius: 50%;
+            animation: spin 0.9s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .loading-state small {
+            font-size: 0.7rem;
+            color: #8a7a6a;
+            font-family: 'Arial', sans-serif;
+        }
+
+        /* ── Responsive ── */
+        @media (max-width: 820px) {
+            .book {
+                aspect-ratio: 0.85 / 1;
+            }
+            .page-front,
+            .page-back {
+                padding: 18px 16px 16px 16px;
+            }
+            .masthead h1 {
+                font-size: 2rem;
+                letter-spacing: 3px;
+            }
+            .columns {
+                grid-template-columns: 1fr;
+                gap: 10px;
+            }
+            .columns.three {
+                grid-template-columns: 1fr;
+            }
+            .article-card.featured .headline {
+                font-size: 1.15rem;
+            }
+            .article-card .headline {
+                font-size: 0.95rem;
+            }
+            .nav-btn {
+                padding: 8px 18px;
+                font-size: 0.7rem;
+            }
+            .masthead .date-line {
+                font-size: 0.55rem;
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 12px 8px;
+            }
+            .book {
+                aspect-ratio: 0.7 / 1;
+                border-radius: 4px 12px 12px 4px;
+            }
+            .page-front,
+            .page-back {
+                padding: 12px 10px 12px 10px;
+                border-radius: 0 8px 8px 0;
+            }
+            .masthead h1 {
+                font-size: 1.5rem;
+                letter-spacing: 2px;
+            }
+            .masthead .edition {
+                font-size: 0.55rem;
+            }
+            .article-card .headline {
+                font-size: 0.85rem;
+            }
+            .article-card .summary {
+                font-size: 0.7rem;
+                -webkit-line-clamp: 2;
+            }
+            .article-card.featured .headline {
+                font-size: 1rem;
+            }
+            .article-card.featured .summary {
+                font-size: 0.75rem;
+                -webkit-line-clamp: 3;
+            }
+            .nav-controls {
+                gap: 12px;
+                flex-wrap: wrap;
+            }
+            .nav-btn {
+                padding: 6px 14px;
+                font-size: 0.6rem;
+            }
+            .page-indicator {
+                font-size: 0.6rem;
+                padding: 2px 12px;
+            }
+        }
+
+        /* ── Smooth entrance ── */
+        .book-wrapper {
+            opacity: 0;
+            animation: fadeIn 0.9s ease forwards;
+        }
+
+        @keyframes fadeIn {
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* ── Flip corner hint ── */
+        .flip-hint {
+            position: absolute;
+            bottom: 18px;
+            right: 22px;
+            font-size: 0.55rem;
+            font-family: 'Arial', sans-serif;
+            color: #b8a898;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            background: rgba(252, 246, 237, 0.7);
+            padding: 2px 12px;
+            border-radius: 12px;
+            backdrop-filter: blur(2px);
+            border: 1px solid rgba(255, 215, 175, 0.2);
+            pointer-events: none;
+            opacity: 0.7;
+            z-index: 10;
+        }
+
+        @media (max-width: 600px) {
+            .flip-hint {
+                display: none;
+            }
+        }
+
+        /* ── Shadow between pages ── */
+        .page-shadow {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 5;
+            border-radius: 0 12px 12px 0;
+            box-shadow: inset -4px 0 20px rgba(0, 0, 0, 0.04);
+        }
+    </style>
 </head>
 <body>
-  <div class="newspaper-container">
-    <div class="newspaper-header">
-      <h1>📰 Ежедневная газета</h1>
-      <small>Новости со всего мира — агрегатор</small>
-      <div class="update-info" id="updateInfo">Загрузка...</div>
+
+    <div class="book-wrapper">
+        <!-- Book -->
+        <div class="book" id="book">
+
+            <!-- Pages will be injected here by JS -->
+            <div id="pagesContainer" style="width:100%;height:100%;position:relative;transform-style:preserve-3d;"></div>
+
+            <!-- Shadow overlay -->
+            <div class="page-shadow"></div>
+
+            <!-- Flip hint -->
+            <div class="flip-hint">✦ листай</div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-controls">
+            <button class="nav-btn" id="prevBtn" disabled>
+                <span class="icon">◀</span> Назад
+            </button>
+            <span class="page-indicator" id="pageIndicator">1 / 1</span>
+            <button class="nav-btn" id="nextBtn">
+                Вперёд <span class="icon">▶</span>
+            </button>
+        </div>
     </div>
 
-    <div class="page-container" id="pageContainer">
-      <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">
-        Загрузка новостей...
-      </div>
-    </div>
+    <script>
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+        // 1.  RSS → загрузка новостей
+        // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-    <div class="nav-controls">
-      <button class="nav-btn" id="prevBtn" disabled>◀ Назад</button>
-      <span class="page-indicator" id="pageIndicator">Страница 0 из 0</span>
-      <div style="display: flex; gap: 8px;">
-        <button class="refresh-btn" id="refreshBtn">⟳ Обновить</button>
-        <button class="nav-btn" id="nextBtn" disabled>Вперед ▶</button>
-      </div>
-    </div>
-  </div>
-
-  <script>
-    // ====== НАСТРОЙКА ПРОКСИ ======
-    // Используем предоставленный прокси
-    const PROXY_HOST = 'wayback.protoweb.org';
-    const PROXY_PORT = 7851;
-    const PROXY_PROTOCOL = 'http';
-
-    // ====== ИСТОЧНИКИ ======
-    const SOURCES = [
-      { name: 'Интерфакс', url: 'https://www.interfax.ru/rss' },
-      { name: 'РИА Новости', url: 'https://ria.ru/export/rss2/index.xml' },
-      { name: 'ТАСС', url: 'https://tass.ru/rss/v2.xml' },
-      { name: 'Lenta.ru', url: 'https://lenta.ru/rss' }
-    ];
-
-    let articles = [];
-    let currentPage = 0;
-    let isAnimating = false;
-
-    const container = document.getElementById('pageContainer');
-    const prevBtn = document.getElementById('prevBtn');
-    const nextBtn = document.getElementById('nextBtn');
-    const indicator = document.getElementById('pageIndicator');
-    const updateInfo = document.getElementById('updateInfo');
-    const refreshBtn = document.getElementById('refreshBtn');
-
-    // ====== ЗАГРУЗКА RSS ЧЕРЕЗ ПРОКСИ ======
-    async function fetchRSSviaProxy(source) {
-      try {
-        // Формируем URL для прокси: http://wayback.protoweb.org:7851/?url=...
-        const proxyUrl = `${PROXY_PROTOCOL}://${PROXY_HOST}:${PROXY_PORT}/?url=${encodeURIComponent(source.url)}`;
-        console.log(`🔄 Загрузка ${source.name} через прокси: ${proxyUrl}`);
-        
-        const response = await fetch(proxyUrl);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const text = await response.text();
-        const parser = new DOMParser();
-        const xml = parser.parseFromString(text, 'text/xml');
-        const items = xml.querySelectorAll('item');
-        
-        console.log(`📰 ${source.name}: загружено ${items.length} новостей через прокси`);
-
-        const parsed = [];
-        items.forEach(item => {
-          const title = item.querySelector('title')?.textContent || 'Без заголовка';
-          const link = item.querySelector('link')?.textContent || '#';
-          const pubDate = item.querySelector('pubDate')?.textContent;
-          const description = item.querySelector('description')?.textContent || '';
-          // Извлекаем текст (без тегов)
-          let textContent = description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-          if (!textContent) {
-            // если description пуст, пробуем content:encoded
-            const contentEncoded = item.querySelector('content\\:encoded')?.textContent || '';
-            if (contentEncoded) {
-              textContent = contentEncoded.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
-            }
-          }
-          if (!textContent) {
-            textContent = 'Подробнее по ссылке...';
-          }
-          if (textContent.length > 400) {
-            textContent = textContent.slice(0, 400) + '...';
-          }
-
-          // Извлекаем картинку из description
-          let imageUrl = null;
-          const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
-          if (imgMatch) imageUrl = imgMatch[1];
-
-          parsed.push({
-            title,
-            link,
-            pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
-            text: textContent,
-            image: imageUrl || null,
-            source: source.name
-          });
-        });
-        return parsed;
-      } catch (e) {
-        console.warn(`⚠️ ${source.name} через прокси не загружен:`, e.message);
-        return [];
-      }
-    }
-
-    // ====== ЗАГРУЗКА ВСЕХ ИСТОЧНИКОВ ======
-    async function loadAllNews() {
-      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Обновление...</div>';
-
-      const results = await Promise.allSettled(SOURCES.map(fetchRSSviaProxy));
-      let all = [];
-      for (const r of results) {
-        if (r.status === 'fulfilled') all = all.concat(r.value);
-      }
-
-      console.log(`📰 Всего новостей: ${all.length}`);
-
-      if (all.length === 0) {
-        all = [
-          {
-            title: 'Новости временно недоступны',
-            text: 'Не удалось загрузить новости через прокси. Попробуйте позже.',
-            pubDate: new Date().toLocaleDateString('ru-RU'),
-            source: 'Система',
-            image: null
-          },
-          {
-            title: 'SkyCitadel — цифровая крепость',
-            text: 'Открытая экосистема без цензуры, слежки и рекламы. Присоединяйтесь!',
-            pubDate: new Date().toLocaleDateString('ru-RU'),
-            source: 'Система',
-            image: null
-          }
+        const RSS_FEEDS = [
+            'https://tass.ru/rss/v2.xml'
         ];
-      } else {
-        // Сортируем по дате
-        all.sort((a, b) => {
-          const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-          const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-          return db - da;
+
+        const NEWS_PER_PAGE = 6; // статей на разворот (3 на колонку)
+        const ARTICLES_PER_COLUMN = 3;
+
+        let allArticles = [];
+        let currentPage = 0;
+        let totalPages = 0;
+        let isFlipping = false;
+
+        const book = document.getElementById('book');
+        const pagesContainer = document.getElementById('pagesContainer');
+        const prevBtn = document.getElementById('prevBtn');
+        const nextBtn = document.getElementById('nextBtn');
+        const pageIndicator = document.getElementById('pageIndicator');
+
+        // ── Fetch RSS ──
+        async function fetchRSS(url) {
+            try {
+                const resp = await fetch(
+                    `https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(url)}`
+                );
+                const data = await resp.json();
+                return data.items || [];
+            } catch (err) {
+                console.warn('RSS load error:', url, err);
+                return [];
+            }
+        }
+
+        async function loadAllNews() {
+            const results = await Promise.all(RSS_FEEDS.map(fetchRSS));
+            const flat = results.flat();
+            // сортируем по дате (свежие сверху)
+            flat.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+            return flat;
+        }
+
+        // ── Build newspaper pages ──
+        function buildPages(articles) {
+            // очищаем контейнер
+            pagesContainer.innerHTML = '';
+            if (!articles.length) {
+                pagesContainer.innerHTML = `
+              <div class="page-front" style="position:relative;background:#fcf6ed;display:flex;align-items:center;justify-content:center;border-radius:0 12px 12px 0;">
+                <div class="loading-state">
+                  <span style="font-size:2.5rem;">📰</span>
+                  <p>Нет новостей для отображения</p>
+                  <small>Попробуйте обновить страницу</small>
+                </div>
+              </div>
+            `;
+                totalPages = 1;
+                currentPage = 0;
+                updateNav();
+                return;
+            }
+
+            // Разбиваем статьи по страницам (по NEWS_PER_PAGE штук на разворот)
+            const pageGroups = [];
+            for (let i = 0; i < articles.length; i += NEWS_PER_PAGE) {
+                pageGroups.push(articles.slice(i, i + NEWS_PER_PAGE));
+            }
+            totalPages = pageGroups.length;
+            currentPage = 0;
+
+            // Создаём DOM для каждой страницы (разворота)
+            pageGroups.forEach((group, idx) => {
+                const isLast = idx === pageGroups.length - 1;
+
+                // Страница-контейнер
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page';
+                if (idx === 0) {
+                    // первая страница видна, остальные скрыты (но мы управляем через класс flipped)
+                }
+                if (idx > 0) {
+                    pageDiv.style.transform = 'rotateY(-180deg)';
+                }
+                pageDiv.dataset.index = idx;
+
+                // Передняя сторона
+                const front = document.createElement('div');
+                front.className = 'page-front';
+                front.innerHTML = renderSpread(group, idx + 1, pageGroups.length);
+
+                // Задняя сторона (содержимое следующей страницы, если есть)
+                const back = document.createElement('div');
+                back.className = 'page-back';
+                if (idx < pageGroups.length - 1) {
+                    const nextGroup = pageGroups[idx + 1];
+                    back.innerHTML = renderSpread(nextGroup, idx + 2, pageGroups.length);
+                } else {
+                    // последняя страница — сзади просто обложка или "конец"
+                    back.innerHTML = `
+                <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;text-align:center;color:#5a4a3a;gap:12px;">
+                  <span style="font-size:3rem;opacity:0.3;">◈</span>
+                  <p style="font-family:'Georgia',serif;font-size:1.1rem;letter-spacing:2px;text-transform:uppercase;color:#8a7a6a;">Конец выпуска</p>
+                  <small style="font-family:'Arial',sans-serif;color:#b8a898;">Ежедневная газета</small>
+                  <div style="margin-top:12px;font-size:0.6rem;color:#b8a898;letter-spacing:1px;">✦ ✦ ✦</div>
+                </div>
+              `;
+                }
+
+                pageDiv.appendChild(front);
+                pageDiv.appendChild(back);
+                pagesContainer.appendChild(pageDiv);
+            });
+
+            // Показываем первую страницу
+            showPage(0);
+            updateNav();
+        }
+
+        // ── Render a spread (two columns) ──
+        function renderSpread(articles, pageNum, total) {
+            if (!articles || !articles.length) {
+                return `
+              <div class="newspaper">
+                <div class="masthead">
+                  <div class="edition">Ежедневный выпуск</div>
+                  <h1>ГАЗЕТА</h1>
+                  <div class="date-line">
+                    <span>${formatDate(new Date())}</span>
+                    <span>№ ${String(pageNum).padStart(3,'0')}</span>
+                  </div>
+                </div>
+                <div style="flex:1;display:flex;align-items:center;justify-content:center;color:#8a7a6a;font-style:italic;">
+                  Нет статей на этой странице
+                </div>
+                <div class="page-number">Стр. ${pageNum} / ${total}</div>
+              </div>
+            `;
+            }
+
+            // Разбиваем статьи по колонкам (2 колонки)
+            const col1 = articles.slice(0, ARTICLES_PER_COLUMN);
+            const col2 = articles.slice(ARTICLES_PER_COLUMN, ARTICLES_PER_COLUMN * 2);
+
+            const renderColumn = (items, isFirst) => {
+                return items.map((item, idx) => {
+                    const isFeatured = idx === 0 && isFirst;
+                    const title = item.title || 'Без заголовка';
+                    const link = item.link || '#';
+                    const pubDate = item.pubDate ? new Date(item.pubDate) : new Date();
+                    const description = item.description || '';
+                    // чистим HTML из описания
+                    const cleanDesc = description
+                        .replace(/<[^>]*>/g, '')
+                        .replace(/\s+/g, ' ')
+                        .trim()
+                        .slice(0, 180) + (description.length > 180 ? '…' : '');
+
+                    // вытаскиваем категорию если есть
+                    const categories = item.categories || [];
+                    const tag = categories.length ? categories[0] : 'Новость';
+
+                    return `
+                <div class="article-card ${isFeatured ? 'featured' : ''}">
+                  <div class="headline"><a href="${link}" target="_blank">${title}</a></div>
+                  <div class="meta">
+                    <span>${formatTime(pubDate)}</span>
+                    <span class="tag">${tag}</span>
+                  </div>
+                  <div class="summary">${cleanDesc || 'Подробности в источнике.'}</div>
+                </div>
+              `;
+                }).join('');
+            };
+
+            const col1html = renderColumn(col1, true);
+            const col2html = renderColumn(col2, false);
+
+            // Если во второй колонке пусто, ставим плейсхолдер
+            const col2final = col2html || `
+            <div style="display:flex;align-items:center;justify-content:center;height:100%;color:#b8a898;font-style:italic;font-size:0.8rem;">
+              — конец полосы —
+            </div>
+          `;
+
+            return `
+            <div class="newspaper">
+              <div class="masthead">
+                <div class="edition">Ежедневный выпуск</div>
+                <h1>ГАЗЕТА</h1>
+                <div class="date-line">
+                  <span>${formatDate(new Date())}</span>
+                  <span>№ ${String(pageNum).padStart(3,'0')}</span>
+                </div>
+              </div>
+              <div class="columns">
+                <div class="column">${col1html}</div>
+                <div class="column">${col2final}</div>
+              </div>
+              <div class="page-number">Стр. ${pageNum} / ${total}</div>
+            </div>
+          `;
+        }
+
+        // ── Helpers ──
+        function formatDate(d) {
+            const months = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
+                'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'
+            ];
+            return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        function formatTime(d) {
+            const h = String(d.getHours()).padStart(2, '0');
+            const m = String(d.getMinutes()).padStart(2, '0');
+            return `${h}:${m}`;
+        }
+
+        // ── Page navigation ──
+        function showPage(index) {
+            const pages = pagesContainer.querySelectorAll('.page');
+            pages.forEach((p, i) => {
+                if (i < index) {
+                    p.classList.add('flipped');
+                    p.style.transform = 'rotateY(-180deg)';
+                } else if (i === index) {
+                    p.classList.remove('flipped');
+                    p.style.transform = 'rotateY(0deg)';
+                } else {
+                    p.classList.add('flipped');
+                    p.style.transform = 'rotateY(-180deg)';
+                }
+            });
+            currentPage = index;
+            updateNav();
+        }
+
+        function flipTo(index) {
+            if (isFlipping) return;
+            if (index < 0 || index >= totalPages) return;
+            if (index === currentPage) return;
+
+            isFlipping = true;
+            const pages = pagesContainer.querySelectorAll('.page');
+            const from = currentPage;
+            const to = index;
+
+            // Анимируем переход
+            if (to > from) {
+                // листаем вперёд: текущая страница переворачивается
+                const cur = pages[from];
+                if (cur) {
+                    cur.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)';
+                    cur.classList.add('flipped');
+                    cur.style.transform = 'rotateY(-180deg)';
+                }
+                // следующая страница становится видимой
+                const next = pages[to];
+                if (next) {
+                    next.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)';
+                    next.classList.remove('flipped');
+                    next.style.transform = 'rotateY(0deg)';
+                }
+            } else {
+                // листаем назад: предыдущая страница переворачивается обратно
+                const prev = pages[to];
+                if (prev) {
+                    prev.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)';
+                    prev.classList.remove('flipped');
+                    prev.style.transform = 'rotateY(0deg)';
+                }
+                // текущая страница становится flipped
+                const cur = pages[from];
+                if (cur) {
+                    cur.style.transition = 'transform 0.85s cubic-bezier(0.645, 0.045, 0.355, 1)';
+                    cur.classList.add('flipped');
+                    cur.style.transform = 'rotateY(-180deg)';
+                }
+            }
+
+            currentPage = to;
+            updateNav();
+
+            setTimeout(() => {
+                isFlipping = false;
+                // фиксируем состояние всех страниц
+                pages.forEach((p, i) => {
+                    if (i <= currentPage) {
+                        p.classList.add('flipped');
+                        p.style.transform = 'rotateY(-180deg)';
+                    } else {
+                        p.classList.remove('flipped');
+                        p.style.transform = 'rotateY(0deg)';
+                    }
+                });
+                // текущая страница видима (не flipped)
+                const curPage = pages[currentPage];
+                if (curPage) {
+                    curPage.classList.remove('flipped');
+                    curPage.style.transform = 'rotateY(0deg)';
+                }
+                // все предыдущие flipped
+                for (let i = 0; i < currentPage; i++) {
+                    const p = pages[i];
+                    if (p) {
+                        p.classList.add('flipped');
+                        p.style.transform = 'rotateY(-180deg)';
+                    }
+                }
+                // все следующие не flipped (но скрыты за текущей)
+                for (let i = currentPage + 1; i < pages.length; i++) {
+                    const p = pages[i];
+                    if (p) {
+                        p.classList.add('flipped');
+                        p.style.transform = 'rotateY(-180deg)';
+                    }
+                }
+                updateNav();
+            }, 900);
+        }
+
+        function nextPage() {
+            if (currentPage < totalPages - 1) {
+                flipTo(currentPage + 1);
+            }
+        }
+
+        function prevPage() {
+            if (currentPage > 0) {
+                flipTo(currentPage - 1);
+            }
+        }
+
+        function updateNav() {
+            prevBtn.disabled = currentPage <= 0;
+            nextBtn.disabled = currentPage >= totalPages - 1;
+            pageIndicator.textContent = `${currentPage + 1} / ${totalPages}`;
+        }
+
+        // ── Keyboard support ──
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                nextPage();
+            } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+                e.preventDefault();
+                prevPage();
+            }
         });
-        if (all.length > 12) all = all.slice(0, 12);
-      }
 
-      articles = all;
-      currentPage = 0;
-      renderPages();
-      updateTimestamp();
-    }
+        // ── Click on book edges (optional) ──
+        book.addEventListener('click', (e) => {
+            const rect = book.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const w = rect.width;
+            if (x > w * 0.65) {
+                nextPage();
+            } else if (x < w * 0.35) {
+                prevPage();
+            }
+        });
 
-    // ====== РЕНДЕР ======
-    function renderPages() {
-      container.innerHTML = '';
-      articles.forEach((article, idx) => {
-        const div = document.createElement('div');
-        div.className = 'page';
-        div.style.transform = idx === 0 ? 'translateX(0)' : 'translateX(100%)';
-        div.style.opacity = idx === 0 ? '1' : '0';
-        div.dataset.index = idx;
+        // ── Init ──
+        async function init() {
+            // Показываем загрузку
+            pagesContainer.innerHTML = `
+            <div class="page-front" style="position:relative;background:#fcf6ed;display:flex;align-items:center;justify-content:center;border-radius:0 12px 12px 0;">
+              <div class="loading-state">
+                <div class="spinner"></div>
+                <p>Загрузка новостей...</p>
+                <small>источник: РИА Новости</small>
+              </div>
+            </div>
+          `;
+            totalPages = 1;
+            currentPage = 0;
+            updateNav();
 
-        const displayText = article.text || article.title || 'Текст не найден';
-        div.innerHTML = `
-          <div class="news-title">${escapeHtml(article.title)}</div>
-          <div class="news-date">
-            <span>${article.pubDate || 'Сегодня'}</span>
-            <span class="source-badge">${escapeHtml(article.source)}</span>
-          </div>
-          ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy" onerror="this.style.display='none'">` : ''}
-          <div class="news-text">${escapeHtml(displayText)}</div>
-        `;
-        container.appendChild(div);
-      });
-      updateUI();
-    }
+            const articles = await loadAllNews();
+            allArticles = articles;
+            buildPages(articles);
+        }
 
-    function updateUI() {
-      const pages = container.querySelectorAll('.page');
-      pages.forEach((p, i) => {
-        p.style.transform = i === currentPage ? 'translateX(0)' : 'translateX(100%)';
-        p.style.opacity = i === currentPage ? '1' : '0';
-        p.style.pointerEvents = i === currentPage ? 'auto' : 'none';
-      });
-      const total = articles.length;
-      indicator.textContent = total ? `Страница ${currentPage+1} из ${total}` : 'Нет новостей';
-      prevBtn.disabled = currentPage === 0 || total === 0;
-      nextBtn.disabled = currentPage === total - 1 || total === 0;
-    }
+        // Обновление каждые 10 минут (600000 мс)
+        init();
+        setInterval(() => {
+            init();
+        }, 600000);
 
-    // ====== ПЕРЕЛИСТЫВАНИЕ ======
-    function goToPage(index) {
-      if (isAnimating) return;
-      if (index < 0 || index >= articles.length || index === currentPage) return;
-      isAnimating = true;
+        // ── Buttons ──
+        prevBtn.addEventListener('click', prevPage);
+        nextBtn.addEventListener('click', nextPage);
+    </script>
 
-      const pages = container.querySelectorAll('.page');
-      const old = pages[currentPage];
-      const next = pages[index];
-      const forward = index > currentPage;
-
-      next.style.transition = 'none';
-      next.style.transform = forward ? 'translateX(100%)' : 'translateX(-100%)';
-      next.style.opacity = '0';
-      next.style.pointerEvents = 'none';
-      void next.offsetHeight;
-
-      old.style.transition = 'transform 0.5s, opacity 0.5s';
-      old.style.transform = forward ? 'translateX(-100%)' : 'translateX(100%)';
-      old.style.opacity = '0';
-
-      next.style.transition = 'transform 0.5s, opacity 0.5s';
-      next.style.transform = 'translateX(0)';
-      next.style.opacity = '1';
-      next.style.pointerEvents = 'auto';
-
-      setTimeout(() => {
-        old.style.transition = 'none';
-        old.style.transform = 'translateX(100%)';
-        old.style.opacity = '0';
-        next.style.transition = 'none';
-        currentPage = index;
-        updateUI();
-        isAnimating = false;
-      }, 500);
-    }
-
-    function updateTimestamp() {
-      const now = new Date();
-      const str = now.toLocaleString('ru-RU', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-      updateInfo.textContent = `Последнее обновление: ${str}`;
-    }
-
-    // ====== ОБРАБОТЧИКИ ======
-    prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
-    nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
-    refreshBtn.addEventListener('click', loadAllNews);
-
-    function escapeHtml(text) {
-      if (!text) return '';
-      return text.replace(/[&<>"']/g, m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      })[m]);
-    }
-
-    // ====== СТАРТ ======
-    loadAllNews();
-    setInterval(loadAllNews, 3600000);
-  </script>
 </body>
 </html>
