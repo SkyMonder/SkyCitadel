@@ -110,6 +110,7 @@
     function loginWithSkyID() {
       const scope = 'profile social';
       const state = encodeURIComponent(window.location.pathname);
+      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html'; // или оставить https://skycitadel.onrender.com/callback.html, но тогда и в callback.html должно быть так же
       const authUrl = `${SKYID_URL}/oauth/authorize?client_id=skysocial&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
       window.location.href = authUrl;
     }
