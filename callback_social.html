@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход в SkySocial</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+    }
+    .loader { text-align: center; }
+    .spinner {
+      border: 4px solid rgba(255,255,255,0.1);
+      border-top: 4px solid #5f7ecf;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1rem;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .error { color: #f48024; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="loader" id="status">
+    <div class="spinner"></div>
+    <p>Вход в SkySocial...</p>
+  </div>
+
+  <script>
+    (async function() {
+      const SKYID_URL = 'https://skymutant.onrender.com';
+      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback_social.html';
+      const CLIENT_ID = 'skysocial';
+      const CLIENT_SECRET = 'skysocial_secret';
+
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const error = params.get('error');
+
+      if (error) {
+        document.getElementById('status').innerHTML = `
+          <p style="color:#f48024;">❌ Ошибка авторизации: ${error}</p>
+          <p><a href="https://skycitadel.cc.cd/" style="color:#5f7ecf;">Вернуться</a></p>
+        `;
+        return;
+      }
+
+      if (!code) {
+        document.getElementById('status').innerHTML = `
+          <p style="color:#f48024;">❌ Не передан код авторизации</p>
+          <p><a href="https://skycitadel.cc.cd/" style="color:#5f7ecf;">Вернуться</a></p>
+        `;
+        return;
+      }
+
+      let redirectPath = '/';
+      if (state) {
+        try {
+          const decoded = decodeURIComponent(state);
+          try {
+            const data = JSON.parse(decoded);
+            if (data.path) redirectPath = data.path;
+          } catch (e) {
+            if (decoded.startsWith('/')) redirectPath = decoded;
+          }
+        } catch (e) {}
+      }
+
+      try {
+        const response = await fetch(`${SKYID_URL}/oauth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code: code,
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
+            redirect_uri: REDIRECT_URI
+          })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          console.error('❌ Ошибка:', data);
+          throw new Error(data.error || `HTTP ${response.status}`);
+        }
+
+        localStorage.setItem('skyvideo_token', data.access_token); // используем общий токен
+        localStorage.setItem('skyvideo_skyid', data.skyid || '');
+        localStorage.setItem('skyvideo_login', data.login || '');
+
+        window.location.href = redirectPath;
+
+      } catch (err) {
+        console.error('❌ Исключение:', err);
+        document.getElementById('status').innerHTML = `
+          <p style="color:#f48024;">❌ Ошибка: ${err.message}</p>
+          <p><a href="https://skycitadel.cc.cd/" style="color:#5f7ecf;">Вернуться</a></p>
+        `;
+      }
+    })();
+  </script>
+</body>
+</html>
