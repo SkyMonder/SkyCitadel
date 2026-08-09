@@ -72,26 +72,6 @@
       transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
       will-change: transform, opacity;
     }
-    .page.exit-left {
-      transform: translateX(-100%);
-      opacity: 0;
-      pointer-events: none;
-    }
-    .page.enter-right {
-      transform: translateX(100%);
-      opacity: 0;
-      pointer-events: none;
-    }
-    .page.enter-active {
-      transform: translateX(0);
-      opacity: 1;
-      pointer-events: auto;
-    }
-    .page.exit-active {
-      transform: translateX(0);
-      opacity: 1;
-    }
-
     .news-title {
       font-size: 1.5rem;
       font-weight: bold;
@@ -181,9 +161,7 @@
       <small>Свежие новости из Интерфакса</small>
     </div>
 
-    <div class="page-container" id="pageContainer">
-      <!-- Страницы вставляются сюда -->
-    </div>
+    <div class="page-container" id="pageContainer"></div>
 
     <div class="nav-controls">
       <button class="nav-btn" id="prevBtn" disabled>◀ Назад</button>
@@ -193,8 +171,9 @@
   </div>
 
   <script>
+    // ====== ИСПРАВЛЕННЫЙ ПРОКСИ ======
     const RSS_URL = 'https://www.interfax.ru/rss';
-    const PROXY = 'https://api.allorigins.win/raw?url=';
+    const PROXY = 'https://corsproxy.io/?';  // <-- рабочий прокси
 
     let articles = [];
     let currentPage = 0;
@@ -292,7 +271,7 @@
       nextBtn.disabled = (currentPage === articles.length - 1);
     }
 
-    function goToPage(index, direction) {
+    function goToPage(index) {
       if (isAnimating) return;
       if (index < 0 || index >= articles.length) return;
       if (index === currentPage) return;
@@ -301,33 +280,24 @@
       const pages = container.querySelectorAll('.page');
       const oldPage = pages[currentPage];
       const newPage = pages[index];
-
-      // Направление анимации
       const isForward = index > currentPage;
-      const exitClass = isForward ? 'exit-left' : 'exit-right';
-      const enterClass = isForward ? 'enter-right' : 'enter-left';
 
-      // Подготовка новой страницы
       newPage.style.transition = 'none';
       newPage.style.transform = isForward ? 'translateX(100%)' : 'translateX(-100%)';
       newPage.style.opacity = '0';
       newPage.style.pointerEvents = 'none';
-      // Принудительный reflow
       newPage.offsetHeight;
 
-      // Анимация выезда старой
       oldPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
       oldPage.style.transform = isForward ? 'translateX(-100%)' : 'translateX(100%)';
       oldPage.style.opacity = '0';
 
-      // Анимация въезда новой
       newPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
       newPage.style.transform = 'translateX(0)';
       newPage.style.opacity = '1';
       newPage.style.pointerEvents = 'auto';
 
       setTimeout(() => {
-        // Очищаем состояния
         oldPage.style.transition = 'none';
         oldPage.style.transform = 'translateX(100%)';
         oldPage.style.opacity = '0';
@@ -338,8 +308,8 @@
       }, 500);
     }
 
-    prevBtn.addEventListener('click', () => goToPage(currentPage - 1, -1));
-    nextBtn.addEventListener('click', () => goToPage(currentPage + 1, 1));
+    prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
+    nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
 
     function escapeHtml(text) {
       if (!text) return '';
