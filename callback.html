@@ -3,10 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  <title>Обработка входа...</title>
+  <title>Вход в SkyVideo</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -32,10 +29,7 @@
       margin: 0 auto 1rem;
     }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    .error {
-      color: #f48024;
-      margin-top: 1rem;
-    }
+    .error { color: #f48024; margin-top: 1rem; }
   </style>
 </head>
 <body>
@@ -46,15 +40,21 @@
 
   <script>
     (async function() {
+      // ====== Конфигурация ======
+      const SKYID_URL = 'https://skymutant.onrender.com'; // ← замените на свой, если нужно
+      const CLIENT_ID = 'skyvideo';
+      const CLIENT_SECRET = 'skyvideo_secret';
+      const REDIRECT_URI = window.location.origin + window.location.pathname; // текущий URL
+
+      // ====== Парсим URL ======
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const state = params.get('state');
       const error = params.get('error');
 
-      // Если есть ошибка от провайдера
       if (error) {
         document.getElementById('status').innerHTML = `
-          <p style="color:#f48024;">❌ Ошибка: ${error}</p>
+          <p style="color:#f48024;">❌ Ошибка авторизации: ${error}</p>
           <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
         `;
         return;
@@ -68,61 +68,60 @@
         return;
       }
 
-      // Определяем URL бэкенда (можно взять из переменной окружения или жёстко задать)
-      const SKYID_URL = 'https://skymutant.onrender.com'; // Замените на свой, если отличается
-
       try {
-        // Обмениваем код на токен
+        // ====== Обмен кода на токен ======
+        console.log('📤 Отправка кода:', code);
         const response = await fetch(`${SKYID_URL}/oauth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: code,
-            client_id: 'skyvideo',         // или динамически из state, но пока жёстко
-            client_secret: 'skyvideo_secret' // опционально, если требуется
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET
           })
         });
 
+        const responseData = await response.json();
+
         if (!response.ok) {
-          const errData = await response.json().catch(() => ({}));
-          throw new Error(errData.error || 'Ошибка обмена кода на токен');
+          console.error('❌ Ошибка:', responseData);
+          throw new Error(responseData.error || `HTTP ${response.status}`);
         }
 
-        const data = await response.json();
-        // Ожидаем: { access_token, token_type, expires_in, scope, skyid, ... }
+        console.log('✅ Токен получен:', responseData);
 
-        // Сохраняем токен и связанные данные
-        localStorage.setItem('skyvideo_token', data.access_token);
-        localStorage.setItem('skyvideo_scope', data.scope || '');
-        localStorage.setItem('skyvideo_skyid', data.skyid || '');
-        if (data.refresh_token) {
-          localStorage.setItem('skyvideo_refresh_token', data.refresh_token);
+        // ====== Сохраняем токен ======
+        const token = responseData.access_token;
+        const skyid = responseData.skyid;
+        const login = responseData.login || '';
+
+        localStorage.setItem('skyvideo_token', token);
+        localStorage.setItem('skyvideo_skyid', skyid);
+        localStorage.setItem('skyvideo_login', login);
+        if (responseData.refresh_token) {
+          localStorage.setItem('skyvideo_refresh_token', responseData.refresh_token);
         }
-        if (data.expires_in) {
-          const expiresAt = Date.now() + data.expires_in * 1000;
-          localStorage.setItem('skyvideo_expires_at', expiresAt);
+        if (responseData.expires_in) {
+          localStorage.setItem('skyvideo_expires_at', Date.now() + responseData.expires_in * 1000);
         }
 
-        // Определяем, куда перенаправить пользователя после успешного входа
-        // Если в state передан URL, используем его, иначе на главную
+        // ====== Перенаправляем на главную страницу SkyVideo ======
+        // Если state содержит URL, используем его, иначе на главную
         let redirectUrl = '/';
         if (state) {
           try {
-            // state может быть простой строкой или URL-encoded
             const decodedState = decodeURIComponent(state);
-            // Проверяем, что это относительный или абсолютный URL, но не внешний (безопасность)
             if (decodedState.startsWith('/') || decodedState.startsWith(window.location.origin)) {
               redirectUrl = decodedState;
             }
           } catch (e) {}
         }
 
-        // Перенаправляем
         window.location.href = redirectUrl;
-
       } catch (err) {
+        console.error('❌ Исключение:', err);
         document.getElementById('status').innerHTML = `
-          <p style="color:#f48024;">❌ Ошибка: ${err.message}</p>
+          <p style="color:#f48024;">❌ Ошибка входа: ${err.message}</p>
           <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
         `;
       }
