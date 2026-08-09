@@ -139,7 +139,7 @@
 
     function loginWithSkyID() {
       const scope = 'profile email';
-      const state = encodeURIComponent(window.location.href);
+      const state = encodeURIComponent(window.location.pathname); // путь текущей страницы
       const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
       window.location.href = authUrl;
     }
