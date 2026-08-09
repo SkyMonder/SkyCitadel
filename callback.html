@@ -16,9 +16,7 @@
       height: 100vh;
       margin: 0;
     }
-    .loader {
-      text-align: center;
-    }
+    .loader { text-align: center; }
     .spinner {
       border: 4px solid rgba(255,255,255,0.1);
       border-top: 4px solid #5f7ecf;
@@ -40,13 +38,9 @@
 
   <script>
     (async function() {
-      // ====== Конфигурация ======
-      const SKYID_URL = 'https://skymutant.onrender.com'; // ← замените на свой, если нужно
-      const CLIENT_ID = 'skyvideo';
-      const CLIENT_SECRET = 'skyvideo_secret';
-      const REDIRECT_URI = window.location.origin + window.location.pathname; // текущий URL
+      const SKYID_URL = 'https://skymutant.onrender.com';
+      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html'; // или ваш актуальный URL
 
-      // ====== Парсим URL ======
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
       const state = params.get('state');
@@ -55,7 +49,7 @@
       if (error) {
         document.getElementById('status').innerHTML = `
           <p style="color:#f48024;">❌ Ошибка авторизации: ${error}</p>
-          <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
+          <p><a href="/" style="color:#5f7ecf;">Вернуться</a></p>
         `;
         return;
       }
@@ -63,66 +57,51 @@
       if (!code) {
         document.getElementById('status').innerHTML = `
           <p style="color:#f48024;">❌ Не передан код авторизации</p>
-          <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
+          <p><a href="/" style="color:#5f7ecf;">Вернуться</a></p>
         `;
         return;
       }
 
       try {
-        // ====== Обмен кода на токен ======
-        console.log('📤 Отправка кода:', code);
         const response = await fetch(`${SKYID_URL}/oauth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: code,
-            client_id: CLIENT_ID,
-            client_secret: CLIENT_SECRET
+            client_id: 'skyvideo',
+            client_secret: 'skyvideo_secret',
+            redirect_uri: REDIRECT_URI  // <-- ОБЯЗАТЕЛЬНО!
           })
         });
 
-        const responseData = await response.json();
+        const data = await response.json();
 
         if (!response.ok) {
-          console.error('❌ Ошибка:', responseData);
-          throw new Error(responseData.error || `HTTP ${response.status}`);
+          console.error('❌ Ошибка:', data);
+          throw new Error(data.error || `HTTP ${response.status}`);
         }
 
-        console.log('✅ Токен получен:', responseData);
+        localStorage.setItem('skyvideo_token', data.access_token);
+        localStorage.setItem('skyvideo_skyid', data.skyid || '');
+        localStorage.setItem('skyvideo_login', data.login || '');
 
-        // ====== Сохраняем токен ======
-        const token = responseData.access_token;
-        const skyid = responseData.skyid;
-        const login = responseData.login || '';
-
-        localStorage.setItem('skyvideo_token', token);
-        localStorage.setItem('skyvideo_skyid', skyid);
-        localStorage.setItem('skyvideo_login', login);
-        if (responseData.refresh_token) {
-          localStorage.setItem('skyvideo_refresh_token', responseData.refresh_token);
-        }
-        if (responseData.expires_in) {
-          localStorage.setItem('skyvideo_expires_at', Date.now() + responseData.expires_in * 1000);
-        }
-
-        // ====== Перенаправляем на главную страницу SkyVideo ======
-        // Если state содержит URL, используем его, иначе на главную
+        // Перенаправляем
         let redirectUrl = '/';
         if (state) {
           try {
-            const decodedState = decodeURIComponent(state);
-            if (decodedState.startsWith('/') || decodedState.startsWith(window.location.origin)) {
-              redirectUrl = decodedState;
+            const decoded = decodeURIComponent(state);
+            if (decoded.startsWith('/') || decoded.startsWith(window.location.origin)) {
+              redirectUrl = decoded;
             }
           } catch (e) {}
         }
-
         window.location.href = redirectUrl;
+
       } catch (err) {
         console.error('❌ Исключение:', err);
         document.getElementById('status').innerHTML = `
-          <p style="color:#f48024;">❌ Ошибка входа: ${err.message}</p>
-          <p><a href="/" style="color:#5f7ecf;">Вернуться на главную</a></p>
+          <p style="color:#f48024;">❌ Ошибка: ${err.message}</p>
+          <p><a href="/" style="color:#5f7ecf;">Вернуться</a></p>
         `;
       }
     })();
