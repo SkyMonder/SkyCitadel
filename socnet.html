@@ -109,10 +109,7 @@
 
     function loginWithSkyID() {
       const scope = 'profile social';
-      const state = encodeURIComponent(JSON.stringify({
-        path: '/socnet.html',
-        client_id: 'skysocial'
-      }));
+      const state = encodeURIComponent('/socnet.html');
       const REDIRECT_URI = 'https://skycitadel.cc.cd/callback_social.html';
       const authUrl = `${SKYID_URL}/oauth/authorize?client_id=skysocial&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
       window.location.href = authUrl;
