@@ -144,18 +144,6 @@
       </div>
     </div>
 
-    <div id="radio" class="section">
-      <div class="card">
-        <h2>📻 Радио — Прямые потоки</h2>
-        <div class="radio-stations" id="radio-list"></div>
-        <audio id="radio-audio" controls style="width:100%; margin-top:0.8rem;"></audio>
-        <div style="margin-top:1rem; display:flex; gap:0.5rem;">
-          <input type="text" id="custom-stream" placeholder="URL своего потока..." style="flex:1; padding:0.6rem; background:#0d1225; border:1px solid #3a4660; color:white; border-radius:10px;">
-          <button id="play-custom-stream" style="padding:0.6rem 1.2rem; background:#2f4b8c; border:none; color:white; border-radius:10px;">▶ Играть</button>
-        </div>
-      </div>
-    </div>
-
     <div id="messenger" class="section">
       <div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
         <iframe src="skymessage.html" allow="microphone; camera" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
@@ -455,36 +443,6 @@
         console.error('❌ Leaflet не загружен!');
         document.getElementById('map').innerHTML = '<p style="color:#c44;">Ошибка загрузки карты. Попробуйте перезагрузить страницу.</p>';
       }
-
-      // ====== РАДИО ======
-      const stations = [
-        { name: 'Europa Plus', url: 'https://ep256.hostingradio.ru:8052/europaplus256.mp3' },
-        { name: 'Радио Рекорд', url: 'https://radiorecord.hostingradio.ru/rr_main96.aacp' },
-        { name: 'DFM', url: 'https://dfm.hostingradio.ru/dfm96.aacp' },
-        { name: 'Ретро FM', url: 'https://retro.hostingradio.ru/retro96.aacp' }
-      ];
-      const radioAudio = document.getElementById('radio-audio');
-      function renderRadioButtons(container, audio) {
-        container.innerHTML = '';
-        stations.forEach(st => {
-          const btn = document.createElement('button');
-          btn.className = 'station-btn';
-          btn.textContent = st.name;
-          btn.addEventListener('click', () => {
-            audio.src = st.url;
-            audio.load();
-            audio.play().catch(() => {});
-            container.querySelectorAll('.station-btn').forEach(b => b.classList.remove('playing'));
-            btn.classList.add('playing');
-          });
-          container.appendChild(btn);
-        });
-      }
-      renderRadioButtons(document.getElementById('radio-list'), radioAudio);
-      document.getElementById('play-custom-stream').addEventListener('click', () => {
-        const url = document.getElementById('custom-stream').value.trim();
-        if (url) { radioAudio.src = url; radioAudio.load(); radioAudio.play().catch(() => {}); }
-      });
 
       // ====== НОВОСТИ ======
       function refreshNewsIframe() {
