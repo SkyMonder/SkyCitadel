@@ -39,17 +39,17 @@
   <script>
     (async function() {
       const SKYID_URL = 'https://skymutant.onrender.com';
-      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html'; // или ваш актуальный URL
+      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html'; // <-- новый URL
 
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
-      const state = params.get('state');
+      const state = params.get('state'); // содержит путь, с которого начали
       const error = params.get('error');
 
       if (error) {
         document.getElementById('status').innerHTML = `
           <p style="color:#f48024;">❌ Ошибка авторизации: ${error}</p>
-          <p><a href="/" style="color:#5f7ecf;">Вернуться</a></p>
+          <p><a href="https://skycitadel.cc.cd/" style="color:#5f7ecf;">Вернуться</a></p>
         `;
         return;
       }
@@ -57,7 +57,7 @@
       if (!code) {
         document.getElementById('status').innerHTML = `
           <p style="color:#f48024;">❌ Не передан код авторизации</p>
-          <p><a href="/" style="color:#5f7ecf;">Вернуться</a></p>
+          <p><a href="https://skycitadel.cc.cd/" style="color:#5f7ecf;">Вернуться</a></p>
         `;
         return;
       }
@@ -70,7 +70,7 @@
             code: code,
             client_id: 'skyvideo',
             client_secret: 'skyvideo_secret',
-            redirect_uri: REDIRECT_URI  // <-- ОБЯЗАТЕЛЬНО!
+            redirect_uri: REDIRECT_URI
           })
         });
 
@@ -85,23 +85,31 @@
         localStorage.setItem('skyvideo_skyid', data.skyid || '');
         localStorage.setItem('skyvideo_login', data.login || '');
 
-        // Перенаправляем
-        let redirectUrl = '/';
+        // Определяем путь для редиректа
+        let redirectPath = '/';
         if (state) {
           try {
             const decoded = decodeURIComponent(state);
-            if (decoded.startsWith('/') || decoded.startsWith(window.location.origin)) {
-              redirectUrl = decoded;
+            if (decoded.startsWith('/')) {
+              redirectPath = decoded;
+            } else {
+              // если state содержит полный URL, извлекаем путь
+              try {
+                const urlObj = new URL(decoded);
+                redirectPath = urlObj.pathname + urlObj.search + urlObj.hash;
+              } catch (e) {}
             }
           } catch (e) {}
         }
-        window.location.href = redirectUrl;
+
+        // Перенаправляем на соответствующий путь (на том же домене)
+        window.location.href = redirectPath;
 
       } catch (err) {
         console.error('❌ Исключение:', err);
         document.getElementById('status').innerHTML = `
           <p style="color:#f48024;">❌ Ошибка: ${err.message}</p>
-          <p><a href="/" style="color:#5f7ecf;">Вернуться</a></p>
+          <p><a href="https://skycitadel.cc.cd/" style="color:#5f7ecf;">Вернуться</a></p>
         `;
       }
     })();
