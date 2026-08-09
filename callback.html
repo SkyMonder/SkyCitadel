@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вход в SkyVideo</title>
+  <title>Вход в SkyCitadel</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -39,7 +39,7 @@
   <script>
     (async function() {
       const SKYID_URL = 'https://skymutant.onrender.com';
-      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html'; // <-- ОБЯЗАТЕЛЬНО совпадает с тем, что в запросе
+      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html';
 
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
@@ -62,15 +62,36 @@
         return;
       }
 
+      // ====== Парсим state ======
+      let redirectPath = '/';
+      let clientId = 'skyvideo'; // fallback
+      let clientSecret = 'skyvideo_secret';
+
+      if (state) {
+        try {
+          const decoded = decodeURIComponent(state);
+          // Пробуем распарсить как JSON
+          const stateData = JSON.parse(decoded);
+          if (stateData.path) redirectPath = stateData.path;
+          if (stateData.client_id) {
+            clientId = stateData.client_id;
+            clientSecret = stateData.client_id === 'skysocial' ? 'skysocial_secret' : 'skyvideo_secret';
+          }
+        } catch (e) {
+          // Если state не JSON, считаем что это просто путь (для обратной совместимости)
+          if (decoded.startsWith('/')) redirectPath = decoded;
+        }
+      }
+
       try {
         const response = await fetch(`${SKYID_URL}/oauth/token`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: code,
-            client_id: 'skyvideo',
-            client_secret: 'skyvideo_secret',
-            redirect_uri: REDIRECT_URI   // <-- передаём тот же URI
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: REDIRECT_URI
           })
         });
 
@@ -81,24 +102,12 @@
           throw new Error(data.error || `HTTP ${response.status}`);
         }
 
+        // Сохраняем токен (общий для всех сервисов)
         localStorage.setItem('skyvideo_token', data.access_token);
         localStorage.setItem('skyvideo_skyid', data.skyid || '');
         localStorage.setItem('skyvideo_login', data.login || '');
 
-        // Возврат на страницу, с которой пришли
-        let redirectPath = '/';
-        if (state) {
-          try {
-            const decoded = decodeURIComponent(state);
-            if (decoded.startsWith('/')) {
-              redirectPath = decoded;
-            } else {
-              const urlObj = new URL(decoded);
-              redirectPath = urlObj.pathname + urlObj.search + urlObj.hash;
-            }
-          } catch (e) {}
-        }
-
+        // Перенаправляем на сохранённый путь
         window.location.href = redirectPath;
 
       } catch (err) {
