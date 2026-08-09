@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Вход в SkyCitadel</title>
+  <title>Вход в SkyVideo</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -33,13 +33,15 @@
 <body>
   <div class="loader" id="status">
     <div class="spinner"></div>
-    <p>Вход в систему...</p>
+    <p>Вход в SkyVideo...</p>
   </div>
 
   <script>
     (async function() {
       const SKYID_URL = 'https://skymutant.onrender.com';
       const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html';
+      const CLIENT_ID = 'skyvideo';
+      const CLIENT_SECRET = 'skyvideo_secret';
 
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
@@ -62,38 +64,20 @@
         return;
       }
 
-      // ====== Парсим state ======
       let redirectPath = '/';
-      let clientId = 'skyvideo';
-      let clientSecret = 'skyvideo_secret';
-      let decodedState = '';
-
       if (state) {
         try {
-          decodedState = decodeURIComponent(state);
-          // Пробуем как JSON
-          const stateData = JSON.parse(decodedState);
-          if (stateData.path) redirectPath = stateData.path;
-          if (stateData.client_id) {
-            clientId = stateData.client_id;
-            clientSecret = stateData.client_id === 'skysocial' ? 'skysocial_secret' : 'skyvideo_secret';
+          const decoded = decodeURIComponent(state);
+          // Если state — JSON с path
+          try {
+            const data = JSON.parse(decoded);
+            if (data.path) redirectPath = data.path;
+          } catch (e) {
+            // если просто путь
+            if (decoded.startsWith('/')) redirectPath = decoded;
           }
-        } catch (e) {
-          // Если не JSON, то это просто путь
-          if (decodedState.startsWith('/')) {
-            redirectPath = decodedState;
-            // Определяем client_id по пути (временный костыль)
-            if (decodedState.includes('socnet')) {
-              clientId = 'skysocial';
-              clientSecret = 'skysocial_secret';
-            }
-          }
-        }
+        } catch (e) {}
       }
-
-      console.log('📦 state:', state);
-      console.log('📦 decodedState:', decodedState);
-      console.log('📦 clientId:', clientId);
 
       try {
         const response = await fetch(`${SKYID_URL}/oauth/token`, {
@@ -101,8 +85,8 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             code: code,
-            client_id: clientId,
-            client_secret: clientSecret,
+            client_id: CLIENT_ID,
+            client_secret: CLIENT_SECRET,
             redirect_uri: REDIRECT_URI
           })
         });
@@ -118,7 +102,6 @@
         localStorage.setItem('skyvideo_skyid', data.skyid || '');
         localStorage.setItem('skyvideo_login', data.login || '');
 
-        // Перенаправляем на сохранённый путь
         window.location.href = redirectPath;
 
       } catch (err) {
