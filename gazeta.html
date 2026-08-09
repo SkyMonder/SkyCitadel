@@ -48,15 +48,6 @@
       letter-spacing: 2px;
       color: #555;
     }
-    .source-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      background: #eaeaea;
-      color: #333;
-      padding: 1px 10px;
-      border-radius: 12px;
-      margin-left: 8px;
-    }
     .page-container {
       flex: 1;
       min-height: 0;
@@ -97,6 +88,14 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+    }
+    .source-badge {
+      display: inline-block;
+      font-size: 0.7rem;
+      background: #eaeaea;
+      color: #333;
+      padding: 1px 10px;
+      border-radius: 12px;
     }
     .news-image {
       width: 100%;
@@ -182,7 +181,7 @@
   </div>
 
   <script>
-    // ====== ИСТОЧНИКИ RSS ======
+    // ====== ИСТОЧНИКИ ======
     const SOURCES = [
       { name: 'Интерфакс', url: 'https://www.interfax.ru/rss' },
       { name: 'РИА Новости', url: 'https://ria.ru/export/rss2/index.xml' },
@@ -190,8 +189,8 @@
       { name: 'Lenta.ru', url: 'https://lenta.ru/rss' }
     ];
 
-    // ====== RSS2JSON API (бесплатный, без ключа) ======
-    const RSS2JSON_URL = 'https://api.rss2json.com/v1/api.json?rss_url=';
+    // ====== RSS2JSON ======
+    const RSS2JSON_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
 
     let articles = [];
     let currentPage = 0;
@@ -202,16 +201,15 @@
     const nextBtn = document.getElementById('nextBtn');
     const indicator = document.getElementById('pageIndicator');
 
-    // ====== ЗАГРУЗКА RSS ЧЕРЕЗ RSS2JSON ======
+    // ====== ЗАГРУЗКА RSS ======
     async function fetchRSS(source) {
       try {
-        const url = RSS2JSON_URL + encodeURIComponent(source.url);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        const data = await response.json();
+        const url = RSS2JSON_API + encodeURIComponent(source.url);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
         if (data.status !== 'ok') throw new Error('RSS2JSON error');
-        // Преобразуем в единый формат
-        const items = data.items.map(item => ({
+        return data.items.map(item => ({
           title: item.title || 'Без заголовка',
           link: item.link || '#',
           pubDate: item.pubDate ? new Date(item.pubDate).toLocaleDateString('ru-RU') : '',
@@ -219,79 +217,67 @@
           image: item.enclosure?.link || null,
           source: source.name
         }));
-        return items;
-      } catch (error) {
-        console.warn(`⚠️ Не удалось загрузить ${source.name}:`, error.message);
+      } catch (e) {
+        console.warn(`⚠️ ${source.name} не загружен:`, e.message);
         return [];
       }
     }
 
-    // ====== ЗАГРУЗКА СО ВСЕХ ИСТОЧНИКОВ ======
+    // ====== ЗАГРУЗКА ВСЕХ ======
     async function loadAllNews() {
-      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Загрузка новостей...</div>';
+      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Загрузка...</div>';
 
-      // Загружаем все источники параллельно
       const results = await Promise.allSettled(SOURCES.map(fetchRSS));
-      let allArticles = [];
-      for (const result of results) {
-        if (result.status === 'fulfilled') {
-          allArticles = allArticles.concat(result.value);
-        }
+      let all = [];
+      for (const r of results) {
+        if (r.status === 'fulfilled') all = all.concat(r.value);
       }
 
-      // Если ничего не загрузилось — показываем резерв
-      if (allArticles.length === 0) {
-        allArticles = [
+      if (all.length === 0) {
+        all = [
           {
             title: 'Новости временно недоступны',
-            text: 'Не удалось загрузить новости. Попробуйте обновить страницу позже.',
+            text: 'Не удалось загрузить новости. Попробуйте позже.',
             pubDate: new Date().toLocaleDateString('ru-RU'),
             source: 'Система',
             image: null
           },
           {
-            title: 'SkyCitadel — ваша цифровая крепость',
-            text: 'Мы строим открытую экосистему, где вас не цензурят, не отслеживают и не показывают рекламу. Присоединяйтесь!',
+            title: 'SkyCitadel — цифровая крепость',
+            text: 'Открытая экосистема без цензуры, слежки и рекламы. Присоединяйтесь!',
             pubDate: new Date().toLocaleDateString('ru-RU'),
             source: 'Система',
             image: null
           }
         ];
       } else {
-        // Сортируем по дате (свежие сверху)
-        allArticles.sort((a, b) => {
-          const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-          const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-          return dateB - dateA;
-        });
-        // Ограничим 12 новостями
-        if (allArticles.length > 12) allArticles = allArticles.slice(0, 12);
+        all.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        if (all.length > 12) all = all.slice(0, 12);
       }
 
-      articles = allArticles;
+      articles = all;
       renderPages();
     }
 
     // ====== РЕНДЕР ======
     function renderPages() {
       container.innerHTML = '';
-      articles.forEach((article, index) => {
-        const pageDiv = document.createElement('div');
-        pageDiv.className = 'page';
-        pageDiv.style.transform = index === 0 ? 'translateX(0)' : 'translateX(100%)';
-        pageDiv.style.opacity = index === 0 ? '1' : '0';
-        pageDiv.dataset.index = index;
-        const sourceBadge = article.source ? `<span class="source-badge">${escapeHtml(article.source)}</span>` : '';
-        pageDiv.innerHTML = `
+      articles.forEach((article, idx) => {
+        const div = document.createElement('div');
+        div.className = 'page';
+        div.style.transform = idx === 0 ? 'translateX(0)' : 'translateX(100%)';
+        div.style.opacity = idx === 0 ? '1' : '0';
+        div.dataset.index = idx;
+        div.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">
             <span>${article.pubDate || 'Сегодня'}</span>
-            ${sourceBadge}
+            <span class="source-badge">${escapeHtml(article.source)}</span>
           </div>
           ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy">` : ''}
           <div class="news-text">${escapeHtml(article.text)}</div>
         `;
-        container.appendChild(pageDiv);
+        container.appendChild(div);
       });
       currentPage = 0;
       updateUI();
@@ -305,42 +291,42 @@
         p.style.pointerEvents = i === currentPage ? 'auto' : 'none';
       });
       const total = articles.length;
-      indicator.textContent = total > 0 ? `Страница ${currentPage+1} из ${total}` : 'Нет новостей';
-      prevBtn.disabled = (currentPage === 0) || (total === 0);
-      nextBtn.disabled = (currentPage === total - 1) || (total === 0);
+      indicator.textContent = total ? `Страница ${currentPage+1} из ${total}` : 'Нет новостей';
+      prevBtn.disabled = currentPage === 0 || total === 0;
+      nextBtn.disabled = currentPage === total - 1 || total === 0;
     }
 
+    // ====== ПЕРЕЛИСТЫВАНИЕ ======
     function goToPage(index) {
       if (isAnimating) return;
-      if (index < 0 || index >= articles.length) return;
-      if (index === currentPage) return;
+      if (index < 0 || index >= articles.length || index === currentPage) return;
       isAnimating = true;
 
       const pages = container.querySelectorAll('.page');
-      const oldPage = pages[currentPage];
-      const newPage = pages[index];
-      const isForward = index > currentPage;
+      const old = pages[currentPage];
+      const next = pages[index];
+      const forward = index > currentPage;
 
-      newPage.style.transition = 'none';
-      newPage.style.transform = isForward ? 'translateX(100%)' : 'translateX(-100%)';
-      newPage.style.opacity = '0';
-      newPage.style.pointerEvents = 'none';
-      newPage.offsetHeight;
+      next.style.transition = 'none';
+      next.style.transform = forward ? 'translateX(100%)' : 'translateX(-100%)';
+      next.style.opacity = '0';
+      next.style.pointerEvents = 'none';
+      void next.offsetHeight;
 
-      oldPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
-      oldPage.style.transform = isForward ? 'translateX(-100%)' : 'translateX(100%)';
-      oldPage.style.opacity = '0';
+      old.style.transition = 'transform 0.5s, opacity 0.5s';
+      old.style.transform = forward ? 'translateX(-100%)' : 'translateX(100%)';
+      old.style.opacity = '0';
 
-      newPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
-      newPage.style.transform = 'translateX(0)';
-      newPage.style.opacity = '1';
-      newPage.style.pointerEvents = 'auto';
+      next.style.transition = 'transform 0.5s, opacity 0.5s';
+      next.style.transform = 'translateX(0)';
+      next.style.opacity = '1';
+      next.style.pointerEvents = 'auto';
 
       setTimeout(() => {
-        oldPage.style.transition = 'none';
-        oldPage.style.transform = 'translateX(100%)';
-        oldPage.style.opacity = '0';
-        newPage.style.transition = 'none';
+        old.style.transition = 'none';
+        old.style.transform = 'translateX(100%)';
+        old.style.opacity = '0';
+        next.style.transition = 'none';
         currentPage = index;
         updateUI();
         isAnimating = false;
@@ -355,7 +341,6 @@
       return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
     }
 
-    // ====== СТАРТ ======
     loadAllNews();
   </script>
 </body>
