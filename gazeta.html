@@ -17,28 +17,31 @@
       align-items: center;
       min-height: 100vh;
       font-family: 'Times New Roman', Times, serif;
-      padding: 20px;
+      padding: 16px;
     }
     .newspaper-container {
       background: #f4f0eb;
       border-radius: 16px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.7);
       padding: 20px;
-      max-width: 800px;
+      max-width: 720px;
       width: 100%;
-      position: relative;
+      max-height: 95vh;
+      display: flex;
+      flex-direction: column;
     }
     .newspaper-header {
       text-align: center;
       border-bottom: 3px double #333;
       padding-bottom: 10px;
-      margin-bottom: 20px;
-      font-size: 2.2rem;
+      margin-bottom: 16px;
+      font-size: 2rem;
       font-weight: bold;
       letter-spacing: 4px;
       color: #1a1a1a;
       font-family: 'Times New Roman', serif;
       text-transform: uppercase;
+      flex-shrink: 0;
     }
     .newspaper-header small {
       font-size: 0.8rem;
@@ -48,9 +51,10 @@
       color: #555;
     }
     .page-container {
-      position: relative;
-      min-height: 500px;
+      flex: 1;
+      min-height: 0;
       perspective: 1200px;
+      position: relative;
     }
     .page-wrapper {
       position: relative;
@@ -65,11 +69,13 @@
       backface-visibility: hidden;
       background: white;
       border-radius: 8px;
-      padding: 30px 25px;
+      padding: 20px 24px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      min-height: 450px;
+      min-height: 320px;
+      max-height: 450px;
       display: flex;
       flex-direction: column;
+      overflow: hidden;
     }
     .page-front {
       transform: rotateY(0deg);
@@ -77,53 +83,39 @@
     .page-back {
       transform: rotateY(180deg);
     }
-    .page.flipped {
-      transform: rotateY(-180deg);
-    }
-    /* Анимация перелистывания */
-    .page-wrapper.flipping-forward .page-front {
-      transform: rotateY(-180deg);
-    }
-    .page-wrapper.flipping-forward .page-back {
-      transform: rotateY(0deg);
-    }
-    .page-wrapper.flipping-backward .page-front {
-      transform: rotateY(180deg);
-    }
-    .page-wrapper.flipping-backward .page-back {
-      transform: rotateY(0deg);
-    }
 
     .news-title {
-      font-size: 1.8rem;
+      font-size: 1.5rem;
       font-weight: bold;
-      margin-bottom: 0.5rem;
+      margin-bottom: 0.3rem;
       line-height: 1.2;
       color: #1a1a1a;
+      flex-shrink: 0;
     }
     .news-date {
-      font-size: 0.85rem;
+      font-size: 0.8rem;
       color: #777;
-      margin-bottom: 1rem;
+      margin-bottom: 0.8rem;
       border-bottom: 1px solid #ddd;
-      padding-bottom: 0.5rem;
+      padding-bottom: 0.4rem;
+      flex-shrink: 0;
     }
     .news-image {
       width: 100%;
-      max-height: 200px;
+      max-height: 150px;
       object-fit: cover;
       border-radius: 6px;
-      margin-bottom: 1rem;
+      margin-bottom: 0.8rem;
       background: #eaeaea;
+      flex-shrink: 0;
     }
     .news-text {
-      font-size: 1rem;
-      line-height: 1.6;
+      font-size: 0.95rem;
+      line-height: 1.5;
       color: #222;
-      flex: 1;
       overflow-y: auto;
-      max-height: 300px;
-      padding-right: 5px;
+      flex: 1;
+      padding-right: 4px;
     }
     .news-text::-webkit-scrollbar {
       width: 4px;
@@ -133,21 +125,24 @@
       border-radius: 2px;
     }
 
-    /* Навигация */
+    /* Навигация — всегда внизу */
     .nav-controls {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-top: 20px;
+      margin-top: 16px;
       gap: 10px;
+      flex-shrink: 0;
+      padding-top: 12px;
+      border-top: 1px solid #ddd;
     }
     .nav-btn {
       background: #333;
       color: white;
       border: none;
-      padding: 10px 20px;
+      padding: 8px 18px;
       border-radius: 30px;
-      font-size: 1.2rem;
+      font-size: 1rem;
       cursor: pointer;
       transition: background 0.2s;
       font-family: 'Times New Roman', serif;
@@ -160,29 +155,18 @@
       cursor: not-allowed;
     }
     .page-indicator {
-      font-size: 1rem;
+      font-size: 0.95rem;
       color: #555;
       font-family: 'Times New Roman', serif;
     }
 
-    /* Адаптив */
     @media (max-width: 600px) {
-      .newspaper-container {
-        padding: 10px;
-      }
-      .newspaper-header {
-        font-size: 1.6rem;
-      }
-      .page {
-        padding: 20px 15px;
-      }
-      .news-title {
-        font-size: 1.4rem;
-      }
-      .news-text {
-        font-size: 0.9rem;
-        max-height: 200px;
-      }
+      .newspaper-container { padding: 12px; }
+      .newspaper-header { font-size: 1.6rem; }
+      .page { padding: 16px; min-height: 260px; max-height: 360px; }
+      .news-title { font-size: 1.2rem; }
+      .news-text { font-size: 0.85rem; }
+      .nav-btn { padding: 6px 14px; font-size: 0.9rem; }
     }
   </style>
 </head>
@@ -208,8 +192,8 @@
 
   <script>
     // ====== ПРОКСИ ======
-    const PROXY_URL = 'https://skycitadel.cc.cd/gazeta.html'; // заглушка, но мы используем прямой RSS через прокси
     const RSS_URL = 'https://www.interfax.ru/rss';
+    const PROXY = 'https://api.allorigins.win/raw?url=';
 
     // ====== СОСТОЯНИЕ ======
     let articles = [];
@@ -225,25 +209,23 @@
     // ====== ЗАГРУЗКА НОВОСТЕЙ ======
     async function loadNews() {
       try {
-        // Используем наш прокси (или прямой запрос, если CORS разрешён)
-        const proxy = 'https://api.allorigins.win/raw?url=';
-        const response = await fetch(proxy + encodeURIComponent(RSS_URL));
+        const response = await fetch(PROXY + encodeURIComponent(RSS_URL));
         const text = await response.text();
         const parser = new DOMParser();
         const xml = parser.parseFromString(text, 'text/xml');
         const items = xml.querySelectorAll('item');
-        
+
         articles = [];
         items.forEach(item => {
           const title = item.querySelector('title')?.textContent || 'Без заголовка';
           const link = item.querySelector('link')?.textContent || '#';
           const pubDate = item.querySelector('pubDate')?.textContent;
           const description = item.querySelector('description')?.textContent || '';
-          // Пытаемся извлечь картинку из description
+
           let imageUrl = null;
           const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
           if (imgMatch) imageUrl = imgMatch[1];
-          // Очистка текста от HTML
+
           const textContent = description.replace(/<[^>]+>/g, '').trim();
           articles.push({
             title,
@@ -255,7 +237,6 @@
         });
 
         if (articles.length === 0) {
-          // Если нет новостей, показываем заглушку
           articles = [{
             title: 'Новости не загрузились',
             text: 'Попробуйте обновить страницу позже.',
@@ -285,7 +266,7 @@
       articles.forEach((article, index) => {
         const pageDiv = document.createElement('div');
         pageDiv.className = 'page' + (index === 0 ? ' page-front' : ' page-back');
-        if (index > 0) pageDiv.style.display = 'none'; // скрываем все, кроме первой
+        if (index > 0) pageDiv.style.display = 'none';
         pageDiv.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">${article.pubDate || 'Сегодня'}</div>
@@ -302,16 +283,9 @@
     function showPage(index) {
       const pages = wrapper.querySelectorAll('.page');
       if (!pages.length) return;
-      
-      // Скрываем все страницы
-      pages.forEach((p, i) => {
-        p.style.display = 'none';
-      });
-      // Показываем текущую страницу
+      pages.forEach((p) => p.style.display = 'none');
       const current = pages[index];
       if (current) current.style.display = 'flex';
-      
-      // Обновляем индикатор
       indicator.textContent = `Страница ${index+1} из ${totalPages}`;
       prevBtn.disabled = (index === 0);
       nextBtn.disabled = (index === totalPages - 1);
@@ -328,44 +302,31 @@
       const current = pages[currentPage];
       const next = pages[newPage];
 
-      // Подготавливаем следующую страницу (она должна быть видимой)
       next.style.display = 'flex';
       next.style.transform = direction === 1 ? 'rotateY(180deg)' : 'rotateY(-180deg)';
 
-      // Применяем анимацию
-      const wrapperEl = wrapper;
-      wrapperEl.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-      wrapperEl.style.transform = direction === 1 ? 'rotateY(-180deg)' : 'rotateY(180deg)';
+      wrapper.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
+      wrapper.style.transform = direction === 1 ? 'rotateY(-180deg)' : 'rotateY(180deg)';
 
       setTimeout(() => {
-        // После завершения анимации меняем местами страницы
-        wrapperEl.style.transition = 'none';
-        wrapperEl.style.transform = 'rotateY(0deg)';
-        // Прячем старую страницу
+        wrapper.style.transition = 'none';
+        wrapper.style.transform = 'rotateY(0deg)';
         current.style.display = 'none';
-        // Убираем трансформацию у новой
         next.style.transform = 'rotateY(0deg)';
-        // Обновляем индекс
         currentPage = newPage;
         showPage(currentPage);
         isFlipping = false;
       }, 600);
     }
 
-    // ====== ОБРАБОТЧИКИ КНОПОК ======
+    // ====== ОБРАБОТЧИКИ ======
     prevBtn.addEventListener('click', () => flipPage(-1));
     nextBtn.addEventListener('click', () => flipPage(1));
 
     // ====== ВСПОМОГАТЕЛЬНАЯ ======
     function escapeHtml(text) {
       if (!text) return '';
-      return text.replace(/[&<>"']/g, m => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        '"': '&quot;',
-        "'": '&#39;'
-      })[m]);
+      return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
     }
 
     // ====== ЗАПУСК ======
