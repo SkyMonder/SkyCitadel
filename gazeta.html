@@ -35,11 +35,13 @@
       border-bottom: 3px double #333;
       padding-bottom: 10px;
       margin-bottom: 16px;
+      flex-shrink: 0;
+    }
+    .newspaper-header h1 {
       font-size: 2rem;
       font-weight: bold;
       letter-spacing: 4px;
       color: #1a1a1a;
-      flex-shrink: 0;
     }
     .newspaper-header small {
       font-size: 0.8rem;
@@ -47,6 +49,12 @@
       font-weight: normal;
       letter-spacing: 2px;
       color: #555;
+    }
+    .newspaper-header .update-info {
+      font-size: 0.75rem;
+      color: #777;
+      margin-top: 4px;
+      letter-spacing: 0.5px;
     }
     .page-container {
       flex: 1;
@@ -78,6 +86,7 @@
       margin-bottom: 0.2rem;
       line-height: 1.2;
       color: #1a1a1a;
+      flex-shrink: 0;
     }
     .news-date {
       font-size: 0.8rem;
@@ -88,6 +97,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
+      flex-shrink: 0;
     }
     .source-badge {
       display: inline-block;
@@ -104,6 +114,7 @@
       border-radius: 6px;
       margin-bottom: 0.8rem;
       background: #eaeaea;
+      flex-shrink: 0;
     }
     .news-text {
       font-size: 0.95rem;
@@ -112,6 +123,7 @@
       overflow-y: auto;
       flex: 1;
       padding-right: 4px;
+      min-height: 2em;
     }
     .news-text::-webkit-scrollbar {
       width: 4px;
@@ -128,6 +140,8 @@
       flex-shrink: 0;
       padding-top: 12px;
       border-top: 1px solid #ddd;
+      flex-wrap: wrap;
+      gap: 8px;
     }
     .nav-btn {
       background: #333;
@@ -150,9 +164,25 @@
       font-size: 0.95rem;
       color: #555;
     }
+    .refresh-btn {
+      background: #6c8b9f;
+      padding: 6px 16px;
+      border-radius: 30px;
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 0.9rem;
+      transition: background 0.2s;
+    }
+    .refresh-btn:hover {
+      background: #55758a;
+    }
+    .refresh-btn:active {
+      transform: scale(0.96);
+    }
     @media (max-width: 600px) {
       .newspaper-container { padding: 12px; }
-      .newspaper-header { font-size: 1.6rem; }
+      .newspaper-header h1 { font-size: 1.6rem; }
       .page { padding: 16px; }
       .news-title { font-size: 1.2rem; }
       .news-text { font-size: 0.85rem; }
@@ -163,8 +193,9 @@
 <body>
   <div class="newspaper-container">
     <div class="newspaper-header">
-      📰 Ежедневная газета
+      <h1>📰 Ежедневная газета</h1>
       <small>Новости со всего мира — агрегатор</small>
+      <div class="update-info" id="updateInfo">Загрузка...</div>
     </div>
 
     <div class="page-container" id="pageContainer">
@@ -176,7 +207,10 @@
     <div class="nav-controls">
       <button class="nav-btn" id="prevBtn" disabled>◀ Назад</button>
       <span class="page-indicator" id="pageIndicator">Страница 0 из 0</span>
-      <button class="nav-btn" id="nextBtn" disabled>Вперед ▶</button>
+      <div style="display: flex; gap: 8px;">
+        <button class="refresh-btn" id="refreshBtn">⟳ Обновить</button>
+        <button class="nav-btn" id="nextBtn" disabled>Вперед ▶</button>
+      </div>
     </div>
   </div>
 
@@ -189,7 +223,6 @@
       { name: 'Lenta.ru', url: 'https://lenta.ru/rss' }
     ];
 
-    // ====== RSS2JSON ======
     const RSS2JSON_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
 
     let articles = [];
@@ -200,6 +233,8 @@
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const indicator = document.getElementById('pageIndicator');
+    const updateInfo = document.getElementById('updateInfo');
+    const refreshBtn = document.getElementById('refreshBtn');
 
     // ====== ЗАГРУЗКА RSS ======
     async function fetchRSS(source) {
@@ -209,14 +244,36 @@
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'ok') throw new Error('RSS2JSON error');
-        return data.items.map(item => ({
-          title: item.title || 'Без заголовка',
-          link: item.link || '#',
-          pubDate: item.pubDate ? new Date(item.pubDate).toLocaleDateString('ru-RU') : '',
-          text: item.description ? item.description.replace(/<[^>]+>/g, '').trim() : 'Подробнее по ссылке...',
-          image: item.enclosure?.link || null,
-          source: source.name
-        }));
+
+        console.log(`📰 ${source.name}: загружено ${data.items.length} новостей`);
+
+        return data.items.map(item => {
+          // Пробуем получить текст из разных полей
+          let text = '';
+          if (item.description) {
+            text = item.description.replace(/<[^>]+>/g, '').trim();
+          }
+          if (!text && item.content) {
+            text = item.content.replace(/<[^>]+>/g, '').trim();
+          }
+          if (!text && item.summary) {
+            text = item.summary.replace(/<[^>]+>/g, '').trim();
+          }
+          if (!text) {
+            text = 'Подробнее по ссылке...';
+          }
+          // Если текст слишком длинный, обрезаем
+          if (text.length > 500) text = text.slice(0, 500) + '...';
+
+          return {
+            title: item.title || 'Без заголовка',
+            link: item.link || '#',
+            pubDate: item.pubDate ? new Date(item.pubDate).toLocaleDateString('ru-RU') : '',
+            text: text,
+            image: item.enclosure?.link || null,
+            source: source.name
+          };
+        });
       } catch (e) {
         console.warn(`⚠️ ${source.name} не загружен:`, e.message);
         return [];
@@ -225,13 +282,15 @@
 
     // ====== ЗАГРУЗКА ВСЕХ ======
     async function loadAllNews() {
-      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Загрузка...</div>';
+      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Обновление...</div>';
 
       const results = await Promise.allSettled(SOURCES.map(fetchRSS));
       let all = [];
       for (const r of results) {
         if (r.status === 'fulfilled') all = all.concat(r.value);
       }
+
+      console.log(`📰 Всего новостей: ${all.length}`);
 
       if (all.length === 0) {
         all = [
@@ -251,15 +310,21 @@
           }
         ];
       } else {
-        all.sort((a, b) => new Date(b.pubDate) - new Date(a.pubDate));
+        all.sort((a, b) => {
+          const da = a.pubDate ? new Date(a.pubDate).getTime() : 0;
+          const db = b.pubDate ? new Date(b.pubDate).getTime() : 0;
+          return db - da;
+        });
         if (all.length > 12) all = all.slice(0, 12);
       }
 
       articles = all;
+      currentPage = 0;
       renderPages();
+      updateTimestamp();
     }
 
-    // ====== РЕНДЕР ======
+    // ====== РЕНДЕР СТРАНИЦ ======
     function renderPages() {
       container.innerHTML = '';
       articles.forEach((article, idx) => {
@@ -274,12 +339,11 @@
             <span>${article.pubDate || 'Сегодня'}</span>
             <span class="source-badge">${escapeHtml(article.source)}</span>
           </div>
-          ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy">` : ''}
+          ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy" onerror="this.style.display='none'">` : ''}
           <div class="news-text">${escapeHtml(article.text)}</div>
         `;
         container.appendChild(div);
       });
-      currentPage = 0;
       updateUI();
     }
 
@@ -333,15 +397,38 @@
       }, 500);
     }
 
+    function updateTimestamp() {
+      const now = new Date();
+      const str = now.toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      updateInfo.textContent = `Последнее обновление: ${str}`;
+    }
+
+    // ====== ОБРАБОТЧИКИ КНОПОК ======
     prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
     nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
+    refreshBtn.addEventListener('click', loadAllNews);
 
     function escapeHtml(text) {
       if (!text) return '';
-      return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
+      return text.replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[m]);
     }
 
+    // ====== СТАРТ И АВТООБНОВЛЕНИЕ ======
     loadAllNews();
+    setInterval(loadAllNews, 3600000);
   </script>
 </body>
 </html>
