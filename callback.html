@@ -82,6 +82,10 @@
           if (decodedState.startsWith('/')) redirectPath = decodedState;
         }
       }
+      
+      console.log('📦 state:', state);
+      console.log('📦 decodedState:', decodedState);
+      console.log('📦 clientId:', clientId);
 
       try {
         const response = await fetch(`${SKYID_URL}/oauth/token`, {
