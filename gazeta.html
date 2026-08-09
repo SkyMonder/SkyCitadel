@@ -62,6 +62,7 @@
       position: relative;
       overflow: hidden;
       border-radius: 8px;
+      background: white;
     }
     .page {
       position: absolute;
@@ -123,7 +124,13 @@
       overflow-y: auto;
       flex: 1;
       padding-right: 4px;
-      min-height: 2em;
+      min-height: 60px;
+      white-space: pre-wrap;
+      word-break: break-word;
+      background: #fafafa;
+      padding: 8px 10px;
+      border-radius: 4px;
+      border-left: 3px solid #ddd;
     }
     .news-text::-webkit-scrollbar {
       width: 4px;
@@ -223,6 +230,10 @@
       { name: 'Lenta.ru', url: 'https://lenta.ru/rss' }
     ];
 
+    // ====== ПРОКСИ ======
+    // Ваш собственный прокси (если работает)
+    const PROXY_URL = '/proxy?url=';
+    // Резервный публичный прокси (rss2json)
     const RSS2JSON_API = 'https://api.rss2json.com/v1/api.json?rss_url=';
 
     let articles = [];
@@ -236,35 +247,66 @@
     const updateInfo = document.getElementById('updateInfo');
     const refreshBtn = document.getElementById('refreshBtn');
 
-    // ====== ЗАГРУЗКА RSS ======
-    async function fetchRSS(source) {
+    // ====== ФУНКЦИЯ ИЗВЛЕЧЕНИЯ ТЕКСТА ======
+    function extractText(item) {
+      let text = item.description || item.content || item.summary || '';
+      text = text.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (!text || text.length < 10) {
+        text = item.title || 'Текст отсутствует';
+      }
+      if (text.length > 400) {
+        text = text.slice(0, 400) + '...';
+      }
+      return text;
+    }
+
+    // ====== ЗАГРУЗКА ЧЕРЕЗ ПРОКСИ (XML) ======
+    async function fetchRSSviaProxy(source) {
+      try {
+        const url = PROXY_URL + encodeURIComponent(source.url);
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const text = await res.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+        const parsed = [];
+        items.forEach(item => {
+          const title = item.querySelector('title')?.textContent || 'Без заголовка';
+          const link = item.querySelector('link')?.textContent || '#';
+          const pubDate = item.querySelector('pubDate')?.textContent;
+          const description = item.querySelector('description')?.textContent || '';
+          const content = item.querySelector('content\\:encoded')?.textContent || '';
+          const summary = item.querySelector('summary')?.textContent || '';
+          let image = item.querySelector('enclosure')?.getAttribute('url') || null;
+          parsed.push({
+            title,
+            link,
+            pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
+            text: extractText({ title, description, content, summary }),
+            image,
+            source: source.name
+          });
+        });
+        console.log(`📰 ${source.name} (прокси): загружено ${parsed.length} новостей`);
+        return parsed;
+      } catch (e) {
+        console.warn(`⚠️ Прокси для ${source.name} не сработал:`, e.message);
+        return [];
+      }
+    }
+
+    // ====== ЗАГРУЗКА ЧЕРЕЗ RSS2JSON (запасной) ======
+    async function fetchRSSviaRSS2JSON(source) {
       try {
         const url = RSS2JSON_API + encodeURIComponent(source.url);
         const res = await fetch(url);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.status !== 'ok') throw new Error('RSS2JSON error');
-
-        console.log(`📰 ${source.name}: загружено ${data.items.length} новостей`);
-
+        console.log(`📰 ${source.name} (rss2json): загружено ${data.items.length} новостей`);
         return data.items.map(item => {
-          // Пробуем получить текст из разных полей
-          let text = '';
-          if (item.description) {
-            text = item.description.replace(/<[^>]+>/g, '').trim();
-          }
-          if (!text && item.content) {
-            text = item.content.replace(/<[^>]+>/g, '').trim();
-          }
-          if (!text && item.summary) {
-            text = item.summary.replace(/<[^>]+>/g, '').trim();
-          }
-          if (!text) {
-            text = 'Подробнее по ссылке...';
-          }
-          // Если текст слишком длинный, обрезаем
-          if (text.length > 500) text = text.slice(0, 500) + '...';
-
+          const text = extractText(item);
           return {
             title: item.title || 'Без заголовка',
             link: item.link || '#',
@@ -275,19 +317,33 @@
           };
         });
       } catch (e) {
-        console.warn(`⚠️ ${source.name} не загружен:`, e.message);
+        console.warn(`⚠️ rss2json для ${source.name} не сработал:`, e.message);
         return [];
       }
     }
 
-    // ====== ЗАГРУЗКА ВСЕХ ======
+    // ====== ЗАГРУЗКА ВСЕХ С ПЕРЕКЛЮЧЕНИЕМ ======
     async function loadAllNews() {
       container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Обновление...</div>';
 
-      const results = await Promise.allSettled(SOURCES.map(fetchRSS));
+      // Сначала пробуем через свой прокси (если он работает)
+      let results = await Promise.allSettled(SOURCES.map(fetchRSSviaProxy));
       let all = [];
+      let anyProxySuccess = false;
       for (const r of results) {
-        if (r.status === 'fulfilled') all = all.concat(r.value);
+        if (r.status === 'fulfilled' && r.value.length > 0) {
+          all = all.concat(r.value);
+          anyProxySuccess = true;
+        }
+      }
+
+      // Если прокси не дал результатов, пробуем rss2json
+      if (!anyProxySuccess) {
+        console.warn('⚠️ Прокси не сработал, пробуем rss2json...');
+        results = await Promise.allSettled(SOURCES.map(fetchRSSviaRSS2JSON));
+        for (const r of results) {
+          if (r.status === 'fulfilled') all = all.concat(r.value);
+        }
       }
 
       console.log(`📰 Всего новостей: ${all.length}`);
@@ -324,7 +380,7 @@
       updateTimestamp();
     }
 
-    // ====== РЕНДЕР СТРАНИЦ ======
+    // ====== РЕНДЕР ======
     function renderPages() {
       container.innerHTML = '';
       articles.forEach((article, idx) => {
@@ -333,6 +389,7 @@
         div.style.transform = idx === 0 ? 'translateX(0)' : 'translateX(100%)';
         div.style.opacity = idx === 0 ? '1' : '0';
         div.dataset.index = idx;
+        const displayText = article.text || 'Текст не найден';
         div.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">
@@ -340,7 +397,7 @@
             <span class="source-badge">${escapeHtml(article.source)}</span>
           </div>
           ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy" onerror="this.style.display='none'">` : ''}
-          <div class="news-text">${escapeHtml(article.text)}</div>
+          <div class="news-text">${escapeHtml(displayText)}</div>
         `;
         container.appendChild(div);
       });
@@ -410,7 +467,7 @@
       updateInfo.textContent = `Последнее обновление: ${str}`;
     }
 
-    // ====== ОБРАБОТЧИКИ КНОПОК ======
+    // ====== ОБРАБОТЧИКИ ======
     prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
     nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
     refreshBtn.addEventListener('click', loadAllNews);
@@ -426,7 +483,7 @@
       })[m]);
     }
 
-    // ====== СТАРТ И АВТООБНОВЛЕНИЕ ======
+    // ====== СТАРТ ======
     loadAllNews();
     setInterval(loadAllNews, 3600000);
   </script>
