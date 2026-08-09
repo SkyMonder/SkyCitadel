@@ -64,20 +64,33 @@
         return;
       }
 
-      let redirectPath = '/';
+      // ====== Определяем путь для редиректа ======
+      let redirectPath = '/skyvideo.html'; // по умолчанию для SkyVideo
+
       if (state) {
         try {
           const decoded = decodeURIComponent(state);
-          // Если state — JSON с path
+          // пробуем распарсить как JSON
           try {
             const data = JSON.parse(decoded);
-            if (data.path) redirectPath = data.path;
+            if (data.path && data.path.startsWith('/')) {
+              redirectPath = data.path;
+            }
           } catch (e) {
-            // если просто путь
-            if (decoded.startsWith('/')) redirectPath = decoded;
+            // если не JSON, то возможно просто путь
+            if (decoded.startsWith('/')) {
+              redirectPath = decoded;
+            }
           }
         } catch (e) {}
       }
+
+      // Если путь не определён, или это корень, или это index.html — используем skyvideo.html
+      if (redirectPath === '/' || redirectPath === '/index.html' || redirectPath === '') {
+        redirectPath = '/skyvideo.html';
+      }
+
+      console.log('🔄 Редирект на:', redirectPath);
 
       try {
         const response = await fetch(`${SKYID_URL}/oauth/token`, {
