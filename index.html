@@ -444,14 +444,6 @@
         document.getElementById('map').innerHTML = '<p style="color:#c44;">Ошибка загрузки карты. Попробуйте перезагрузить страницу.</p>';
       }
 
-      // ====== НОВОСТИ ======
-      function refreshNewsIframe() {
-        const f = document.getElementById('news-iframe');
-        f.src = f.src;
-      }
-      document.getElementById('refresh-news').addEventListener('click', refreshNewsIframe);
-      setInterval(refreshNewsIframe, 5 * 60 * 1000);
-
       // ====== ОБЪЯВЛЕНИЯ ======
       async function loadAnnouncementsAsync() {
         const container = document.getElementById('announce-container');
