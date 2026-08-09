@@ -167,7 +167,7 @@
       <!-- Информация о текущей станции -->
      		 <!-- Информация о текущей станции -->
 				<div style="display:flex; flex-direction:column; align-items:center; margin-top:0.5rem;">
-  					<div id="fm-frequency" style="font-size:2rem; font-weight:bold; color:#b7ceff;">91.2</div>
+  					<div id="fm-frequency" style="font-size:5rem; font-weight:bold; color:#b7ceff;">91.2</div>
   					<div id="fm-station-name" style="font-size:1.2rem; color:#cfdbff; min-height:2rem; text-align:center;">Europa Plus</div>
   				<audio id="radio-audio" style="display:none;"></audio>
 				</div>
@@ -497,7 +497,6 @@
 			const radioAudio = document.getElementById('radio-audio');
 			const fmFrequency = document.getElementById('fm-frequency');
 			const fmStationName = document.getElementById('fm-station-name');
-			const wheel = document.getElementById('radio-wheel');
 			const markersContainer = document.getElementById('station-markers');
 			const playPauseBtn = document.getElementById('radio-playpause');
 
@@ -535,14 +534,14 @@
 			    `;
 			    marker.dataset.index = i;
 			    marker.addEventListener('click', () => {
-			      selectStation(i, true);
+			      selectStation(i, false); // НЕ автозапуск при клике на метку
 			    });
 			    markersContainer.appendChild(marker);
 			  });
 			  updateWheel();
 			}
 
-			// Обновление активной станции
+			// Обновление активной станции (без автозапуска)
 			function updateWheel() {
 			  const markers = markersContainer.querySelectorAll('div');
 			  markers.forEach((el, i) => {
@@ -555,29 +554,30 @@
 			  const st = stations[currentStationIndex];
 			  fmFrequency.textContent = st.freq.toFixed(1);
 			  fmStationName.textContent = st.name;
-			  // Если мы не проигрываем пользовательский поток и станция изменилась
+			  // Обновляем аудио-источник, но НЕ запускаем автоматически
 			  if (radioAudio.src !== st.url) {
-			    const wasPlaying = isPlaying;
 			    radioAudio.src = st.url;
 			    radioAudio.load();
-			    if (wasPlaying) {
-			      radioAudio.play().catch(() => {});
-			    }
 			  }
+			  // Если музыка была на паузе и мы переключили станцию — сохраняем состояние паузы
+			  // Но не запускаем автоматически
 			}
 
-			// Выбор станции
-			function selectStation(index, autoplay = true) {
+			// Выбор станции с параметром автозапуска
+			function selectStation(index, autoplay = false) {
 			  if (index < 0) index = stations.length - 1;
 			  if (index >= stations.length) index = 0;
 			  currentStationIndex = index;
-			  if (autoplay) {
+			  updateWheel(); // обновить отображение
+			  if (autoplay && !isPlaying) {
+			    // Если просят запустить, и сейчас на паузе — запускаем
+			    radioAudio.play().catch(() => {});
 			    isPlaying = true;
 			    playPauseBtn.textContent = '⏸️';
-			  }
-			  updateWheel();
-			  if (autoplay) {
-			    radioAudio.play().catch(() => {});
+			  } else if (!autoplay && isPlaying) {
+			    // Если выбрали станцию, но автозапуск выключен, а музыка играла — останавливаем?
+			    // Пусть остаётся как есть, пользователь сам решит.
+			    // Ничего не делаем.
 			  }
 			}
 
@@ -596,23 +596,24 @@
 			  }
 			});
 
-			// Событие окончания трека (чтобы обновить кнопку)
+			// Событие окончания трека
 			radioAudio.addEventListener('ended', function() {
 			  isPlaying = false;
 			  playPauseBtn.textContent = '▶️';
 			});
 
-			// Навигация
+			// Навигация (стрелки)
 			document.getElementById('radio-prev').addEventListener('click', () => {
-			  selectStation(currentStationIndex - 1, true);
+			  selectStation(currentStationIndex - 1, false);
 			});
 			document.getElementById('radio-next').addEventListener('click', () => {
-			  selectStation(currentStationIndex + 1, true);
+			  selectStation(currentStationIndex + 1, false);
 			});
 
 			// Инициализация
 			renderMarkers();
-			selectStation(0, true);
+			selectStation(0, false); // Стартуем с первой станцией, НЕ запуская
+			playPauseBtn.textContent = '▶️'; // Устанавливаем иконку Play
 
 			// Кастомный URL
 			document.getElementById('play-custom-stream').addEventListener('click', () => {
