@@ -48,55 +48,43 @@
       letter-spacing: 2px;
       color: #555;
     }
-    .source-badge {
-      display: inline-block;
-      font-size: 0.7rem;
-      background: #eaeaea;
-      color: #333;
-      padding: 1px 10px;
-      border-radius: 12px;
-      margin-bottom: 0.5rem;
-    }
     .page-container {
       flex: 1;
       min-height: 0;
       position: relative;
       overflow: hidden;
-      border-radius: 8px;
     }
     .page {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
       background: white;
       border-radius: 8px;
       padding: 20px 24px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      min-height: 320px;
+      max-height: 450px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       color: #222;
-      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: transform, opacity;
+      transition: opacity 0.3s;
+    }
+    .page.hidden {
+      display: none;
     }
     .news-title {
       font-size: 1.5rem;
       font-weight: bold;
-      margin-bottom: 0.2rem;
+      margin-bottom: 0.3rem;
       line-height: 1.2;
       color: #1a1a1a;
+      flex-shrink: 0;
     }
     .news-date {
       font-size: 0.8rem;
       color: #777;
-      margin-bottom: 0.6rem;
+      margin-bottom: 0.8rem;
       border-bottom: 1px solid #ddd;
       padding-bottom: 0.4rem;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-shrink: 0;
     }
     .news-image {
       width: 100%;
@@ -122,6 +110,7 @@
       background: #ccc;
       border-radius: 2px;
     }
+
     .nav-controls {
       display: flex;
       justify-content: space-between;
@@ -152,10 +141,11 @@
       font-size: 0.95rem;
       color: #555;
     }
+
     @media (max-width: 600px) {
       .newspaper-container { padding: 12px; }
       .newspaper-header { font-size: 1.6rem; }
-      .page { padding: 16px; }
+      .page { padding: 16px; min-height: 260px; max-height: 360px; }
       .news-title { font-size: 1.2rem; }
       .news-text { font-size: 0.85rem; }
       .nav-btn { padding: 6px 14px; font-size: 0.9rem; }
@@ -166,146 +156,84 @@
   <div class="newspaper-container">
     <div class="newspaper-header">
       📰 Ежедневная газета
-      <small>Новости со всего мира — агрегатор</small>
+      <small>Свежие новости из Интерфакса</small>
     </div>
 
     <div class="page-container" id="pageContainer">
-      <div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">
-        Загрузка новостей...
-      </div>
+      <!-- Страницы будут вставлены сюда -->
     </div>
 
     <div class="nav-controls">
       <button class="nav-btn" id="prevBtn" disabled>◀ Назад</button>
-      <span class="page-indicator" id="pageIndicator">Страница 0 из 0</span>
-      <button class="nav-btn" id="nextBtn" disabled>Вперед ▶</button>
+      <span class="page-indicator" id="pageIndicator">Страница 1 из 1</span>
+      <button class="nav-btn" id="nextBtn">Вперед ▶</button>
     </div>
   </div>
 
   <script>
-    // ====== ИСТОЧНИКИ RSS ======
-    const SOURCES = [
-      { name: 'Интерфакс', url: 'https://www.interfax.ru/rss' },
-      { name: 'РИА Новости', url: 'https://ria.ru/export/rss2/index.xml' },
-      { name: 'ТАСС', url: 'https://tass.ru/rss/v2.xml' },
-      { name: 'Lenta.ru', url: 'https://lenta.ru/rss' }
-    ];
-
-    // ====== ПРОКСИ (попробуем несколько) ======
-    const PROXY_LIST = [
-      'https://corsproxy.io/?',
-      'https://cors-proxy.htmldriven.com/?url='
-    ];
-
-    // ====== РЕЗЕРВ (если ничего не загрузится) ======
-    const FALLBACK_ARTICLES = [
-      {
-        title: 'Новости временно недоступны',
-        text: 'Не удалось загрузить новости из-за проблем с соединением. Попробуйте обновить страницу позже.',
-        pubDate: new Date().toLocaleDateString('ru-RU'),
-        source: 'Система'
-      },
-      {
-        title: 'SkyCitadel — ваша цифровая крепость',
-        text: 'Мы строим открытую экосистему, где вас не цензурят, не отслеживают и не показывают рекламу. Присоединяйтесь!',
-        pubDate: new Date().toLocaleDateString('ru-RU'),
-        source: 'Система'
-      }
-    ];
+    const RSS_URL = 'https://www.interfax.ru/rss';
+    const PROXY = 'https://api.allorigins.win/raw?url=';
 
     let articles = [];
     let currentPage = 0;
-    let isAnimating = false;
-    let isLoading = false;
 
     const container = document.getElementById('pageContainer');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const indicator = document.getElementById('pageIndicator');
 
-    // ====== ЗАГРУЗКА RSS С ОДНОГО ИСТОЧНИКА ======
-    async function fetchRSS(source, proxy) {
-      const response = await fetch(proxy + encodeURIComponent(source.url));
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      const text = await response.text();
-      const parser = new DOMParser();
-      const xml = parser.parseFromString(text, 'text/xml');
-      const items = xml.querySelectorAll('item');
-      const parsed = [];
-      items.forEach(item => {
-        const title = item.querySelector('title')?.textContent || 'Без заголовка';
-        const link = item.querySelector('link')?.textContent || '#';
-        const pubDate = item.querySelector('pubDate')?.textContent;
-        const description = item.querySelector('description')?.textContent || '';
-        let imageUrl = null;
-        const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
-        if (imgMatch) imageUrl = imgMatch[1];
-        const textContent = description.replace(/<[^>]+>/g, '').trim();
-        parsed.push({
-          title,
-          link,
-          pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
-          text: textContent || 'Подробнее по ссылке...',
-          image: imageUrl || null,
-          source: source.name
+    // ====== ЗАГРУЗКА ======
+    async function loadNews() {
+      try {
+        console.log('🔄 Загрузка новостей...');
+        const response = await fetch(PROXY + encodeURIComponent(RSS_URL));
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const text = await response.text();
+        const parser = new DOMParser();
+        const xml = parser.parseFromString(text, 'text/xml');
+        const items = xml.querySelectorAll('item');
+        console.log(`📰 Найдено ${items.length} новостей`);
+
+        articles = [];
+        items.forEach(item => {
+          const title = item.querySelector('title')?.textContent || 'Без заголовка';
+          const link = item.querySelector('link')?.textContent || '#';
+          const pubDate = item.querySelector('pubDate')?.textContent;
+          const description = item.querySelector('description')?.textContent || '';
+          let imageUrl = null;
+          const imgMatch = description.match(/<img[^>]+src="([^">]+)"/);
+          if (imgMatch) imageUrl = imgMatch[1];
+          const textContent = description.replace(/<[^>]+>/g, '').trim();
+          articles.push({
+            title,
+            link,
+            pubDate: pubDate ? new Date(pubDate).toLocaleDateString('ru-RU') : '',
+            text: textContent || 'Подробнее по ссылке...',
+            image: imageUrl || null
+          });
         });
-      });
-      return parsed;
-    }
 
-    // ====== ЗАГРУЗКА СО ВСЕХ ИСТОЧНИКОВ ======
-    async function loadAllNews() {
-      if (isLoading) return;
-      isLoading = true;
-      container.innerHTML = '<div style="display:flex; align-items:center; justify-content:center; height:100%; color:#555; font-size:1.2rem;">Загрузка новостей...</div>';
-
-      let allArticles = [];
-      let proxyUsed = null;
-
-      // Пробуем каждый прокси по очереди
-      for (const proxy of PROXY_LIST) {
-        try {
-          console.log(`🔄 Пробуем прокси: ${proxy}`);
-          // Загружаем со всех источников через этот прокси
-          const results = await Promise.allSettled(
-            SOURCES.map(source => fetchRSS(source, proxy))
-          );
-          // Собираем успешные
-          for (const result of results) {
-            if (result.status === 'fulfilled') {
-              allArticles = allArticles.concat(result.value);
-            }
-          }
-          // Если хоть что-то загрузилось — считаем прокси рабочим
-          if (allArticles.length > 0) {
-            proxyUsed = proxy;
-            console.log(`✅ Прокси ${proxy} сработал, загружено ${allArticles.length} новостей`);
-            break;
-          }
-        } catch (error) {
-          console.warn(`⚠️ Прокси ${proxy} не сработал:`, error.message);
+        if (articles.length === 0) {
+          articles = [{
+            title: 'Новости не загрузились',
+            text: 'Попробуйте обновить страницу позже.',
+            pubDate: '',
+            image: null,
+            link: '#'
+          }];
         }
+        renderPages();
+      } catch (error) {
+        console.error('❌ Ошибка загрузки RSS:', error);
+        articles = [{
+          title: 'Ошибка загрузки',
+          text: 'Не удалось загрузить новости. Проверьте соединение.',
+          pubDate: '',
+          image: null,
+          link: '#'
+        }];
+        renderPages();
       }
-
-      // Если ничего не загрузилось — берём резерв
-      if (allArticles.length === 0) {
-        console.warn('⚠️ Все прокси не сработали. Используем резервные новости.');
-        allArticles = FALLBACK_ARTICLES;
-      } else {
-        // Сортируем по дате (свежие сверху)
-        allArticles.sort((a, b) => {
-          // Если дата есть, сравниваем как числа (если нет — ставим в конец)
-          const dateA = a.pubDate ? new Date(a.pubDate).getTime() : 0;
-          const dateB = b.pubDate ? new Date(b.pubDate).getTime() : 0;
-          return dateB - dateA;
-        });
-        // Берём первые 10–12, чтобы страниц было не слишком много
-        if (allArticles.length > 12) allArticles = allArticles.slice(0, 12);
-      }
-
-      articles = allArticles;
-      renderPages();
-      isLoading = false;
     }
 
     // ====== РЕНДЕР ======
@@ -313,17 +241,10 @@
       container.innerHTML = '';
       articles.forEach((article, index) => {
         const pageDiv = document.createElement('div');
-        pageDiv.className = 'page';
-        pageDiv.style.transform = index === 0 ? 'translateX(0)' : 'translateX(100%)';
-        pageDiv.style.opacity = index === 0 ? '1' : '0';
-        pageDiv.dataset.index = index;
-        const sourceBadge = article.source ? `<span class="source-badge">${escapeHtml(article.source)}</span>` : '';
+        pageDiv.className = 'page' + (index === 0 ? '' : ' hidden');
         pageDiv.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
-          <div class="news-date">
-            <span>${article.pubDate || 'Сегодня'}</span>
-            ${sourceBadge}
-          </div>
+          <div class="news-date">${article.pubDate || 'Сегодня'}</div>
           ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy">` : ''}
           <div class="news-text">${escapeHtml(article.text)}</div>
         `;
@@ -336,51 +257,17 @@
     function updateUI() {
       const pages = container.querySelectorAll('.page');
       pages.forEach((p, i) => {
-        p.style.transform = i === currentPage ? 'translateX(0)' : 'translateX(100%)';
-        p.style.opacity = i === currentPage ? '1' : '0';
-        p.style.pointerEvents = i === currentPage ? 'auto' : 'none';
+        p.classList.toggle('hidden', i !== currentPage);
       });
-      const total = articles.length;
-      indicator.textContent = total > 0 ? `Страница ${currentPage+1} из ${total}` : 'Нет новостей';
-      prevBtn.disabled = (currentPage === 0) || (total === 0);
-      nextBtn.disabled = (currentPage === total - 1) || (total === 0);
+      indicator.textContent = `Страница ${currentPage+1} из ${articles.length}`;
+      prevBtn.disabled = (currentPage === 0);
+      nextBtn.disabled = (currentPage === articles.length - 1);
     }
 
     function goToPage(index) {
-      if (isAnimating) return;
       if (index < 0 || index >= articles.length) return;
-      if (index === currentPage) return;
-      isAnimating = true;
-
-      const pages = container.querySelectorAll('.page');
-      const oldPage = pages[currentPage];
-      const newPage = pages[index];
-      const isForward = index > currentPage;
-
-      newPage.style.transition = 'none';
-      newPage.style.transform = isForward ? 'translateX(100%)' : 'translateX(-100%)';
-      newPage.style.opacity = '0';
-      newPage.style.pointerEvents = 'none';
-      newPage.offsetHeight;
-
-      oldPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
-      oldPage.style.transform = isForward ? 'translateX(-100%)' : 'translateX(100%)';
-      oldPage.style.opacity = '0';
-
-      newPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
-      newPage.style.transform = 'translateX(0)';
-      newPage.style.opacity = '1';
-      newPage.style.pointerEvents = 'auto';
-
-      setTimeout(() => {
-        oldPage.style.transition = 'none';
-        oldPage.style.transform = 'translateX(100%)';
-        oldPage.style.opacity = '0';
-        newPage.style.transition = 'none';
-        currentPage = index;
-        updateUI();
-        isAnimating = false;
-      }, 500);
+      currentPage = index;
+      updateUI();
     }
 
     prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
@@ -391,8 +278,7 @@
       return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
     }
 
-    // ====== СТАРТ ======
-    loadAllNews();
+    loadNews();
   </script>
 </body>
 </html>
