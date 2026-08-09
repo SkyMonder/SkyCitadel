@@ -39,7 +39,6 @@
       font-weight: bold;
       letter-spacing: 4px;
       color: #1a1a1a;
-      text-transform: uppercase;
       flex-shrink: 0;
     }
     .newspaper-header small {
@@ -52,20 +51,10 @@
     .page-container {
       flex: 1;
       min-height: 0;
-      perspective: 1200px;
       position: relative;
-    }
-    .page-wrapper {
-      position: relative;
-      width: 100%;
-      height: 100%;
-      transform-style: preserve-3d;
-      transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
     }
     .page {
-      position: absolute;
-      width: 100%;
-      backface-visibility: hidden;
       background: white;
       border-radius: 8px;
       padding: 20px 24px;
@@ -75,11 +64,12 @@
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      color: #222; /* гарантируем чёрный текст */
+      color: #222;
+      transition: opacity 0.3s;
     }
-    .page-front { transform: rotateY(0deg); }
-    .page-back { transform: rotateY(180deg); }
-
+    .page.hidden {
+      display: none;
+    }
     .news-title {
       font-size: 1.5rem;
       font-weight: bold;
@@ -126,7 +116,6 @@
       justify-content: space-between;
       align-items: center;
       margin-top: 16px;
-      gap: 10px;
       flex-shrink: 0;
       padding-top: 12px;
       border-top: 1px solid #ddd;
@@ -140,14 +129,17 @@
       font-size: 1rem;
       cursor: pointer;
       transition: background 0.2s;
-      font-family: 'Times New Roman', serif;
     }
-    .nav-btn:hover:not(:disabled) { background: #555; }
-    .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+    .nav-btn:hover:not(:disabled) {
+      background: #555;
+    }
+    .nav-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
     .page-indicator {
       font-size: 0.95rem;
       color: #555;
-      font-family: 'Times New Roman', serif;
     }
 
     @media (max-width: 600px) {
@@ -168,9 +160,7 @@
     </div>
 
     <div class="page-container" id="pageContainer">
-      <div class="page-wrapper" id="pageWrapper">
-        <!-- Страницы будут добавлены JS -->
-      </div>
+      <!-- Страницы будут вставлены сюда -->
     </div>
 
     <div class="nav-controls">
@@ -186,10 +176,8 @@
 
     let articles = [];
     let currentPage = 0;
-    let totalPages = 0;
-    let isFlipping = false;
 
-    const wrapper = document.getElementById('pageWrapper');
+    const container = document.getElementById('pageContainer');
     const prevBtn = document.getElementById('prevBtn');
     const nextBtn = document.getElementById('nextBtn');
     const indicator = document.getElementById('pageIndicator');
@@ -207,7 +195,7 @@
         console.log(`📰 Найдено ${items.length} новостей`);
 
         articles = [];
-        items.forEach((item, idx) => {
+        items.forEach(item => {
           const title = item.querySelector('title')?.textContent || 'Без заголовка';
           const link = item.querySelector('link')?.textContent || '#';
           const pubDate = item.querySelector('pubDate')?.textContent;
@@ -250,69 +238,46 @@
 
     // ====== РЕНДЕР ======
     function renderPages() {
-      wrapper.innerHTML = '';
-      totalPages = articles.length;
+      container.innerHTML = '';
       articles.forEach((article, index) => {
         const pageDiv = document.createElement('div');
-        pageDiv.className = 'page' + (index === 0 ? ' page-front' : ' page-back');
-        if (index > 0) pageDiv.style.display = 'none';
+        pageDiv.className = 'page' + (index === 0 ? '' : ' hidden');
         pageDiv.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">${article.pubDate || 'Сегодня'}</div>
           ${article.image ? `<img class="news-image" src="${article.image}" alt="Иллюстрация" loading="lazy">` : ''}
           <div class="news-text">${escapeHtml(article.text)}</div>
         `;
-        wrapper.appendChild(pageDiv);
+        container.appendChild(pageDiv);
       });
-      console.log(`✅ Отрендерено ${totalPages} страниц`);
       currentPage = 0;
-      showPage(0);
+      updateUI();
     }
 
-    function showPage(index) {
-      const pages = wrapper.querySelectorAll('.page');
-      if (!pages.length) return;
-      pages.forEach((p) => p.style.display = 'none');
-      const current = pages[index];
-      if (current) current.style.display = 'flex';
-      indicator.textContent = `Страница ${index+1} из ${totalPages}`;
-      prevBtn.disabled = (index === 0);
-      nextBtn.disabled = (index === totalPages - 1);
+    function updateUI() {
+      const pages = container.querySelectorAll('.page');
+      pages.forEach((p, i) => {
+        p.classList.toggle('hidden', i !== currentPage);
+      });
+      indicator.textContent = `Страница ${currentPage+1} из ${articles.length}`;
+      prevBtn.disabled = (currentPage === 0);
+      nextBtn.disabled = (currentPage === articles.length - 1);
     }
 
-    // ====== ПЕРЕЛИСТЫВАНИЕ ======
-    function flipPage(direction) {
-      if (isFlipping) return;
-      const newPage = currentPage + direction;
-      if (newPage < 0 || newPage >= totalPages) return;
-      isFlipping = true;
-      const pages = wrapper.querySelectorAll('.page');
-      const current = pages[currentPage];
-      const next = pages[newPage];
-      next.style.display = 'flex';
-      next.style.transform = direction === 1 ? 'rotateY(180deg)' : 'rotateY(-180deg)';
-      wrapper.style.transition = 'transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)';
-      wrapper.style.transform = direction === 1 ? 'rotateY(-180deg)' : 'rotateY(180deg)';
-      setTimeout(() => {
-        wrapper.style.transition = 'none';
-        wrapper.style.transform = 'rotateY(0deg)';
-        current.style.display = 'none';
-        next.style.transform = 'rotateY(0deg)';
-        currentPage = newPage;
-        showPage(currentPage);
-        isFlipping = false;
-      }, 600);
+    function goToPage(index) {
+      if (index < 0 || index >= articles.length) return;
+      currentPage = index;
+      updateUI();
     }
 
-    prevBtn.addEventListener('click', () => flipPage(-1));
-    nextBtn.addEventListener('click', () => flipPage(1));
+    prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
+    nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
 
     function escapeHtml(text) {
       if (!text) return '';
       return text.replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[m]);
     }
 
-    // ====== ЗАПУСК ======
     loadNews();
   </script>
 </body>
