@@ -39,11 +39,11 @@
   <script>
     (async function() {
       const SKYID_URL = 'https://skymutant.onrender.com';
-      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html'; // <-- новый URL
+      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html'; // <-- ОБЯЗАТЕЛЬНО совпадает с тем, что в запросе
 
       const params = new URLSearchParams(window.location.search);
       const code = params.get('code');
-      const state = params.get('state'); // содержит путь, с которого начали
+      const state = params.get('state');
       const error = params.get('error');
 
       if (error) {
@@ -70,7 +70,7 @@
             code: code,
             client_id: 'skyvideo',
             client_secret: 'skyvideo_secret',
-            redirect_uri: REDIRECT_URI
+            redirect_uri: REDIRECT_URI   // <-- передаём тот же URI
           })
         });
 
@@ -85,7 +85,7 @@
         localStorage.setItem('skyvideo_skyid', data.skyid || '');
         localStorage.setItem('skyvideo_login', data.login || '');
 
-        // Определяем путь для редиректа
+        // Возврат на страницу, с которой пришли
         let redirectPath = '/';
         if (state) {
           try {
@@ -93,16 +93,12 @@
             if (decoded.startsWith('/')) {
               redirectPath = decoded;
             } else {
-              // если state содержит полный URL, извлекаем путь
-              try {
-                const urlObj = new URL(decoded);
-                redirectPath = urlObj.pathname + urlObj.search + urlObj.hash;
-              } catch (e) {}
+              const urlObj = new URL(decoded);
+              redirectPath = urlObj.pathname + urlObj.search + urlObj.hash;
             }
           } catch (e) {}
         }
 
-        // Перенаправляем на соответствующий путь (на том же домене)
         window.location.href = redirectPath;
 
       } catch (err) {
