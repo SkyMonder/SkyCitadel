@@ -139,11 +139,11 @@
 
     function loginWithSkyID() {
       const scope = 'profile email';
-      const state = encodeURIComponent(window.location.pathname); // путь текущей страницы
+      const state = encodeURIComponent(window.location.pathname);
+      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html'; // новый URI
       const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
       window.location.href = authUrl;
     }
-
     function logout() {
       token = null;
       localStorage.removeItem('skyvideo_token');
