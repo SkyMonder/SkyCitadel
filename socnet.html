@@ -3,9 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <title>SkySocial</title>
   <style>
     :root {
@@ -75,51 +72,56 @@
     const SKYID_URL = 'https://skymutant.onrender.com';
     const SOCIAL_API = 'https://skymutant.onrender.com';
     const CLIENT_ID = 'skysocial';
-    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html';
+    const REDIRECT_URI = 'https://skycitadel.cc.cd/callback_social.html';
 
     // ====== Глобальные переменные ======
-    let token = localStorage.getItem('skysocial_token') || null;
+    let token = localStorage.getItem('skyvideo_token') || null; // используем общий ключ
     let currentUserSkyID = null;
     let currentLogin = null;
     let isAdmin = false;
 
+    console.log('🔍 Токен при загрузке socnet.html:', token);
+
     // ====== Функции авторизации ======
+    function loginWithSkyID() {
+      const scope = 'profile social';
+      const state = encodeURIComponent('/socnet.html');
+      const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
+      window.location.href = authUrl;
+    }
+
     async function verifyToken() {
       if (!token) return false;
       try {
+        console.log('🔍 Проверка токена:', token);
         const res = await fetch(`${SKYID_URL}/me`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+        console.log('📨 Ответ /me:', res.status);
         if (res.ok) {
           const me = await res.json();
+          console.log('👤 Пользователь:', me);
           currentUserSkyID = me.skyid;
           currentLogin = me.login || me.skyid;
           isAdmin = (me.login === 'SkyMonder');
           return true;
         } else {
-          // Токен невалидный — удаляем и выходим
+          console.log('❌ Токен невалидный, статус:', res.status);
           logout();
           return false;
         }
       } catch (e) {
+        console.error('❌ Ошибка verifyToken:', e);
         logout();
         return false;
       }
     }
 
-    function loginWithSkyID() {
-      const scope = 'profile social';
-      const state = encodeURIComponent('/socnet.html');
-      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback_social.html';
-      const authUrl = `${SKYID_URL}/oauth/authorize?client_id=skysocial&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
-      window.location.href = authUrl;
-    }
-
     function logout() {
       token = null;
-      localStorage.removeItem('skysocial_token');
-      localStorage.removeItem('skysocial_scope');
-      localStorage.removeItem('skysocial_skyid');
+      localStorage.removeItem('skyvideo_token');
+      localStorage.removeItem('skyvideo_skyid');
+      localStorage.removeItem('skyvideo_login');
       currentUserSkyID = null;
       currentLogin = null;
       isAdmin = false;
@@ -134,26 +136,21 @@
 
     // ====== Инициализация при загрузке ======
     (async () => {
-      // 1. Проверяем, не вернулись ли с callback с параметром code
-      const params = new URLSearchParams(window.location.search);
-      if (params.get('code')) {
-        // Если мы попали сюда с code, значит callback.html не сработал (редкий случай).
-        // Перенаправляем на callback.html, который обработает код и сохранит токен.
-        window.location.href = '/callback.html' + window.location.search;
-        return;
-      }
-
-      // 2. Пытаемся использовать сохранённый токен
+      // Если есть токен, проверяем его
       if (token) {
         const valid = await verifyToken();
+        console.log('✅ Токен валиден?', valid);
         if (valid) {
           showApp();
           loadPosts();
           return;
+        } else {
+          console.log('❌ Токен невалиден, показываем экран входа');
         }
+      } else {
+        console.log('❌ Токен отсутствует, показываем экран входа');
       }
-
-      // 3. Токена нет или он невалидный — показываем экран входа
+      // Если токена нет или он невалиден — показываем экран входа
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('app').style.display = 'none';
     })();
@@ -173,7 +170,6 @@
       }
       const res = await fetch(url, { ...options, headers });
       if (res.status === 401) {
-        // Токен истёк или невалидный — выходим
         logout();
         throw new Error('Unauthorized');
       }
