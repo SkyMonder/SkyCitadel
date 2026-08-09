@@ -53,23 +53,45 @@
       min-height: 0;
       position: relative;
       overflow: hidden;
+      border-radius: 8px;
     }
     .page {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background: white;
       border-radius: 8px;
       padding: 20px 24px;
       box-shadow: 0 4px 20px rgba(0,0,0,0.1);
-      min-height: 320px;
-      max-height: 450px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
       color: #222;
-      transition: opacity 0.3s;
+      transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform, opacity;
     }
-    .page.hidden {
-      display: none;
+    .page.exit-left {
+      transform: translateX(-100%);
+      opacity: 0;
+      pointer-events: none;
     }
+    .page.enter-right {
+      transform: translateX(100%);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .page.enter-active {
+      transform: translateX(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .page.exit-active {
+      transform: translateX(0);
+      opacity: 1;
+    }
+
     .news-title {
       font-size: 1.5rem;
       font-weight: bold;
@@ -145,7 +167,7 @@
     @media (max-width: 600px) {
       .newspaper-container { padding: 12px; }
       .newspaper-header { font-size: 1.6rem; }
-      .page { padding: 16px; min-height: 260px; max-height: 360px; }
+      .page { padding: 16px; }
       .news-title { font-size: 1.2rem; }
       .news-text { font-size: 0.85rem; }
       .nav-btn { padding: 6px 14px; font-size: 0.9rem; }
@@ -160,7 +182,7 @@
     </div>
 
     <div class="page-container" id="pageContainer">
-      <!-- Страницы будут вставлены сюда -->
+      <!-- Страницы вставляются сюда -->
     </div>
 
     <div class="nav-controls">
@@ -176,6 +198,7 @@
 
     let articles = [];
     let currentPage = 0;
+    let isAnimating = false;
 
     const container = document.getElementById('pageContainer');
     const prevBtn = document.getElementById('prevBtn');
@@ -241,7 +264,10 @@
       container.innerHTML = '';
       articles.forEach((article, index) => {
         const pageDiv = document.createElement('div');
-        pageDiv.className = 'page' + (index === 0 ? '' : ' hidden');
+        pageDiv.className = 'page';
+        pageDiv.style.transform = index === 0 ? 'translateX(0)' : 'translateX(100%)';
+        pageDiv.style.opacity = index === 0 ? '1' : '0';
+        pageDiv.dataset.index = index;
         pageDiv.innerHTML = `
           <div class="news-title">${escapeHtml(article.title)}</div>
           <div class="news-date">${article.pubDate || 'Сегодня'}</div>
@@ -257,21 +283,63 @@
     function updateUI() {
       const pages = container.querySelectorAll('.page');
       pages.forEach((p, i) => {
-        p.classList.toggle('hidden', i !== currentPage);
+        p.style.transform = i === currentPage ? 'translateX(0)' : 'translateX(100%)';
+        p.style.opacity = i === currentPage ? '1' : '0';
+        p.style.pointerEvents = i === currentPage ? 'auto' : 'none';
       });
       indicator.textContent = `Страница ${currentPage+1} из ${articles.length}`;
       prevBtn.disabled = (currentPage === 0);
       nextBtn.disabled = (currentPage === articles.length - 1);
     }
 
-    function goToPage(index) {
+    function goToPage(index, direction) {
+      if (isAnimating) return;
       if (index < 0 || index >= articles.length) return;
-      currentPage = index;
-      updateUI();
+      if (index === currentPage) return;
+      isAnimating = true;
+
+      const pages = container.querySelectorAll('.page');
+      const oldPage = pages[currentPage];
+      const newPage = pages[index];
+
+      // Направление анимации
+      const isForward = index > currentPage;
+      const exitClass = isForward ? 'exit-left' : 'exit-right';
+      const enterClass = isForward ? 'enter-right' : 'enter-left';
+
+      // Подготовка новой страницы
+      newPage.style.transition = 'none';
+      newPage.style.transform = isForward ? 'translateX(100%)' : 'translateX(-100%)';
+      newPage.style.opacity = '0';
+      newPage.style.pointerEvents = 'none';
+      // Принудительный reflow
+      newPage.offsetHeight;
+
+      // Анимация выезда старой
+      oldPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+      oldPage.style.transform = isForward ? 'translateX(-100%)' : 'translateX(100%)';
+      oldPage.style.opacity = '0';
+
+      // Анимация въезда новой
+      newPage.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+      newPage.style.transform = 'translateX(0)';
+      newPage.style.opacity = '1';
+      newPage.style.pointerEvents = 'auto';
+
+      setTimeout(() => {
+        // Очищаем состояния
+        oldPage.style.transition = 'none';
+        oldPage.style.transform = 'translateX(100%)';
+        oldPage.style.opacity = '0';
+        newPage.style.transition = 'none';
+        currentPage = index;
+        updateUI();
+        isAnimating = false;
+      }, 500);
     }
 
-    prevBtn.addEventListener('click', () => goToPage(currentPage - 1));
-    nextBtn.addEventListener('click', () => goToPage(currentPage + 1));
+    prevBtn.addEventListener('click', () => goToPage(currentPage - 1, -1));
+    nextBtn.addEventListener('click', () => goToPage(currentPage + 1, 1));
 
     function escapeHtml(text) {
       if (!text) return '';
