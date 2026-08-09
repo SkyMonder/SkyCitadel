@@ -64,27 +64,15 @@
         return;
       }
 
-      // ====== Определяем путь для редиректа ======
-      let redirectPath = '/socnet.html'; // по умолчанию для SkySocial
-
+      // Определяем путь для редиректа (если state передан)
+      let redirectPath = '/socnet.html';
       if (state) {
         try {
           const decoded = decodeURIComponent(state);
-          try {
-            const data = JSON.parse(decoded);
-            if (data.path && data.path.startsWith('/')) {
-              redirectPath = data.path;
-            }
-          } catch (e) {
-            if (decoded.startsWith('/')) {
-              redirectPath = decoded;
-            }
+          if (decoded.startsWith('/')) {
+            redirectPath = decoded;
           }
         } catch (e) {}
-      }
-
-      if (redirectPath === '/' || redirectPath === '/index.html' || redirectPath === '') {
-        redirectPath = '/socnet.html';
       }
 
       console.log('🔄 Редирект на:', redirectPath);
@@ -108,10 +96,14 @@
           throw new Error(data.error || `HTTP ${response.status}`);
         }
 
+        // Сохраняем токен (общий для всей экосистемы)
         localStorage.setItem('skyvideo_token', data.access_token);
         localStorage.setItem('skyvideo_skyid', data.skyid || '');
         localStorage.setItem('skyvideo_login', data.login || '');
 
+        console.log('✅ Токен получен и сохранён');
+
+        // Редирект на страницу, с которой пришли
         window.location.href = redirectPath;
 
       } catch (err) {
