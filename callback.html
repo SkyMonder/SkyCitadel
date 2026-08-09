@@ -62,16 +62,16 @@
         return;
       }
 
-      // ====== Парсим state ======
+      // ====== Парсим state (исправлено) ======
       let redirectPath = '/';
-      let clientId = 'skyvideo'; // fallback
+      let clientId = 'skyvideo';
       let clientSecret = 'skyvideo_secret';
+      let decodedState = '';
 
       if (state) {
         try {
-          const decoded = decodeURIComponent(state);
-          // Пробуем распарсить как JSON
-          const stateData = JSON.parse(decoded);
+          decodedState = decodeURIComponent(state);
+          const stateData = JSON.parse(decodedState);
           if (stateData.path) redirectPath = stateData.path;
           if (stateData.client_id) {
             clientId = stateData.client_id;
@@ -79,7 +79,7 @@
           }
         } catch (e) {
           // Если state не JSON, считаем что это просто путь (для обратной совместимости)
-          if (decoded.startsWith('/')) redirectPath = decoded;
+          if (decodedState.startsWith('/')) redirectPath = decodedState;
         }
       }
 
@@ -102,7 +102,6 @@
           throw new Error(data.error || `HTTP ${response.status}`);
         }
 
-        // Сохраняем токен (общий для всех сервисов)
         localStorage.setItem('skyvideo_token', data.access_token);
         localStorage.setItem('skyvideo_skyid', data.skyid || '');
         localStorage.setItem('skyvideo_login', data.login || '');
