@@ -458,6 +458,10 @@
 
   <!-- Наш основной скрипт оборачиваем в DOMContentLoaded -->
   <script>
+	// Если пользователь ещё не видел приветствие — редирект на welcome.html
+	if (!localStorage.getItem('skycitadel_welcome_dismissed')) {
+  		window.location.href = '/welcome.html';
+	}
     document.addEventListener('DOMContentLoaded', function() {
       // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
       const SERVICE2_URL = 'https://skymutant.onrender.com';
