@@ -1044,6 +1044,40 @@
         }
       }, 500);
     }); // конец DOMContentLoaded
+
+	// ====== МОБИЛЬНОЕ МЕНЮ ======
+	const hamburger = document.getElementById('hamburgerBtn');
+	const sidebar = document.querySelector('.sidebar');
+	const overlay = document.getElementById('sidebarOverlay');
+
+	function toggleMenu() {
+  	sidebar.classList.toggle('open');
+  	overlay.classList.toggle('active');
+  	hamburger.classList.toggle('active');
+	}
+
+	hamburger.addEventListener('click', toggleMenu);
+	overlay.addEventListener('click', toggleMenu);
+
+	// Закрываем меню при клике на пункт навигации
+	document.querySelectorAll('.nav-btn').forEach(btn => {
+  	btn.addEventListener('click', () => {
+    	if (window.innerWidth <= 768) {
+      	sidebar.classList.remove('open');
+      	overlay.classList.remove('active');
+      	hamburger.classList.remove('active');
+    	}
+  	});
+	});
+
+	// При изменении размера окна, если становятся шире 768px — открываем меню
+	window.addEventListener('resize', () => {
+  	if (window.innerWidth > 768) {
+    	sidebar.classList.remove('open');
+    	overlay.classList.remove('active');
+    	hamburger.classList.remove('active');
+  	}
+  });
   </script>
 </body>
 </html>
