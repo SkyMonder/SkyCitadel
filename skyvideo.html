@@ -142,23 +142,25 @@
     async function verifyToken() {
       if (!token) return false;
       try {
-        const res = await fetch(`${SKYID_URL}/me`, { headers: { Authorization: `Bearer ${token}` } });
+        const res = await fetch(`${SKYID_URL}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ token })
+        });
         if (res.ok) {
-          const me = await res.json();
-          const profileRes = await fetch(`${SKYVIDEO_URL}/profile`, { headers: { Authorization: `Bearer ${token}` } });
-          if (profileRes.ok) {
-            const profile = await profileRes.json();
-            currentUser = { login: me.login, name: profile.name || me.login, skyid: me.skyid };
-            currentSkyid = me.skyid;
-            localStorage.setItem('skyvideo_skyid', me.skyid);
-          } else {
-            currentUser = { login: me.login, name: me.login, skyid: me.skyid };
-            currentSkyid = me.skyid;
-            localStorage.setItem('skyvideo_skyid', me.skyid);
-          }
+          const data = await res.json();
+          currentUser = { login: data.login, skyid: data.skyid };
+          currentSkyid = data.skyid;
+          localStorage.setItem('skyid_skyid', data.skyid);
           return true;
-        } else { logout(); return false; }
-      } catch (e) { logout(); return false; }
+        } else {
+          logout();
+          return false;
+        }
+      } catch (e) {
+        logout();
+        return false;
+      }
     }
 
     
