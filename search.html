@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkySearch — поиск без цензуры</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 800px;
+      width: 100%;
+    }
+    .logo {
+      font-size: 2.5rem;
+      font-weight: 700;
+      background: linear-gradient(135deg, #b5ceff, #5f7ecf);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+      text-align: center;
+      cursor: pointer;
+    }
+    .logo span { font-size: 2.8rem; }
+    .search-box {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .search-box input {
+      flex: 1;
+      padding: 0.9rem 1.2rem;
+      background: #0d1225;
+      border: 1px solid #3a4660;
+      color: white;
+      border-radius: 30px;
+      font-size: 1rem;
+      min-width: 200px;
+      outline: none;
+    }
+    .search-box input:focus {
+      border-color: #5f7ecf;
+      box-shadow: 0 0 0 2px rgba(95,126,207,0.3);
+    }
+    .search-box button {
+      padding: 0.9rem 1.8rem;
+      background: #5f7ecf;
+      border: none;
+      color: white;
+      border-radius: 30px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .search-box button:hover {
+      background: #7a9aef;
+    }
+    .search-box button:active {
+      transform: scale(0.97);
+    }
+    .filters {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .filters button {
+      padding: 0.4rem 1rem;
+      background: #1c2541;
+      border: 1px solid #3a4660;
+      color: #cfdbff;
+      border-radius: 20px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-size: 0.85rem;
+    }
+    .filters button.active {
+      background: #5f7ecf;
+      border-color: #5f7ecf;
+      color: #fff;
+    }
+    .filters button:hover {
+      background: #2f3b5c;
+    }
+    .result-card {
+      background: #1a233a;
+      border-radius: 12px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 0.8rem;
+      border: 1px solid #2a3450;
+      transition: transform 0.15s;
+    }
+    .result-card:hover {
+      transform: translateX(4px);
+      border-color: #5f7ecf;
+    }
+    .result-title {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 0.2rem;
+    }
+    .result-title a {
+      color: #b7ceff;
+      text-decoration: none;
+    }
+    .result-title a:hover {
+      text-decoration: underline;
+      color: #d4e4ff;
+    }
+    .result-url {
+      font-size: 0.8rem;
+      color: #7f8bb3;
+      word-break: break-all;
+      margin-bottom: 0.3rem;
+    }
+    .result-desc {
+      font-size: 0.9rem;
+      color: #ccd8f0;
+      line-height: 1.4;
+    }
+    .result-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    .load-more {
+      text-align: center;
+      margin: 1rem 0;
+    }
+    .load-more button {
+      padding: 0.5rem 1.5rem;
+      background: #2a3450;
+      border: 1px solid #3a4660;
+      color: #cfdbff;
+      border-radius: 30px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .load-more button:hover {
+      background: #3a4a6a;
+    }
+    .loading {
+      text-align: center;
+      color: #8899cc;
+      font-size: 1.1rem;
+      padding: 2rem;
+    }
+    .error {
+      text-align: center;
+      color: #f48024;
+      padding: 1rem;
+    }
+    .no-results {
+      text-align: center;
+      color: #8899cc;
+      padding: 2rem;
+    }
+    .back-link {
+      display: inline-block;
+      margin-top: 1.5rem;
+      color: #5f7ecf;
+      text-decoration: none;
+    }
+    .back-link:hover {
+      text-decoration: underline;
+    }
+    .stats {
+      font-size: 0.85rem;
+      color: #7f8bb3;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo" onclick="window.location.href='/'">
+      <span>🔍</span> SkySearch
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Что ищем?" autofocus>
+      <button id="searchBtn">Найти</button>
+    </div>
+
+    <div class="filters" id="filterBar">
+      <button class="active" data-engine="duckduckgo">🦆 DuckDuckGo</button>
+      <button data-engine="google">🔴 Google</button>
+      <button data-engine="bing">🔵 Bing</button>
+      <button data-engine="yandex">🟡 Yandex</button>
+      <button data-engine="ecosia">🌱 Ecosia</button>
+    </div>
+
+    <div id="resultsContainer"></div>
+
+    <a href="/" class="back-link">🏰 Вернуться в крепость</a>
+  </div>
+
+  <script>
+    const API_URL = 'https://skymutant.cc.cd/api/search';
+    const searchInput = document.getElementById('searchInput');
+    const searchBtn = document.getElementById('searchBtn');
+    const resultsContainer = document.getElementById('resultsContainer');
+    const filterBtns = document.querySelectorAll('#filterBar button');
+
+    let currentQuery = '';
+    let currentEngine = 'duckduckgo';
+    let offset = 0;
+    let totalResults = 0;
+    let isLoading = false;
+    let hasMore = true;
+
+    async function performSearch(query, engine, offsetVal = 0, append = false) {
+      if (!query.trim()) return;
+      if (isLoading) return;
+
+      isLoading = true;
+      if (!append) {
+        resultsContainer.innerHTML = `<div class="loading">⏳ Поиск...</div>`;
+      } else {
+        resultsContainer.innerHTML += `<div class="loading" id="loadingMore">⏳ Загрузка...</div>`;
+      }
+
+      try {
+        const url = `${API_URL}?q=${encodeURIComponent(query)}&count=10&offset=${offsetVal}&engine=${engine}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+
+        if (!append) {
+          resultsContainer.innerHTML = '';
+        } else {
+          const loadingMore = document.getElementById('loadingMore');
+          if (loadingMore) loadingMore.remove();
+        }
+
+        totalResults = data.total || 0;
+        const results = data.results || [];
+
+        if (results.length === 0 && offsetVal === 0) {
+          resultsContainer.innerHTML = `<div class="no-results">🤔 Ничего не найдено</div>`;
+          hasMore = false;
+          return;
+        }
+
+        results.forEach(item => {
+          const card = document.createElement('div');
+          card.className = 'result-card';
+          card.innerHTML = `
+            <div class="result-title">
+              <img class="result-icon" src="${item.icon || ''}" alt="" loading="lazy">
+              <a href="${item.url}" target="_blank">${escapeHtml(item.title)}</a>
+            </div>
+            <div class="result-url">${escapeHtml(item.url)}</div>
+            <div class="result-desc">${escapeHtml(item.description || '')}</div>
+          `;
+          resultsContainer.appendChild(card);
+        });
+
+        // Статистика
+        const stats = document.createElement('div');
+        stats.className = 'stats';
+        const from = offsetVal + 1;
+        const to = Math.min(offsetVal + results.length, totalResults);
+        stats.textContent = `Показаны ${from}-${to} из ${totalResults} результатов`;
+        resultsContainer.prepend(stats);
+
+        hasMore = (offsetVal + results.length) < totalResults;
+        if (hasMore && !append) {
+          const loadMoreDiv = document.createElement('div');
+          loadMoreDiv.className = 'load-more';
+          loadMoreDiv.innerHTML = `<button id="loadMoreBtn">Показать ещё</button>`;
+          resultsContainer.appendChild(loadMoreDiv);
+          document.getElementById('loadMoreBtn').addEventListener('click', () => {
+            offset += 10;
+            performSearch(query, engine, offset, true);
+          });
+        }
+
+        offset = offsetVal + results.length;
+
+      } catch (err) {
+        console.error('Search error:', err);
+        if (!append) {
+          resultsContainer.innerHTML = `<div class="error">❌ Ошибка поиска: ${err.message}</div>`;
+        } else {
+          const loadingMore = document.getElementById('loadingMore');
+          if (loadingMore) loadingMore.innerHTML = `<span style="color:#f48024;">❌ Ошибка загрузки</span>`;
+        }
+      }
+
+      isLoading = false;
+    }
+
+    // События
+    searchBtn.addEventListener('click', () => {
+      const q = searchInput.value.trim();
+      if (!q) return;
+      currentQuery = q;
+      offset = 0;
+      performSearch(q, currentEngine, 0, false);
+    });
+
+    searchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') searchBtn.click();
+    });
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentEngine = btn.dataset.engine;
+        if (currentQuery) {
+          offset = 0;
+          performSearch(currentQuery, currentEngine, 0, false);
+        }
+      });
+    });
+
+    // Если есть параметр ?q=...
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialQuery = urlParams.get('q');
+    if (initialQuery) {
+      searchInput.value = initialQuery;
+      searchBtn.click();
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return String(text).replace(/[&<>"']/g, m => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      }[m]));
+    }
+  </script>
+</body>
+</html>
