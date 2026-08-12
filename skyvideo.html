@@ -161,16 +161,6 @@
       } catch (e) { logout(); return false; }
     }
 
-    function loginWithSkyID() {
-      const scope = 'profile email';
-      const state = encodeURIComponent(JSON.stringify({
-        path: '/skyvideo.html',
-        client_id: 'skyvideo'
-      }));
-      const REDIRECT_URI = 'https://skycitadel.cc.cd/callback.html';
-      const authUrl = `${SKYID_URL}/oauth/authorize?client_id=skyvideo&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
-      window.location.href = authUrl;
-    }
     
     function logout() {
       token = null;
