@@ -237,6 +237,152 @@
 		  .route-controls input {
 		    width: 100%;
 		  }
+			/* ====== ПОПАП ПРИВЕТСТВИЯ ====== */
+			.welcome-overlay {
+			  position: fixed;
+			  inset: 0;
+			  background: rgba(0,0,0,0.85);
+			  backdrop-filter: blur(12px);
+			  z-index: 10000;
+			  display: flex;
+			  align-items: center;
+			  justify-content: center;
+			  animation: fadeIn 0.5s ease;
+			}
+			.welcome-overlay.hidden {
+			  display: none;
+			}
+			.welcome-modal {
+			  background: linear-gradient(145deg, #1a233a, #0d1425);
+			  border: 1px solid #2a3450;
+			  border-radius: 28px;
+			  padding: 3rem 2.5rem;
+			  max-width: 520px;
+			  width: 90%;
+			  text-align: center;
+			  box-shadow: 0 30px 80px rgba(0,0,0,0.8);
+			  animation: slideUp 0.5s ease;
+			}
+			.welcome-modal .icon {
+			  font-size: 4rem;
+			  margin-bottom: 0.5rem;
+			}
+			.welcome-modal h1 {
+			  font-size: 2.2rem;
+			  font-weight: 700;
+			  background: linear-gradient(135deg, #b5ceff, #5f7ecf);
+			  -webkit-background-clip: text;
+			  -webkit-text-fill-color: transparent;
+			  background-clip: text;
+			  margin-bottom: 0.3rem;
+			}
+			.welcome-modal .subtitle {
+			  color: #8899cc;
+			  font-size: 0.95rem;
+			  margin-bottom: 1.8rem;
+			}
+			.welcome-modal .btn-group {
+			  display: flex;
+			  flex-direction: column;
+			  gap: 0.8rem;
+			}
+			.welcome-modal .btn-group .btn-primary {
+			  background: #5f7ecf;
+			  color: white;
+			  border: none;
+			  padding: 0.9rem 1.5rem;
+			  border-radius: 14px;
+			  font-size: 1.1rem;
+			  font-weight: 600;
+			  cursor: pointer;
+			  transition: all 0.2s;
+			}
+			.welcome-modal .btn-group .btn-primary:hover {
+			  background: #7a98e8;
+			  transform: scale(1.02);
+			}
+			.welcome-modal .btn-group .btn-secondary {
+			  background: transparent;
+			  color: #8899cc;
+			  border: 1px solid #2a3450;
+			  padding: 0.8rem 1.5rem;
+			  border-radius: 14px;
+			  font-size: 1rem;
+			  cursor: pointer;
+			  transition: all 0.2s;
+			}
+			.welcome-modal .btn-group .btn-secondary:hover {
+			  background: #1f2b4a;
+			  border-color: #5f7ecf;
+			  color: #fff;
+			}
+			.welcome-modal .btn-group .btn-download {
+			  background: #2f4b8c;
+			  color: white;
+			  border: none;
+			  padding: 0.9rem 1.5rem;
+			  border-radius: 14px;
+			  font-size: 1.1rem;
+			  font-weight: 600;
+			  cursor: pointer;
+			  transition: all 0.2s;
+			}
+			.welcome-modal .btn-group .btn-download:hover {
+			  background: #4a6bb0;
+			  transform: scale(1.02);
+			}
+			.welcome-modal .divider {
+			  border: none;
+			  border-top: 1px solid #2a3450;
+			  margin: 1.2rem 0;
+			}
+			.welcome-modal .platform-group {
+			  display: flex;
+			  gap: 0.8rem;
+			  flex-direction: column;
+			}
+			.welcome-modal .platform-btn {
+			  display: flex;
+			  align-items: center;
+			  justify-content: center;
+			  gap: 0.8rem;
+			  background: #111827;
+			  border: 1px solid #2a3450;
+			  color: #e0e8ff;
+			  padding: 0.9rem 1.5rem;
+			  border-radius: 14px;
+			  font-size: 1rem;
+			  cursor: pointer;
+			  transition: all 0.2s;
+			  text-decoration: none;
+			}
+			.welcome-modal .platform-btn:hover {
+			  background: #1f2b4a;
+			  border-color: #5f7ecf;
+			  transform: scale(1.02);
+			}
+			.welcome-modal .platform-btn .emoji {
+			  font-size: 1.5rem;
+			}
+			.welcome-modal .back-link {
+			  color: #5f7ecf;
+			  cursor: pointer;
+			  font-size: 0.85rem;
+			  margin-top: 0.8rem;
+			  display: inline-block;
+			  transition: color 0.2s;
+			}
+			.welcome-modal .back-link:hover {
+			  color: #7a98e8;
+			}
+			@keyframes fadeIn {
+			  from { opacity: 0; }
+			  to { opacity: 1; }
+			}
+			@keyframes slideUp {
+			  from { transform: translateY(30px); opacity: 0; }
+			  to { transform: translateY(0); opacity: 1; }
+			}
 		}
   </style>
 
@@ -244,6 +390,38 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛡️</text></svg>">
 </head>
 <body>
+	<!-- ПОПАП ПРИВЕТСТВИЯ -->
+	<div class="welcome-overlay" id="welcomeOverlay">
+  		<div class="welcome-modal" id="welcomeModal">
+    	<!-- Шаг 1: Главный экран -->
+    	<div id="step1">
+      	<div class="icon">🛡️</div>
+      	<h1>ДОБРО ПОЖАЛОВАТЬ</h1>
+      	<h1 style="font-size:1.8rem; -webkit-text-fill-color: #b7ceff; background: none;">В SKYCITADEL!</h1>
+      	<p class="subtitle">Цифровая крепость для свободных людей</p>
+      	<div class="btn-group">
+        	<button class="btn-primary" onclick="dismissWelcome()">🚀 Продолжить в браузере</button>
+        	<button class="btn-download" onclick="showStep2()">📱 Скачать приложение</button>
+      	</div>
+    	</div>
+
+    	<!-- Шаг 2: Выбор платформы -->
+    	<div id="step2" style="display:none;">
+      	<div class="icon">📥</div>
+      	<h1 style="font-size:1.6rem; -webkit-text-fill-color: #b7ceff; background: none;">Скачать SkyCitadel</h1>
+      	<p class="subtitle">Выберите вашу платформу</p>
+      	<div class="platform-group">
+        	<a href="https://github.com/SkyMonder/SkyCitadel/tree/main/SkyCitadel_apps/FOR%20WINDOWS" target="_blank" class="platform-btn">
+          	<span class="emoji">🖥️</span> Скачать для ПК (Windows)
+        	</a>
+        	<a href="https://github.com/SkyMonder/SkyCitadel/tree/main/SkyCitadel_apps/FOR%20ANDROID" target="_blank" class="platform-btn">
+          	<span class="emoji">📱</span> Скачать для Android (APK)
+        	</a>
+      	</div>
+      	<span class="back-link" onclick="showStep1()">← Назад</span>
+    	</div>
+  	</div>
+  </div>
   <!-- Гамбургер-меню -->
   <button class="hamburger" id="hamburgerBtn" aria-label="Меню">☰</button>
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
