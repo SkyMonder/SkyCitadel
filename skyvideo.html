@@ -166,8 +166,8 @@
     
     function logout() {
       token = null;
-      localStorage.removeItem('skyvideo_token');
-      localStorage.removeItem('skyvideo_skyid');
+      localStorage.removeItem('skyid_token');
+      localStorage.removeItem('skyid_skyid');
       currentUser = null;
       currentSkyid = null;
       document.getElementById('user-info').textContent = '';
