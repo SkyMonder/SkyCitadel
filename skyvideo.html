@@ -285,35 +285,42 @@
     })();
 
     // ====== Загрузка ленты ======
-    async function renderFeed() {
-      const container = document.getElementById('main-content');
-      try {
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
-        const res = await fetch(`${SKYVIDEO_URL}/list`, { headers });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        if (!Array.isArray(data)) throw new Error('Не массив');
-        container.innerHTML = `
-          <div class="video-grid">
-            ${data.map(v => `
-              <div class="video-card" onclick="navigateToVideo('${v.id}')">
-                <img src="${v.thumbnail ? SKYVIDEO_URL + v.thumbnail : 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'280\' height=\'150\' viewBox=\'0 0 280 150\'%3E%3Crect width=\'280\' height=\'150\' fill=\'%231a233a\'/%3E%3Ctext x=\'140\' y=\'75\' font-family=\'sans-serif\' font-size=\'20\' fill=\'%235f7ecf\' text-anchor=\'middle\' dy=\'.3em\'%3E🎬%3C/text%3E%3C/svg%3E'}" alt="Превью">
-                <div class="info">
-                  <div class="title">${escapeHtml(v.title)}</div>
-                  <div class="meta">
-                    ${escapeHtml(v.author)} • ${v.views} просмотров
-                    <span class="subscribers">👥 ${v.followersCount || 0} подписчиков</span>
+      async function renderFeed() {
+          const container = document.getElementById('main-content');
+          try {
+            const url = `${SKYVIDEO_URL}/list`;
+            const headers = token ? { Authorization: `Bearer ${token}` } : {};
+            console.log('🔍 renderFeed: url=', url);
+            console.log('🔍 renderFeed: headers=', headers);
+            console.log('🔍 renderFeed: token exists?', !!token);
+
+            const res = await fetch(url, { headers });
+            console.log('🔍 renderFeed: response status=', res.status);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            console.log('🔍 renderFeed: data=', data);
+            if (!Array.isArray(data)) throw new Error('Не массив');
+            container.innerHTML = `
+              <div class="video-grid">
+                ${data.map(v => `
+                  <div class="video-card" onclick="navigateToVideo('${v.id}')">
+                    <img src="${v.thumbnail ? SKYVIDEO_URL + v.thumbnail : 'data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'280\' height=\'150\' viewBox=\'0 0 280 150\'%3E%3Crect width=\'280\' height=\'150\' fill=\'%231a233a\'/%3E%3Ctext x=\'140\' y=\'75\' font-family=\'sans-serif\' font-size=\'20\' fill=\'%235f7ecf\' text-anchor=\'middle\' dy=\'.3em\'%3E🎬%3C/text%3E%3C/svg%3E'}" alt="Превью">
+                    <div class="info">
+                      <div class="title">${escapeHtml(v.title)}</div>
+                      <div class="meta">
+                        ${escapeHtml(v.author)} • ${v.views} просмотров
+                        <span class="subscribers">👥 ${v.followersCount || 0} подписчиков</span>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                `).join('')}
               </div>
-            `).join('')}
-          </div>
-        `;
-      } catch (e) {
-        container.innerHTML = `<p style="text-align:center;color:#c44;">❌ Ошибка загрузки видео: ${e.message}</p>`;
-        console.error(e);
-      }
-    }
+            `;
+          } catch (e) {
+            console.error('❌ renderFeed error:', e);
+            container.innerHTML = `<p style="text-align:center;color:#c44;">❌ Ошибка загрузки видео: ${e.message}</p>`;
+          }
+        }
 
     // ====== Страница видео ======
     async function renderVideoPage(videoId) {
