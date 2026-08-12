@@ -143,9 +143,7 @@
       if (!token) return false;
       try {
         const res = await fetch(`${SKYID_URL}/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ token })
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         if (res.ok) {
           const data = await res.json();
@@ -233,9 +231,7 @@
         try {
           const payload = await encryptPayload({ login, password });
           const res = await fetch(`${SKYID_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
           });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -262,9 +258,7 @@
         try {
           const payload = await encryptPayload({ login, password });
           const res = await fetch(`${SKYID_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
+            headers: token ? { Authorization: `Bearer ${token}` } : {}
           });
           if (!res.ok) {
             const err = await res.json().catch(() => ({}));
@@ -299,9 +293,7 @@
       const bio = document.getElementById('channel-bio').value.trim();
       try {
         await fetch(`${SKYVIDEO_URL}/profile`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ name, bio })
+          headers: token ? { Authorization: `Bearer ${token}` } : {}
         });
         document.getElementById('profile-modal').classList.remove('active');
         if (currentUser) { currentUser.name = name; document.getElementById('user-info').textContent = name; }
