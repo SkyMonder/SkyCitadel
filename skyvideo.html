@@ -94,14 +94,38 @@
 
   <script>
     // ====== Конфигурация ======
+        // ====== Конфигурация ======
     const SKYVIDEO_URL = 'https://skyvideo.onrender.com';
     const SKYID_URL = 'https://skymutant.cc.cd';
-    const CLIENT_ID = 'skyvideo';
-    const REDIRECT_URI = 'https://skycitadel.onrender.com/callback.html';
+    const CLIENT_KEY_BASE64 = 'BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8='; // общий ключ
 
-    let token = localStorage.getItem('skyvideo_token') || null;
+    // ====== Шифрование ======
+    async function getKey() {
+      const k = Uint8Array.from(atob(CLIENT_KEY_BASE64), c => c.charCodeAt(0));
+      return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    }
+    async function encryptPayload(obj) {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder().encode(JSON.stringify(obj));
+      const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+      const combo = new Uint8Array(iv.byteLength + c.byteLength);
+      combo.set(iv);
+      combo.set(new Uint8Array(c), iv.byteLength);
+      return btoa(String.fromCharCode(...combo));
+    }
+    async function decryptPayload(b64) {
+      const key = await getKey();
+      const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const iv = combo.slice(0, 12);
+      const data = combo.slice(12);
+      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      return JSON.parse(new TextDecoder().decode(dec));
+    }
+
+    let token = localStorage.getItem('skyid_token') || null;  // единый JWT
     let currentUser = null;
-    let currentSkyid = localStorage.getItem('skyvideo_skyid') || null;
+    let currentSkyid = null;
 
     // ====== Навигация ======
     function goHome() {
