@@ -545,39 +545,33 @@
       const statusDiv = document.getElementById('upload-status');
       progressBar.style.display = 'block';
       progressFill.style.width = '0%';
-      statusDiv.textContent = 'Загрузка...';
+      statusDiv.textContent = 'Подготовка...';
 
       try {
-        const xhr = new XMLHttpRequest();
-        xhr.open('POST', `${SKYVIDEO_URL}/upload`, true);
-        if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-        xhr.timeout = 600000;
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) {
-            const percent = Math.round((e.loaded / e.total) * 100);
-            progressFill.style.width = percent + '%';
-            statusDiv.textContent = `Загрузка: ${percent}%`;
-          }
-        };
-        const promise = new Promise((resolve, reject) => {
-          xhr.onload = () => {
-            if (xhr.status === 200) {
-              try { resolve(JSON.parse(xhr.responseText)); }
-              catch (e) { reject(new Error('Ошибка парсинга ответа')); }
-            } else {
-              let errMsg = `Ошибка (${xhr.status})`;
-              try { const resp = JSON.parse(xhr.responseText); if (resp.error) errMsg = resp.error; } catch (e) {}
-              reject(new Error(errMsg));
-            }
-          };
-          xhr.onerror = () => reject(new Error('Сетевая ошибка'));
-          xhr.ontimeout = () => reject(new Error('Таймаут'));
+        // Используем fetch с кастомным прогрессом
+        const response = await fetchWithProgress(`${SKYVIDEO_URL}/upload`, {
+          method: 'POST',
+          headers: token ? { 'Authorization': `Bearer ${token}` } : {},
+          body: formData
+        }, (loaded, total) => {
+          const percent = Math.round((loaded / total) * 100);
+          progressFill.style.width = percent + '%';
+          statusDiv.textContent = `Загрузка: ${percent}%`;
         });
-        xhr.send(formData);
-        await promise;
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          let errorMsg = `Ошибка ${response.status}`;
+          try { const json = JSON.parse(errorText); if (json.error) errorMsg = json.error; } catch (e) {}
+          throw new Error(errorMsg);
+        }
+
+        const result = await response.json();
         progressFill.style.width = '100%';
         statusDiv.textContent = '✅ Готово!';
+        alert('✅ Видео загружено!');
         document.getElementById('upload-modal').classList.remove('active');
+        // Очистить поля
         document.getElementById('vid-title').value = '';
         document.getElementById('vid-desc').value = '';
         document.getElementById('vid-tags').value = '';
@@ -585,14 +579,66 @@
         progressBar.style.display = 'none';
         statusDiv.textContent = '';
         renderFeed();
-        alert('✅ Видео загружено!');
       } catch (e) {
         statusDiv.textContent = '❌ Ошибка: ' + e.message;
         console.error(e);
-        progressBar.style.display = 'none';
         alert('Ошибка загрузки: ' + e.message);
+        progressBar.style.display = 'none';
       }
     });
+
+    // ====== Вспомогательная функция для fetch с прогрессом ======
+    async function fetchWithProgress(url, options, onProgress) {
+      // Если у нас есть тело, и это FormData, мы не можем просто так прочитать его для прогресса,
+      // поэтому создаём поток, который будет читать тело и передавать его.
+      // Однако проще: использовать XMLHttpRequest только для прогресса, но мы хотим отказаться от xhr.
+      // Альтернатива: использовать fetch с ReadableStream для отслеживания отправки.
+      // Но стандартный fetch не даёт события прогресса для отправки, только для получения.
+      // Поэтому мы всё же используем xhr только для прогресса, но скрываем его внутри этой функции.
+      // Это единственный кросс-браузерный способ.
+      // Можно также использовать fetch с ручным созданием тела через ReadableStream, но это сложно.
+      // Поэтому я предлагаю использовать xhr внутри этой функции, но вызывать её как fetch.
+      // Это даст нам прогресс, но мы инкапсулируем xhr, и остальной код использует fetch.
+      // Поскольку вопрос был "зачем xhr", я покажу, как его обернуть, чтобы не писать логику заново.
+      // Если вы принципиально хотите без xhr, придётся использовать более сложный подход с stream.
+      // Я рекомендую оставить xhr только для прогресса, но использовать его внутри этой функции.
+      // Тогда основной код будет чистым.
+      return new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        xhr.open(options.method || 'POST', url, true);
+        // Устанавливаем заголовки
+        if (options.headers) {
+          for (const [key, value] of Object.entries(options.headers)) {
+            xhr.setRequestHeader(key, value);
+          }
+        }
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable && onProgress) {
+            onProgress(e.loaded, e.total);
+          }
+        };
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve({
+              ok: true,
+              status: xhr.status,
+              json: () => Promise.resolve(JSON.parse(xhr.responseText)),
+              text: () => Promise.resolve(xhr.responseText)
+            });
+          } else {
+            resolve({
+              ok: false,
+              status: xhr.status,
+              text: () => Promise.resolve(xhr.responseText)
+            });
+          }
+        };
+        xhr.onerror = () => reject(new Error('Сетевая ошибка'));
+        xhr.ontimeout = () => reject(new Error('Таймаут'));
+        xhr.timeout = 600000;
+        xhr.send(options.body);
+      });
+    }
 
     // ====== Профиль ======
     document.getElementById('profile-btn').addEventListener('click', async () => {
