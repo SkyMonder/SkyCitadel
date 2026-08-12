@@ -12,8 +12,10 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     .login-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
-    .login-box { background: var(--card); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 300px; text-align: center; }
+    .login-box { background: var(--card); padding: 2rem; border-radius: 20px; border: 1px solid var(--border); width: 320px; text-align: center; }
+    .login-box input { width: 100%; padding: 0.7rem; margin: 0.5rem 0; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 8px; }
     .login-box button { width: 100%; padding: 0.7rem; background: var(--accent); border: none; color: white; border-radius: 10px; cursor: pointer; font-weight: bold; }
+    .login-box .btn-secondary { background: #2a2a2a; margin-top: 0.3rem; }
     .error { color: #f48024; font-size: 0.8rem; margin-top: 0.5rem; }
     .app { display: none; width: 100%; height: 100%; flex-direction: column; }
     .header { padding: 1rem; background: var(--panel); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
@@ -26,23 +28,31 @@
     .post-actions { display: flex; gap: 0.5rem; font-size: 0.85rem; flex-wrap: wrap; }
     .btn { background: var(--accent); border: none; color: white; padding: 0.4rem 0.8rem; border-radius: 6px; cursor: pointer; }
     .btn-danger { background: #c44; }
+    .btn-sm { font-size: 0.75rem; padding: 0.2rem 0.5rem; }
     .new-post { display: flex; gap: 0.5rem; padding: 0.5rem; background: var(--card); border-radius: 12px; }
     .new-post textarea { flex: 1; padding: 0.5rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 8px; resize: vertical; min-height: 60px; }
-    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; }
+    .profile-panel { background: var(--card); padding: 1rem; border-radius: 12px; display: none; }
+    .profile-panel input { width: 100%; padding: 0.5rem; margin-top: 0.5rem; background: #0d1225; border: 1px solid var(--border); color: white; border-radius: 6px; }
+    .profile-panel button { width: 100%; margin-top: 0.5rem; }
     .comment-section { margin-top: 0.5rem; margin-left: 1rem; border-left: 2px solid #2f3b5c; padding-left: 0.8rem; }
     .comment { margin-bottom: 0.5rem; }
     .comment-actions { display: flex; gap: 0.3rem; font-size: 0.75rem; align-items: center; }
   </style>
 </head>
 <body>
+  <!-- Экран входа -->
   <div id="loginScreen" class="login-screen">
     <div class="login-box">
-      <h3>Вход через SkyID</h3>
-      <button id="loginBtn">Войти через SkyID</button>
-      <div class="error" id="loginError"></div>
+      <h3>Вход в SkyID</h3>
+      <input type="text" id="auth-login" placeholder="Логин">
+      <input type="password" id="auth-password" placeholder="Пароль">
+      <button id="auth-do-login">Войти</button>
+      <button id="auth-do-register" class="btn-secondary">Зарегистрироваться</button>
+      <div class="error" id="auth-error"></div>
     </div>
   </div>
 
+  <!-- Основное приложение -->
   <div class="app" id="app">
     <div class="header">
       <span>👥 SkySocial</span>
@@ -58,12 +68,12 @@
       </div>
       <div id="postsContainer"></div>
     </div>
-    <div class="profile-panel" id="profilePanel" style="display:none;">
+    <div class="profile-panel" id="profilePanel">
       <h3>Мой профиль</h3>
-      <input type="text" id="profileName" placeholder="Имя" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
-      <input type="text" id="profileBio" placeholder="О себе" style="width:100%; padding:0.5rem; margin-top:0.5rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:6px;">
-      <button class="btn" id="saveProfile" style="width:100%; margin-top:0.5rem;">Сохранить</button>
-      <button class="btn" id="closeProfile" style="width:100%; margin-top:0.3rem; background:#444;">Закрыть</button>
+      <input type="text" id="profileName" placeholder="Имя">
+      <input type="text" id="profileBio" placeholder="О себе">
+      <button class="btn" id="saveProfile">Сохранить</button>
+      <button class="btn" id="closeProfile" style="background:#444;">Закрыть</button>
     </div>
   </div>
 
@@ -71,47 +81,59 @@
     // ====== Конфигурация ======
     const SKYID_URL = 'https://skymutant.cc.cd';
     const SOCIAL_API = 'https://skymutant.cc.cd';
-    const CLIENT_ID = 'skysocial';
-    const REDIRECT_URI = 'https://skycitadel.cc.cd/callback_social.html';
+    const CLIENT_KEY_BASE64 = 'BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=';
+
+    // ====== Шифрование ======
+    async function getKey() {
+      const k = Uint8Array.from(atob(CLIENT_KEY_BASE64), c => c.charCodeAt(0));
+      return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    }
+    async function encryptPayload(obj) {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder().encode(JSON.stringify(obj));
+      const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+      const combo = new Uint8Array(iv.byteLength + c.byteLength);
+      combo.set(iv);
+      combo.set(new Uint8Array(c), iv.byteLength);
+      return btoa(String.fromCharCode(...combo));
+    }
+    async function decryptPayload(b64) {
+      const key = await getKey();
+      const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const iv = combo.slice(0, 12);
+      const data = combo.slice(12);
+      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      return JSON.parse(new TextDecoder().decode(dec));
+    }
 
     // ====== Глобальные переменные ======
-    let token = localStorage.getItem('skyvideo_token') || null; // используем общий ключ
+    let token = localStorage.getItem('skyid_token') || null;
     let currentUserSkyID = null;
     let currentLogin = null;
     let isAdmin = false;
 
-    console.log('🔍 Токен при загрузке socnet.html:', token);
-
-    // ====== Функции авторизации ======
-    function loginWithSkyID() {
-      const scope = 'profile social';
-      const state = encodeURIComponent('/socnet.html');
-      const authUrl = `${SKYID_URL}/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(REDIRECT_URI)}&scope=${encodeURIComponent(scope)}&state=${state}`;
-      window.location.href = authUrl;
-    }
-
+    // ====== Проверка токена ======
     async function verifyToken() {
       if (!token) return false;
       try {
-        console.log('🔍 Проверка токена:', token);
-        const res = await fetch(`${SKYID_URL}/me`, {
-          headers: { Authorization: `Bearer ${token}` }
+        const res = await fetch(`${SKYID_URL}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ token })
         });
-        console.log('📨 Ответ /me:', res.status);
         if (res.ok) {
-          const me = await res.json();
-          console.log('👤 Пользователь:', me);
-          currentUserSkyID = me.skyid;
-          currentLogin = me.login || me.skyid;
-          isAdmin = (me.login === 'SkyMonder');
+          const data = await res.json();
+          currentUserSkyID = data.skyid;
+          currentLogin = data.login;
+          isAdmin = (data.login === 'SkyMonder');
+          localStorage.setItem('skyid_skyid', data.skyid);
           return true;
         } else {
-          console.log('❌ Токен невалидный, статус:', res.status);
           logout();
           return false;
         }
       } catch (e) {
-        console.error('❌ Ошибка verifyToken:', e);
         logout();
         return false;
       }
@@ -119,9 +141,8 @@
 
     function logout() {
       token = null;
-      localStorage.removeItem('skyvideo_token');
-      localStorage.removeItem('skyvideo_skyid');
-      localStorage.removeItem('skyvideo_login');
+      localStorage.removeItem('skyid_token');
+      localStorage.removeItem('skyid_skyid');
       currentUserSkyID = null;
       currentLogin = null;
       isAdmin = false;
@@ -134,32 +155,88 @@
       document.getElementById('app').style.display = 'flex';
     }
 
-    // ====== Инициализация при загрузке ======
+    // ====== Авторизация ======
+    document.getElementById('auth-do-login').addEventListener('click', async () => {
+      const login = document.getElementById('auth-login').value.trim();
+      const password = document.getElementById('auth-password').value;
+      if (!login || !password) {
+        document.getElementById('auth-error').textContent = 'Заполните все поля';
+        return;
+      }
+      try {
+        const payload = await encryptPayload({ login, password });
+        const res = await fetch(`${SKYID_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Ошибка входа');
+        }
+        const json = await res.json();
+        const data = await decryptPayload(json.data);
+        token = data.jwt || data.token;
+        localStorage.setItem('skyid_token', token);
+        const valid = await verifyToken();
+        if (valid) {
+          showApp();
+          loadPosts();
+        }
+      } catch (e) {
+        document.getElementById('auth-error').textContent = e.message;
+      }
+    });
+
+    document.getElementById('auth-do-register').addEventListener('click', async () => {
+      const login = document.getElementById('auth-login').value.trim();
+      const password = document.getElementById('auth-password').value;
+      if (!login || !password) {
+        document.getElementById('auth-error').textContent = 'Заполните все поля';
+        return;
+      }
+      try {
+        const payload = await encryptPayload({ login, password });
+        const res = await fetch(`${SKYID_URL}/register`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: payload })
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || 'Ошибка регистрации');
+        }
+        const json = await res.json();
+        const data = await decryptPayload(json.data);
+        token = data.jwt || data.token;
+        localStorage.setItem('skyid_token', token);
+        const valid = await verifyToken();
+        if (valid) {
+          showApp();
+          loadPosts();
+        }
+      } catch (e) {
+        document.getElementById('auth-error').textContent = e.message;
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', logout);
+
+    // ====== Инициализация ======
     (async () => {
-      // Если есть токен, проверяем его
       if (token) {
         const valid = await verifyToken();
-        console.log('✅ Токен валиден?', valid);
         if (valid) {
           showApp();
           loadPosts();
           return;
-        } else {
-          console.log('❌ Токен невалиден, показываем экран входа');
         }
-      } else {
-        console.log('❌ Токен отсутствует, показываем экран входа');
       }
-      // Если токена нет или он невалиден — показываем экран входа
       document.getElementById('loginScreen').style.display = 'flex';
       document.getElementById('app').style.display = 'none';
     })();
 
-    // ====== Обработчики кнопок ======
-    document.getElementById('loginBtn').addEventListener('click', loginWithSkyID);
-    document.getElementById('logoutBtn').addEventListener('click', logout);
-
-    // ====== API-запросы с автоматической обработкой 401 ======
+    // ====== API-запросы с авторизацией ======
     async function apiFetch(url, options = {}) {
       const headers = {
         'Content-Type': 'application/json',
@@ -192,8 +269,8 @@
 
     function renderPost(post) {
       const deleteBtn = (post.skyid === currentUserSkyID || isAdmin) ?
-        `<button class="btn btn-danger" onclick="deletePost('${post.id}')">Удалить</button>` : '';
-      const banBtn = isAdmin ? `<button class="btn btn-danger" onclick="banUser('${post.skyid}')">🔨 Бан</button>` : '';
+        `<button class="btn btn-danger btn-sm" onclick="deletePost('${post.id}')">Удалить</button>` : '';
+      const banBtn = isAdmin ? `<button class="btn btn-danger btn-sm" onclick="banUser('${post.skyid}')">🔨 Бан</button>` : '';
       return `
         <div class="post">
           <div class="post-header">
@@ -203,16 +280,16 @@
           </div>
           <div class="post-text">${escapeHtml(post.text)}</div>
           <div class="post-actions">
-            <button class="btn" onclick="likePost('${post.id}')">👍 ${post.likes.length}</button>
-            <button class="btn" onclick="dislikePost('${post.id}')">👎 ${post.dislikes.length}</button>
-            <button class="btn" onclick="toggleComments('${post.id}')">💬</button>
+            <button class="btn btn-sm" onclick="likePost('${post.id}')">👍 ${post.likes.length}</button>
+            <button class="btn btn-sm" onclick="dislikePost('${post.id}')">👎 ${post.dislikes.length}</button>
+            <button class="btn btn-sm" onclick="toggleComments('${post.id}')">💬</button>
             ${deleteBtn}
           </div>
           <div id="comments-${post.id}" class="comment-section" style="display:none;">
             <div id="comments-list-${post.id}"></div>
             <div style="display:flex; gap:0.3rem; margin-top:0.3rem;">
               <input type="text" id="comment-input-${post.id}" placeholder="Комментарий..." style="flex:1; padding:0.3rem; background:#0d1225; border:1px solid var(--border); color:white; border-radius:4px;">
-              <button class="btn" onclick="addComment('${post.id}')">➤</button>
+              <button class="btn btn-sm" onclick="addComment('${post.id}')">➤</button>
             </div>
           </div>
         </div>`;
@@ -270,9 +347,9 @@
             <div class="comment">
               <strong>${escapeHtml(c.author)}</strong>: ${escapeHtml(c.text)}
               <div class="comment-actions">
-                <button class="btn" onclick="likeComment('${postId}','${c.id}')">👍 ${c.likes.length}</button>
-                <button class="btn" onclick="dislikeComment('${postId}','${c.id}')">👎 ${c.dislikes.length}</button>
-                ${(c.skyid === currentUserSkyID || isAdmin) ? `<button class="btn btn-danger" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
+                <button class="btn btn-sm" onclick="likeComment('${postId}','${c.id}')">👍 ${c.likes.length}</button>
+                <button class="btn btn-sm" onclick="dislikeComment('${postId}','${c.id}')">👎 ${c.dislikes.length}</button>
+                ${(c.skyid === currentUserSkyID || isAdmin) ? `<button class="btn btn-danger btn-sm" onclick="deleteComment('${postId}','${c.id}')">×</button>` : ''}
               </div>
             </div>`).join('');
         } catch (e) {}
@@ -332,14 +409,16 @@
     // ====== Профиль ======
     document.getElementById('profileBtn').addEventListener('click', async () => {
       const panel = document.getElementById('profilePanel');
-      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-      if (panel.style.display === 'block') {
+      if (panel.style.display === 'none' || !panel.style.display) {
+        panel.style.display = 'block';
         try {
           const res = await apiFetch(`${SOCIAL_API}/profile`);
           const profile = await res.json();
           document.getElementById('profileName').value = profile.name || '';
           document.getElementById('profileBio').value = profile.bio || '';
         } catch (e) {}
+      } else {
+        panel.style.display = 'none';
       }
     });
     document.getElementById('closeProfile').addEventListener('click', () => {
