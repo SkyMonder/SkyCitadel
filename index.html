@@ -1260,6 +1260,36 @@
     	hamburger.classList.remove('active');
   	}
   });
+	  // ====== ПОПАП ПРИВЕТСТВИЯ ======
+	function showStep1() {
+  	document.getElementById('step1').style.display = 'block';
+  	document.getElementById('step2').style.display = 'none';
+	}
+	function showStep2() {
+  	document.getElementById('step1').style.display = 'none';
+  	document.getElementById('step2').style.display = 'block';
+	}
+	function dismissWelcome() {
+  	document.getElementById('welcomeOverlay').classList.add('hidden');
+  	localStorage.setItem('skycitadel_welcome_dismissed', 'true');
+	}
+
+	// Проверяем, показывать ли попап
+	document.addEventListener('DOMContentLoaded', function() {
+  	const dismissed = localStorage.getItem('skycitadel_welcome_dismissed');
+  	if (!dismissed) {
+    	setTimeout(function() {
+      	document.getElementById('welcomeOverlay').classList.remove('hidden');
+    	}, 500);
+  	}
+	});
+
+	// Клик вне модального окна — закрываем
+	document.getElementById('welcomeOverlay').addEventListener('click', function(e) {
+  	if (e.target === this) {
+    	dismissWelcome();
+  	}
+  });
   </script>
 </body>
 </html>
