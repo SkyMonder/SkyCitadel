@@ -192,13 +192,10 @@
     (async () => {
       try {
         const params = new URLSearchParams(window.location.search);
-        if (params.get('code')) {
-          window.location.href = '/callback.html' + window.location.search;
-          return;
-        }
+        // Убираем проверку на code — OAuth больше нет
         if (token) {
           const valid = await verifyToken();
-          if (valid && currentUser) { login(currentUser); }
+          if (valid && currentUser) { loginUser(currentUser); }
         } else {
           document.getElementById('login-btn').style.display = 'inline-block';
         }
@@ -212,7 +209,6 @@
         console.error('Ошибка инициализации:', e);
       }
     })();
-
         // Модалка входа
     document.getElementById('login-btn').addEventListener('click', () => {
       const modal = document.getElementById('auth-modal');
