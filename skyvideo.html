@@ -211,11 +211,81 @@
       }
     })();
 
+        // Модалка входа
     document.getElementById('login-btn').addEventListener('click', () => {
-      document.getElementById('auth-modal').classList.add('active');
-    });
-    document.getElementById('auth-submit').addEventListener('click', loginWithSkyID);
+      const modal = document.getElementById('auth-modal');
+      modal.classList.add('active');
+      // Заполняем модалку формой
+      document.querySelector('#auth-modal .modal').innerHTML = `
+        <h2 id="auth-title">Вход в SkyID</h2>
+        <input type="text" id="auth-login" placeholder="Логин" style="width:100%;padding:0.7rem;margin:0.5rem 0;background:#0d1225;border:1px solid var(--border);color:white;border-radius:8px;">
+        <input type="password" id="auth-password" placeholder="Пароль" style="width:100%;padding:0.7rem;margin:0.5rem 0;background:#0d1225;border:1px solid var(--border);color:white;border-radius:8px;">
+        <div style="display:flex;gap:0.5rem;">
+          <button id="auth-do-login" class="btn" style="flex:1;">Войти</button>
+          <button id="auth-do-register" class="btn" style="flex:1;background:#2a2a2a;">Зарегистрироваться</button>
+        </div>
+        <div id="auth-error" style="color:#c44;margin-top:0.5rem;"></div>
+        <button class="btn" style="background:#444;width:100%;margin-top:0.5rem;" onclick="document.getElementById('auth-modal').classList.remove('active')">Отмена</button>
+      `;
 
+      document.getElementById('auth-do-login').addEventListener('click', async () => {
+        const login = document.getElementById('auth-login').value.trim();
+        const password = document.getElementById('auth-password').value;
+        if (!login || !password) return;
+        try {
+          const payload = await encryptPayload({ login, password });
+          const res = await fetch(`${SKYID_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка входа');
+          }
+          const json = await res.json();
+          const data = await decryptPayload(json.data);
+          token = data.jwt || data.token;
+          localStorage.setItem('skyid_token', token);
+          const verified = await verifyToken();
+          if (verified && currentUser) {
+            loginUser(currentUser);
+            document.getElementById('auth-modal').classList.remove('active');
+          }
+        } catch (e) {
+          document.getElementById('auth-error').textContent = e.message;
+        }
+      });
+
+      document.getElementById('auth-do-register').addEventListener('click', async () => {
+        const login = document.getElementById('auth-login').value.trim();
+        const password = document.getElementById('auth-password').value;
+        if (!login || !password) return;
+        try {
+          const payload = await encryptPayload({ login, password });
+          const res = await fetch(`${SKYID_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload })
+          });
+          if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.error || 'Ошибка регистрации');
+          }
+          const json = await res.json();
+          const data = await decryptPayload(json.data);
+          token = data.jwt || data.token;
+          localStorage.setItem('skyid_token', token);
+          const verified = await verifyToken();
+          if (verified && currentUser) {
+            loginUser(currentUser);
+            document.getElementById('auth-modal').classList.remove('active');
+          }
+        } catch (e) {
+          document.getElementById('auth-error').textContent = e.message;
+        }
+      });
+    });
     // ====== Профиль ======
     document.getElementById('profile-btn').addEventListener('click', async () => {
       try {
