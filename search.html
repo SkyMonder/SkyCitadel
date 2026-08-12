@@ -83,7 +83,6 @@
       border-radius: 20px;
       cursor: pointer;
       transition: all 0.2s;
-      font-size: 0.85rem;
     }
     .filters button.active {
       background: #5f7ecf;
@@ -198,9 +197,7 @@
 
     <div class="filters" id="filterBar">
       <button class="active" data-engine="duckduckgo">🦆 DuckDuckGo</button>
-      <button data-engine="google">🔴 Google</button>
       <button data-engine="bing">🔵 Bing</button>
-      <button data-engine="yandex">🟡 Yandex</button>
       <button data-engine="ecosia">🌱 Ecosia</button>
     </div>
 
@@ -223,6 +220,7 @@
     let isLoading = false;
     let hasMore = true;
 
+    // Поиск
     async function performSearch(query, engine, offsetVal = 0, append = false) {
       if (!query.trim()) return;
       if (isLoading) return;
@@ -338,6 +336,7 @@
       searchBtn.click();
     }
 
+    // Экранирование
     function escapeHtml(text) {
       if (!text) return '';
       return String(text).replace(/[&<>"']/g, m => ({
