@@ -177,11 +177,11 @@
       renderFeed();
     }
 
-    function login(user) {
+    function loginUser(user) {
       currentUser = user;
       currentSkyid = user.skyid;
-      localStorage.setItem('skyvideo_skyid', user.skyid);
-      document.getElementById('user-info').textContent = user.name || user.login;
+      localStorage.setItem('skyid_skyid', user.skyid);
+      document.getElementById('user-info').textContent = user.login;
       document.getElementById('login-btn').style.display = 'none';
       document.getElementById('upload-btn').style.display = 'inline-block';
       document.getElementById('profile-btn').style.display = 'inline-block';
