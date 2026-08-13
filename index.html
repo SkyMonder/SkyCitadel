@@ -1112,45 +1112,25 @@
     }
 
     async function subscribeToPush(registration) {
-      try {
-        // Проверяем, есть ли уже подписка
-        let subscription = await registration.pushManager.getSubscription();
-        if (subscription) {
-          console.log('📬 Уже подписаны');
-          return subscription;
-        }
-
-        // Создаём новую подписку
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-        });
-
-        console.log('📬 Подписка создана:', subscription);
-
-        // Отправляем подписку на сервер
-        const token = localStorage.getItem('skyid_token');
-        if (!token) {
-          console.warn('⚠️ Нет токена, подписка не сохранена на сервере');
-          return subscription;
-        }
-
-        await fetch('https://skymutant.cc.cd/api/push/subscribe', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
-          },
-          body: JSON.stringify({ subscription })
-        });
-
-        console.log('✅ Подписка отправлена на сервер');
-        return subscription;
-      } catch (e) {
-        console.error('❌ Ошибка подписки:', e);
-        return null;
-      }
-    }
+  		let subscription = await registration.pushManager.getSubscription();
+  		if (!subscription) {
+    		subscription = await registration.pushManager.subscribe({
+      		userVisibleOnly: true,
+      		applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+    		});
+  		}
+  		// Отправляем на сервер
+  		const token = localStorage.getItem('skyid_token');
+  		if (token) {
+    		await fetch('https://skymutant.cc.cd/api/push/subscribe', {
+      		method: 'POST',
+      		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      		body: JSON.stringify({ subscription })
+    		});
+    		console.log('✅ Подписка сохранена на сервере');
+  		}
+  		return subscription;
+	}
 
     // Вспомогательная функция: base64 → Uint8Array
     function urlBase64ToUint8Array(base64String) {
