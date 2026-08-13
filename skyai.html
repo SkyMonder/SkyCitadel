@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Ассистент — SkyCitadel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding: 1rem;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
+      background: #111827;
+      border-radius: 16px;
+      margin-bottom: 1rem;
+    }
+    .back-btn {
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      padding: 0.5rem 1.2rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-weight: bold;
+      text-decoration: none;
+      font-size: 0.9rem;
+    }
+    .back-btn:hover { background: #4a6bb0; }
+    h1 { font-size: 1.6rem; color: #b7ceff; display: flex; align-items: center; gap: 0.5rem; }
+    .chat-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      background: #111827;
+      border-radius: 16px;
+      border: 1px solid #2a3450;
+      overflow: hidden;
+    }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .msg {
+      max-width: 80%;
+      padding: 0.7rem 1rem;
+      border-radius: 16px;
+      background: #1a233a;
+      border: 1px solid #2a3450;
+      align-self: flex-start;
+      word-wrap: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #2f4b8c;
+      border-color: #3f62b0;
+    }
+    .msg .time {
+      font-size: 0.7rem;
+      color: #8899cc;
+      margin-top: 0.3rem;
+      text-align: right;
+    }
+    .input-area {
+      display: flex;
+      padding: 1rem;
+      gap: 0.5rem;
+      border-top: 1px solid #2a3450;
+      background: #0d1425;
+    }
+    .input-area input {
+      flex: 1;
+      padding: 0.7rem;
+      background: #0d1225;
+      border: 1px solid #3a4660;
+      color: white;
+      border-radius: 10px;
+      outline: none;
+    }
+    .input-area input:focus { border-color: #5f7ecf; }
+    .input-area button {
+      padding: 0.7rem 1.5rem;
+      background: #5f7ecf;
+      border: none;
+      color: white;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .input-area button:hover { background: #7a9aef; }
+    .input-area button:disabled { opacity: 0.5; pointer-events: none; }
+    .loading {
+      text-align: center;
+      color: #8899cc;
+      font-style: italic;
+      padding: 0.5rem;
+    }
+    .quick-actions {
+      display: flex;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #2a3450;
+      background: #0d1425;
+    }
+    .quick-actions button {
+      background: #1a233a;
+      border: 1px solid #2a3450;
+      color: #cfdbff;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .quick-actions button:hover { background: #2a3450; }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/" class="back-btn">🏰 Вернуться в крепость</a>
+    <h1>🧠 AI Ассистент</h1>
+    <div style="width:100px;"></div>
+  </div>
+
+  <div class="chat-container">
+    <div class="quick-actions">
+      <button data-prompt="Помоги написать пост для соцсети">✍️ Пост</button>
+      <button data-prompt="Суммаризируй текст">📝 Суммаризировать</button>
+      <button data-prompt="Идея для видео">💡 Идея</button>
+      <button data-prompt="Что нового в SkyCitadel?">📢 О сервисе</button>
+    </div>
+
+    <div class="messages" id="messages">
+      <div class="msg" style="max-width:100%; text-align:center; background:transparent; border:none; color:#8899cc;">
+        Задай вопрос ассистенту
+      </div>
+    </div>
+
+    <div class="input-area">
+      <input type="text" id="input" placeholder="Спроси меня о чём угодно..." autofocus>
+      <button id="send-btn">Отправить</button>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'https://skymutant.cc.cd/ai/chat';
+    const messagesContainer = document.getElementById('messages');
+    const input = document.getElementById('input');
+    const sendBtn = document.getElementById('send-btn');
+    let history = [];
+
+    // Сохраняем историю сессии
+    function addMessage(text, isUser = false) {
+      const div = document.createElement('div');
+      div.className = `msg${isUser ? ' user' : ''}`;
+      div.textContent = text;
+      // Время
+      const time = document.createElement('div');
+      time.className = 'time';
+      time.textContent = new Date().toLocaleTimeString();
+      div.appendChild(time);
+      messagesContainer.appendChild(div);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function showLoading() {
+      const div = document.createElement('div');
+      div.className = 'loading';
+      div.id = 'loading-indicator';
+      div.textContent = '⏳ Думаю...';
+      messagesContainer.appendChild(div);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function hideLoading() {
+      const el = document.getElementById('loading-indicator');
+      if (el) el.remove();
+    }
+
+    async function sendMessage(text) {
+      if (!text.trim()) return;
+
+      // Показываем сообщение пользователя
+      addMessage(text, true);
+      history.push({ role: 'user', content: text });
+
+      // Очищаем поле
+      input.value = '';
+      sendBtn.disabled = true;
+
+      // Показываем индикатор
+      showLoading();
+
+      try {
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: text, history })
+        });
+
+        hideLoading();
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${response.status}`);
+        }
+
+        const data = await response.json();
+        const reply = data.reply || 'Не удалось получить ответ';
+
+        addMessage(reply, false);
+        history.push({ role: 'assistant', content: reply });
+
+        // Ограничиваем историю (последние 10 сообщений)
+        if (history.length > 10) history = history.slice(-10);
+
+      } catch (err) {
+        hideLoading();
+        addMessage(`❌ Ошибка: ${err.message}`, false);
+      } finally {
+        sendBtn.disabled = false;
+        input.focus();
+      }
+    }
+
+    // Обработчики
+    sendBtn.addEventListener('click', () => sendMessage(input.value));
+    input.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') sendMessage(input.value);
+    });
+
+    // Быстрые кнопки
+    document.querySelectorAll('.quick-actions button').forEach(btn => {
+      btn.addEventListener('click', () => {
+        input.value = btn.dataset.prompt;
+        sendMessage(input.value);
+      });
+    });
+
+    // Фокус на поле ввода
+    input.focus();
+  </script>
+</body>
+</html>
