@@ -876,6 +876,9 @@
         } catch (e) {
           document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
         }
+		// В обработчике skyid-login-btn, после успешного входа:
+		const event = new Event('skyid_login');
+		document.dispatchEvent(event);
       });
 
       // ====== SPOTIFY ======
@@ -1163,18 +1166,21 @@
 
     // Запускаем при загрузке
     (async function initPush() {
-      const registration = await registerServiceWorker();
-      if (registration) {
-        // Проверяем, авторизован ли пользователь
-        const token = localStorage.getItem('skyid_token');
-        if (token) {
-          await subscribeToPush(registration);
-        } else {
-          console.log('⏳ Пользователь не авторизован, подписка позже');
-          // Можно подписаться позже после логина (вызвать повторно)
-        }
-      }
-    })();
+  		const registration = await registerServiceWorker();
+  		if (registration) {
+    		const token = localStorage.getItem('skyid_token');
+    		if (token) {
+      		await subscribeToPush(registration);
+    		} else {
+      		console.log('⏳ Пользователь не авторизован, подписка позже');
+      		// Слушаем событие логина
+      		document.addEventListener('skyid_login', async () => {
+        		const reg = await navigator.serviceWorker.ready;
+        		await subscribeToPush(reg);
+      		});
+    		}
+  		}
+	})();
 
     // Если пользователь авторизуется позже — подписываем
     document.addEventListener('skyid_login', async () => {
