@@ -47,21 +47,23 @@
     }
     .model-selector {
       display: flex;
-      gap: 0.4rem;
+      gap: 0.3rem;
       background: #1a233a;
       padding: 0.2rem;
       border-radius: 20px;
       border: 1px solid #2a3450;
+      flex-wrap: wrap;
     }
     .model-selector button {
       background: transparent;
       border: none;
       color: #8899cc;
-      padding: 0.3rem 0.8rem;
+      padding: 0.3rem 0.7rem;
       border-radius: 16px;
-      font-size: 0.7rem;
+      font-size: 0.65rem;
       cursor: pointer;
       transition: all 0.2s;
+      white-space: nowrap;
     }
     .model-selector button.active {
       background: #2f4b8c;
@@ -226,6 +228,9 @@
         <button data-model="@cf/meta/llama-3.2-3b-instruct" class="active">⚡ Быстрая</button>
         <button data-model="@cf/google/gemma-4-26b-a4b-it">🧠 Умная</button>
         <button data-model="@cf/zai-org/glm-4.7-flash">⚖️ Сбаланс.</button>
+        <button data-model="@cf/qwen/qwen3-30b-a3b-fp8">🚀 Qwen 30B</button>
+        <button data-model="@cf/moonshotai/kimi-k2.6">🔥 Kimi</button>
+        <button data-model="@cf/deepseek-ai/deepseek-v4-flash-0731">🔮 DeepSeek</button>
       </div>
       <span class="token-indicator" id="tokenIndicator">⚡ Осталось: 10000</span>
       <button class="clear-btn" id="clearHistoryBtn">🗑️ Очистить</button>
@@ -264,13 +269,11 @@
     function setSelectedModel(model) {
       selectedModel = model;
       localStorage.setItem(MODEL_STORAGE_KEY, model);
-      // Обновляем активную кнопку
       document.querySelectorAll('.model-selector button').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.model === model);
       });
     }
 
-    // Инициализация переключателя моделей
     document.querySelectorAll('.model-selector button').forEach(btn => {
       btn.addEventListener('click', () => {
         setSelectedModel(btn.dataset.model);
@@ -342,7 +345,6 @@
       try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch (e) {}
     }
 
-    // ====== РЕНДЕРИНГ СООБЩЕНИЙ ======
     function renderMessage(msg) {
       const wrapper = document.createElement('div');
       wrapper.className = `msg-wrapper${msg.role === 'user' ? ' user' : ''}`;
@@ -444,7 +446,7 @@
           body: JSON.stringify({
             message: text,
             history: apiHistory.slice(0, -1),
-            model: selectedModel  // передаём выбранную модель в Worker
+            model: selectedModel
           })
         });
 
@@ -490,7 +492,6 @@
       }
       renderMessages();
       updateTokenIndicator();
-      // Восстанавливаем выбор модели
       setSelectedModel(selectedModel);
     })();
 
