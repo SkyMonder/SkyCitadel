@@ -54,19 +54,9 @@
       border: 1px solid #2a3450;
       white-space: nowrap;
     }
-    .token-indicator.low {
-      color: #f48024;
-      border-color: #f48024;
-    }
-    .token-indicator.critical {
-      color: #f44;
-      border-color: #f44;
-      animation: pulse 1s ease-in-out infinite;
-    }
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.5; }
-    }
+    .token-indicator.low { color: #f48024; border-color: #f48024; }
+    .token-indicator.critical { color: #f44; border-color: #f44; animation: pulse 1s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .clear-btn {
       background: #4a2a2a;
       border: none;
@@ -94,31 +84,47 @@
       flex-direction: column;
       gap: 0.5rem;
     }
-    .msg {
+    .msg-wrapper {
       max-width: 80%;
+      align-self: flex-start;
+    }
+    .msg-wrapper.user { align-self: flex-end; }
+    .msg {
       padding: 0.7rem 1rem;
       border-radius: 16px;
       background: #1a233a;
       border: 1px solid #2a3450;
-      align-self: flex-start;
       word-wrap: break-word;
       animation: fadeIn 0.2s ease;
     }
     .msg.user {
-      align-self: flex-end;
       background: #2f4b8c;
       border-color: #3f62b0;
     }
+    .msg a { color: #7a9aef; text-decoration: underline; }
+    .msg a:hover { color: #b7ceff; }
     .msg .time {
       font-size: 0.7rem;
       color: #8899cc;
       margin-top: 0.3rem;
       text-align: right;
     }
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(8px); }
-      to { opacity: 1; transform: translateY(0); }
+    .msg-actions {
+      margin-top: 0.3rem;
+      display: flex;
+      gap: 0.5rem;
     }
+    .msg-actions button {
+      background: #2a3450;
+      border: none;
+      color: #cfdbff;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      cursor: pointer;
+    }
+    .msg-actions button:hover { background: #3a4a6a; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
     .input-area {
       display: flex;
       padding: 1rem;
@@ -226,50 +232,35 @@
     function getTokenUsage() {
       try {
         const data = JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEY));
-        if (data && data.date === new Date().toDateString()) {
-          return data.used;
-        }
+        if (data && data.date === new Date().toDateString()) return data.used;
       } catch (e) {}
       return 0;
     }
-
     function setTokenUsage(used) {
-      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
-        date: new Date().toDateString(),
-        used: used
-      }));
+      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({ date: new Date().toDateString(), used }));
     }
-
     function updateTokenIndicator() {
       const used = getTokenUsage();
       const remaining = Math.max(0, MAX_TOKENS_PER_DAY - used);
       const indicator = document.getElementById('tokenIndicator');
       if (indicator) {
         indicator.textContent = `⚡ Осталось: ${remaining}`;
-        // Стили в зависимости от остатка
         indicator.classList.remove('low', 'critical');
-        if (remaining < 50) {
-          indicator.classList.add('critical');
-        } else if (remaining < 200) {
-          indicator.classList.add('low');
-        }
+        if (remaining < 50) indicator.classList.add('critical');
+        else if (remaining < 200) indicator.classList.add('low');
       }
     }
-
     function addTokenUsage(estimatedTokens) {
       const used = getTokenUsage();
       const newUsed = used + estimatedTokens;
       setTokenUsage(newUsed);
       updateTokenIndicator();
-      // Если осталось меньше 0, блокируем отправку
       if (newUsed >= MAX_TOKENS_PER_DAY) {
         document.getElementById('send-btn').disabled = true;
         document.getElementById('input').placeholder = '❌ Лимит токенов на сегодня исчерпан';
         document.getElementById('input').disabled = true;
       }
     }
-
-    // Проверка при загрузке
     (function checkTokenLimit() {
       const used = getTokenUsage();
       if (used >= MAX_TOKENS_PER_DAY) {
@@ -285,29 +276,69 @@
     const sendBtn = document.getElementById('send-btn');
     let history = [];
 
-    // ====== ЗАГРУЗКА ИСТОРИИ ======
     function loadHistory() {
       try {
         const stored = localStorage.getItem(STORAGE_KEY);
         if (stored) {
           const parsed = JSON.parse(stored);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            history = parsed;
-            return true;
-          }
+          if (Array.isArray(parsed) && parsed.length > 0) { history = parsed; return true; }
         }
       } catch (e) {}
       return false;
     }
-
-    // ====== СОХРАНЕНИЕ ИСТОРИИ ======
     function saveHistory() {
-      try {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
-      } catch (e) {}
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(history)); } catch (e) {}
     }
 
-    // ====== ОТРИСОВКА ======
+    // ====== РЕНДЕРИНГ СООБЩЕНИЙ С ПОДДЕРЖКОЙ ССЫЛОК ======
+    function renderMessage(msg) {
+      const wrapper = document.createElement('div');
+      wrapper.className = `msg-wrapper${msg.role === 'user' ? ' user' : ''}`;
+
+      const div = document.createElement('div');
+      div.className = `msg${msg.role === 'user' ? ' user' : ''}`;
+
+      // Преобразуем Markdown-ссылку [текст](url) в HTML-ссылку
+      let content = msg.content;
+      // Ищем [текст](url)
+      const linkRegex = /\[([^\]]+)\]\(([^)]+)\)/g;
+      content = content.replace(linkRegex, (match, text, url) => {
+        return `<a href="${url}" target="_blank">${text}</a>`;
+      });
+      // Также заменяем простые URL на ссылки (опционально)
+      content = content.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank">$1</a>');
+
+      div.innerHTML = content;
+
+      const time = document.createElement('div');
+      time.className = 'time';
+      time.textContent = new Date(msg.timestamp || Date.now()).toLocaleTimeString();
+      div.appendChild(time);
+
+      wrapper.appendChild(div);
+
+      // Если сообщение от ассистента и содержит ссылку на поиск, добавляем кнопку "Поискать"
+      if (msg.role === 'assistant' && msg.content.includes('skycitadel.cc.cd/search.html')) {
+        const actions = document.createElement('div');
+        actions.className = 'msg-actions';
+        const searchBtn = document.createElement('button');
+        searchBtn.textContent = '🔍 Поискать';
+        // Извлекаем URL из ссылки (первую попавшуюся)
+        const urlMatch = msg.content.match(/https:\/\/skycitadel\.cc\.cd\/search\.html[^\s)]+/);
+        if (urlMatch) {
+          searchBtn.addEventListener('click', () => {
+            window.open(urlMatch[0], '_blank');
+          });
+        } else {
+          searchBtn.style.display = 'none';
+        }
+        actions.appendChild(searchBtn);
+        wrapper.appendChild(actions);
+      }
+
+      return wrapper;
+    }
+
     function renderMessages() {
       messagesContainer.innerHTML = '';
       if (history.length === 0) {
@@ -318,32 +349,19 @@
         return;
       }
       history.forEach(msg => {
-        const div = document.createElement('div');
-        div.className = `msg${msg.role === 'user' ? ' user' : ''}`;
-        div.textContent = msg.content;
-        const time = document.createElement('div');
-        time.className = 'time';
-        time.textContent = new Date(msg.timestamp || Date.now()).toLocaleTimeString();
-        div.appendChild(time);
-        messagesContainer.appendChild(div);
+        const el = renderMessage(msg);
+        messagesContainer.appendChild(el);
       });
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // ====== ДОБАВЛЕНИЕ СООБЩЕНИЯ ======
     function addMessage(text, role = 'user') {
-      const msg = {
-        role,
-        content: text,
-        timestamp: Date.now()
-      };
+      const msg = { role, content: text, timestamp: Date.now() };
       history.push(msg);
       saveHistory();
       renderMessages();
-      messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    // ====== ОЧИСТКА ======
     function clearHistory() {
       if (history.length === 0) return;
       if (!confirm('Удалить всю историю диалога?')) return;
@@ -355,7 +373,6 @@
     // ====== ОТПРАВКА ======
     async function sendMessage(text) {
       if (!text.trim()) return;
-      // Проверяем лимит токенов
       const used = getTokenUsage();
       if (used >= MAX_TOKENS_PER_DAY) {
         alert('Лимит токенов на сегодня исчерпан. Попробуйте завтра.');
@@ -373,10 +390,7 @@
       messagesContainer.appendChild(loadingDiv);
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
-      const apiHistory = history.slice(-5).map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      const apiHistory = history.slice(-5).map(m => ({ role: m.role, content: m.content }));
 
       try {
         const response = await fetch(API_URL, {
@@ -399,9 +413,8 @@
         const data = await response.json();
         const reply = data.reply || 'Не удалось получить ответ';
 
-        // Оцениваем токены (приблизительно: символы / 4)
         const totalChars = text.length + reply.length;
-        const estimatedTokens = Math.ceil(totalChars / 4) + 50; // +50 на overhead
+        const estimatedTokens = Math.ceil(totalChars / 4) + 50;
         addTokenUsage(estimatedTokens);
 
         addMessage(reply, 'assistant');
@@ -413,7 +426,6 @@
       } finally {
         sendBtn.disabled = false;
         input.focus();
-        // Проверяем лимит после ответа
         const newUsed = getTokenUsage();
         if (newUsed >= MAX_TOKENS_PER_DAY) {
           sendBtn.disabled = true;
@@ -426,13 +438,11 @@
     // ====== ИНИЦИАЛИЗАЦИЯ ======
     (function init() {
       const hasHistory = loadHistory();
-      if (hasHistory) {
-        renderMessages();
-      } else {
+      if (!hasHistory) {
         history = [];
         saveHistory();
-        renderMessages();
       }
+      renderMessages();
       updateTokenIndicator();
     })();
 
@@ -441,16 +451,13 @@
     input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') sendMessage(input.value);
     });
-
     document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
-
     document.querySelectorAll('.quick-actions button').forEach(btn => {
       btn.addEventListener('click', () => {
         input.value = btn.dataset.prompt;
         sendMessage(input.value);
       });
     });
-
     input.focus();
   </script>
 </body>
