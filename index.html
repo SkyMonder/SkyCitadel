@@ -848,8 +848,12 @@
           }
           const json = await res.json();
           const data = await decryptPayload(json.data);
-          document.getElementById('skyid-result').innerHTML =
-            `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+		  const token = data.jwt || data.token;
+		  if (token) {
+  		  localStorage.setItem('skyid_token', token);
+		  }
+		  document.getElementById('skyid-result').innerHTML =
+  		    `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
         } catch (e) {
           document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
         }
