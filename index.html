@@ -848,8 +848,15 @@
           }
           const json = await res.json();
           const data = await decryptPayload(json.data);
+          // ====== СОХРАНЯЕМ ТОКЕН ======
+          const token = data.jwt || data.token;
+          if (token) {
+            localStorage.setItem('skyid_token', token);
+          }
           document.getElementById('skyid-result').innerHTML =
-            `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+            `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
+          // Вызываем событие для push-подписки (если она нужна)
+          document.dispatchEvent(new Event('skyid_login'));
         } catch (e) {
           document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
         }
@@ -871,14 +878,18 @@
           }
           const json = await res.json();
           const data = await decryptPayload(json.data);
+          // ====== СОХРАНЯЕМ ТОКЕН ======
+          const token = data.jwt || data.token;
+          if (token) {
+            localStorage.setItem('skyid_token', token);
+          }
           document.getElementById('skyid-result').innerHTML =
-            `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+            `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
+          // Вызываем событие для push-подписки (если она нужна)
+          document.dispatchEvent(new Event('skyid_login'));
         } catch (e) {
           document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
         }
-		// В обработчике skyid-login-btn, после успешного входа:
-		const event = new Event('skyid_login');
-		document.dispatchEvent(event);
       });
 
       // ====== SPOTIFY ======
@@ -1092,7 +1103,7 @@
   });
   </script>
   <script>
-    // ====== PUSH-УВЕДОМЛЕНИЯ ======
+    // ====== PUSH-УВЕДОМЛЕНИЯ (опционально, если сервер поддерживает) ======
     const VAPID_PUBLIC_KEY = 'BLFgEgN5br8c2rKhWVb84W5lOVFZ727Rgwno-oC6DBpYbZH1QtRl80T-5U6CJEU25v_sHAlYRnijITpvpYu9lis'; // замените на реальный
 
     async function registerServiceWorker() {
@@ -1112,27 +1123,30 @@
     }
 
     async function subscribeToPush(registration) {
-  		let subscription = await registration.pushManager.getSubscription();
-  		if (!subscription) {
-    		subscription = await registration.pushManager.subscribe({
-      		userVisibleOnly: true,
-      		applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    		});
-  		}
-  		// Отправляем на сервер
-  		const token = localStorage.getItem('skyid_token');
-  		if (token) {
-    		await fetch('https://skymutant.cc.cd/api/push/subscribe', {
-      		method: 'POST',
-      		headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      		body: JSON.stringify({ subscription })
-    		});
-    		console.log('✅ Подписка сохранена на сервере');
-  		}
-  		return subscription;
-	}
+      try {
+        let subscription = await registration.pushManager.getSubscription();
+        if (!subscription) {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+          });
+        }
+        const token = localStorage.getItem('skyid_token');
+        if (token) {
+          await fetch('https://skymutant.cc.cd/api/push/subscribe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ subscription })
+          });
+          console.log('✅ Подписка сохранена на сервере');
+        }
+        return subscription;
+      } catch (e) {
+        console.error('❌ Ошибка подписки:', e);
+        return null;
+      }
+    }
 
-    // Вспомогательная функция: base64 → Uint8Array
     function urlBase64ToUint8Array(base64String) {
       const padding = '='.repeat((4 - base64String.length % 4) % 4);
       const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
@@ -1144,25 +1158,22 @@
       return outputArray;
     }
 
-    // Запускаем при загрузке
     (async function initPush() {
-  		const registration = await registerServiceWorker();
-  		if (registration) {
-    		const token = localStorage.getItem('skyid_token');
-    		if (token) {
-      		await subscribeToPush(registration);
-    		} else {
-      		console.log('⏳ Пользователь не авторизован, подписка позже');
-      		// Слушаем событие логина
-      		document.addEventListener('skyid_login', async () => {
-        		const reg = await navigator.serviceWorker.ready;
-        		await subscribeToPush(reg);
-      		});
-    		}
-  		}
-	})();
+      const registration = await registerServiceWorker();
+      if (registration) {
+        const token = localStorage.getItem('skyid_token');
+        if (token) {
+          await subscribeToPush(registration);
+        } else {
+          console.log('⏳ Пользователь не авторизован, подписка позже');
+          document.addEventListener('skyid_login', async () => {
+            const reg = await navigator.serviceWorker.ready;
+            await subscribeToPush(reg);
+          });
+        }
+      }
+    })();
 
-    // Если пользователь авторизуется позже — подписываем
     document.addEventListener('skyid_login', async () => {
       const registration = await navigator.serviceWorker.ready;
       await subscribeToPush(registration);
