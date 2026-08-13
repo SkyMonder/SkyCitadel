@@ -23,6 +23,8 @@
       background: #111827;
       border-radius: 16px;
       margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
     }
     .back-btn {
       background: #2f4b8c;
@@ -37,6 +39,44 @@
     }
     .back-btn:hover { background: #4a6bb0; }
     h1 { font-size: 1.6rem; color: #b7ceff; display: flex; align-items: center; gap: 0.5rem; }
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+      flex-wrap: wrap;
+    }
+    .token-indicator {
+      font-size: 0.8rem;
+      color: #8899cc;
+      background: #1a233a;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      border: 1px solid #2a3450;
+      white-space: nowrap;
+    }
+    .token-indicator.low {
+      color: #f48024;
+      border-color: #f48024;
+    }
+    .token-indicator.critical {
+      color: #f44;
+      border-color: #f44;
+      animation: pulse 1s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+    .clear-btn {
+      background: #4a2a2a;
+      border: none;
+      color: #f48024;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .clear-btn:hover { background: #5a3a3a; }
     .chat-container {
       flex: 1;
       display: flex;
@@ -62,6 +102,7 @@
       border: 1px solid #2a3450;
       align-self: flex-start;
       word-wrap: break-word;
+      animation: fadeIn 0.2s ease;
     }
     .msg.user {
       align-self: flex-end;
@@ -73,6 +114,10 @@
       color: #8899cc;
       margin-top: 0.3rem;
       text-align: right;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
     }
     .input-area {
       display: flex;
@@ -124,15 +169,33 @@
       border-radius: 20px;
       cursor: pointer;
       font-size: 0.8rem;
+      transition: background 0.2s;
     }
     .quick-actions button:hover { background: #2a3450; }
+    .empty-state {
+      text-align: center;
+      color: #8899cc;
+      padding: 2rem;
+      font-style: italic;
+    }
+    .token-info {
+      text-align: center;
+      font-size: 0.7rem;
+      color: #4a5a7a;
+      padding: 0.3rem;
+      border-top: 1px solid #1a233a;
+      background: #0d1425;
+    }
   </style>
 </head>
 <body>
   <div class="header">
     <a href="/" class="back-btn">🏰 Вернуться в крепость</a>
     <h1>🧠 AI Ассистент</h1>
-    <div style="width:100px;"></div>
+    <div class="header-actions">
+      <span class="token-indicator" id="tokenIndicator">⚡ Осталось: 10000</span>
+      <button class="clear-btn" id="clearHistoryBtn">🗑️ Очистить</button>
+    </div>
   </div>
 
   <div class="chat-container">
@@ -143,75 +206,190 @@
       <button data-prompt="Что нового в SkyCitadel?">📢 О сервисе</button>
     </div>
 
-    <div class="messages" id="messages">
-      <div class="msg" style="max-width:100%; text-align:center; background:transparent; border:none; color:#8899cc;">
-        Задай вопрос ассистенту
-      </div>
-    </div>
+    <div class="messages" id="messages"></div>
 
     <div class="input-area">
       <input type="text" id="input" placeholder="Спроси меня о чём угодно..." autofocus>
       <button id="send-btn">Отправить</button>
     </div>
+    <div class="token-info" id="tokenInfo">Лимит: 10 000 токенов в день. Сбрасывается в 00:00 UTC</div>
   </div>
 
   <script>
+    // ====== КОНФИГУРАЦИЯ ======
     const API_URL = 'https://skymutant.cc.cd/ai/chat';
+    const STORAGE_KEY = 'skyai_history';
+    const MAX_TOKENS_PER_DAY = 10000;
+    const TOKEN_STORAGE_KEY = 'skyai_token_usage';
+
+    // ====== УПРАВЛЕНИЕ ТОКЕНАМИ ======
+    function getTokenUsage() {
+      try {
+        const data = JSON.parse(localStorage.getItem(TOKEN_STORAGE_KEY));
+        if (data && data.date === new Date().toDateString()) {
+          return data.used;
+        }
+      } catch (e) {}
+      return 0;
+    }
+
+    function setTokenUsage(used) {
+      localStorage.setItem(TOKEN_STORAGE_KEY, JSON.stringify({
+        date: new Date().toDateString(),
+        used: used
+      }));
+    }
+
+    function updateTokenIndicator() {
+      const used = getTokenUsage();
+      const remaining = Math.max(0, MAX_TOKENS_PER_DAY - used);
+      const indicator = document.getElementById('tokenIndicator');
+      if (indicator) {
+        indicator.textContent = `⚡ Осталось: ${remaining}`;
+        // Стили в зависимости от остатка
+        indicator.classList.remove('low', 'critical');
+        if (remaining < 50) {
+          indicator.classList.add('critical');
+        } else if (remaining < 200) {
+          indicator.classList.add('low');
+        }
+      }
+    }
+
+    function addTokenUsage(estimatedTokens) {
+      const used = getTokenUsage();
+      const newUsed = used + estimatedTokens;
+      setTokenUsage(newUsed);
+      updateTokenIndicator();
+      // Если осталось меньше 0, блокируем отправку
+      if (newUsed >= MAX_TOKENS_PER_DAY) {
+        document.getElementById('send-btn').disabled = true;
+        document.getElementById('input').placeholder = '❌ Лимит токенов на сегодня исчерпан';
+        document.getElementById('input').disabled = true;
+      }
+    }
+
+    // Проверка при загрузке
+    (function checkTokenLimit() {
+      const used = getTokenUsage();
+      if (used >= MAX_TOKENS_PER_DAY) {
+        document.getElementById('send-btn').disabled = true;
+        document.getElementById('input').disabled = true;
+        document.getElementById('input').placeholder = '❌ Лимит токенов на сегодня исчерпан';
+      }
+    })();
+
+    // ====== СОСТОЯНИЕ ЧАТА ======
     const messagesContainer = document.getElementById('messages');
     const input = document.getElementById('input');
     const sendBtn = document.getElementById('send-btn');
     let history = [];
 
-    // Сохраняем историю сессии
-    function addMessage(text, isUser = false) {
-      const div = document.createElement('div');
-      div.className = `msg${isUser ? ' user' : ''}`;
-      div.textContent = text;
-      // Время
-      const time = document.createElement('div');
-      time.className = 'time';
-      time.textContent = new Date().toLocaleTimeString();
-      div.appendChild(time);
-      messagesContainer.appendChild(div);
+    // ====== ЗАГРУЗКА ИСТОРИИ ======
+    function loadHistory() {
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            history = parsed;
+            return true;
+          }
+        }
+      } catch (e) {}
+      return false;
+    }
+
+    // ====== СОХРАНЕНИЕ ИСТОРИИ ======
+    function saveHistory() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(history));
+      } catch (e) {}
+    }
+
+    // ====== ОТРИСОВКА ======
+    function renderMessages() {
+      messagesContainer.innerHTML = '';
+      if (history.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'empty-state';
+        empty.textContent = 'Задай вопрос ассистенту';
+        messagesContainer.appendChild(empty);
+        return;
+      }
+      history.forEach(msg => {
+        const div = document.createElement('div');
+        div.className = `msg${msg.role === 'user' ? ' user' : ''}`;
+        div.textContent = msg.content;
+        const time = document.createElement('div');
+        time.className = 'time';
+        time.textContent = new Date(msg.timestamp || Date.now()).toLocaleTimeString();
+        div.appendChild(time);
+        messagesContainer.appendChild(div);
+      });
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    function showLoading() {
-      const div = document.createElement('div');
-      div.className = 'loading';
-      div.id = 'loading-indicator';
-      div.textContent = '⏳ Думаю...';
-      messagesContainer.appendChild(div);
+    // ====== ДОБАВЛЕНИЕ СООБЩЕНИЯ ======
+    function addMessage(text, role = 'user') {
+      const msg = {
+        role,
+        content: text,
+        timestamp: Date.now()
+      };
+      history.push(msg);
+      saveHistory();
+      renderMessages();
       messagesContainer.scrollTop = messagesContainer.scrollHeight;
     }
 
-    function hideLoading() {
-      const el = document.getElementById('loading-indicator');
-      if (el) el.remove();
+    // ====== ОЧИСТКА ======
+    function clearHistory() {
+      if (history.length === 0) return;
+      if (!confirm('Удалить всю историю диалога?')) return;
+      history = [];
+      saveHistory();
+      renderMessages();
     }
 
+    // ====== ОТПРАВКА ======
     async function sendMessage(text) {
       if (!text.trim()) return;
+      // Проверяем лимит токенов
+      const used = getTokenUsage();
+      if (used >= MAX_TOKENS_PER_DAY) {
+        alert('Лимит токенов на сегодня исчерпан. Попробуйте завтра.');
+        return;
+      }
 
-      // Показываем сообщение пользователя
-      addMessage(text, true);
-      history.push({ role: 'user', content: text });
-
-      // Очищаем поле
+      addMessage(text, 'user');
       input.value = '';
       sendBtn.disabled = true;
 
-      // Показываем индикатор
-      showLoading();
+      const loadingDiv = document.createElement('div');
+      loadingDiv.className = 'loading';
+      loadingDiv.id = 'loading-indicator';
+      loadingDiv.textContent = '⏳ Думаю...';
+      messagesContainer.appendChild(loadingDiv);
+      messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+      const apiHistory = history.slice(-5).map(m => ({
+        role: m.role,
+        content: m.content
+      }));
 
       try {
         const response = await fetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: text, history })
+          body: JSON.stringify({
+            message: text,
+            history: apiHistory.slice(0, -1)
+          })
         });
 
-        hideLoading();
+        const loadingEl = document.getElementById('loading-indicator');
+        if (loadingEl) loadingEl.remove();
 
         if (!response.ok) {
           const err = await response.json().catch(() => ({}));
@@ -221,28 +399,51 @@
         const data = await response.json();
         const reply = data.reply || 'Не удалось получить ответ';
 
-        addMessage(reply, false);
-        history.push({ role: 'assistant', content: reply });
+        // Оцениваем токены (приблизительно: символы / 4)
+        const totalChars = text.length + reply.length;
+        const estimatedTokens = Math.ceil(totalChars / 4) + 50; // +50 на overhead
+        addTokenUsage(estimatedTokens);
 
-        // Ограничиваем историю (последние 10 сообщений)
-        if (history.length > 10) history = history.slice(-10);
+        addMessage(reply, 'assistant');
 
       } catch (err) {
-        hideLoading();
-        addMessage(`❌ Ошибка: ${err.message}`, false);
+        const loadingEl = document.getElementById('loading-indicator');
+        if (loadingEl) loadingEl.remove();
+        addMessage(`❌ Ошибка: ${err.message}`, 'assistant');
       } finally {
         sendBtn.disabled = false;
         input.focus();
+        // Проверяем лимит после ответа
+        const newUsed = getTokenUsage();
+        if (newUsed >= MAX_TOKENS_PER_DAY) {
+          sendBtn.disabled = true;
+          input.disabled = true;
+          input.placeholder = '❌ Лимит токенов на сегодня исчерпан';
+        }
       }
     }
 
-    // Обработчики
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
+    (function init() {
+      const hasHistory = loadHistory();
+      if (hasHistory) {
+        renderMessages();
+      } else {
+        history = [];
+        saveHistory();
+        renderMessages();
+      }
+      updateTokenIndicator();
+    })();
+
+    // ====== ОБРАБОТЧИКИ ======
     sendBtn.addEventListener('click', () => sendMessage(input.value));
     input.addEventListener('keypress', (e) => {
       if (e.key === 'Enter') sendMessage(input.value);
     });
 
-    // Быстрые кнопки
+    document.getElementById('clearHistoryBtn').addEventListener('click', clearHistory);
+
     document.querySelectorAll('.quick-actions button').forEach(btn => {
       btn.addEventListener('click', () => {
         input.value = btn.dataset.prompt;
@@ -250,7 +451,6 @@
       });
     });
 
-    // Фокус на поле ввода
     input.focus();
   </script>
 </body>
