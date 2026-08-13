@@ -871,14 +871,15 @@
           }
           const json = await res.json();
           const data = await decryptPayload(json.data);
-          document.getElementById('skyid-result').innerHTML =
-            `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
+		  document.getElementById('skyid-result').innerHTML =
+  			`<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${data.token}</p>`;
         } catch (e) {
           document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
         }
 		// В обработчике skyid-login-btn, после успешного входа:
 		const event = new Event('skyid_login');
 		document.dispatchEvent(event);
+		
       });
 
       // ====== SPOTIFY ======
