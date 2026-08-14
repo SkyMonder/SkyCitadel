@@ -169,24 +169,17 @@
         { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     };
-    const TOXIC_THRESHOLD = 0.5;        // Порог токсичности (снижен для большей строгости)
-    const MAX_VIOLATIONS = 3;           // Кол-во нарушений для бана
+    const TOXIC_THRESHOLD = 0.5;
+    const MAX_VIOLATIONS = 1; // бан после 1 нарушения (уже на сервере)
 
-    // Расширенный стоп-лист запрещённых слов (терроризм, экстремизм, насилие)
+    // Расширенный стоп-лист
     const BANNED_WORDS = [
       'террорист', 'терракт', 'взорвать', 'взрыв', 'бомба', 'оружие', 'стрельба',
       'убить', 'насилие', 'экстремизм', 'диверсия', 'исламское государство', 'игил',
-      'захват', 'заложник', 'смертник', 'шахид', 'джихад', 'кальян', 'наркотик',
+      'захват', 'заложник', 'смертник', 'шахид', 'джихад', 'наркотик',
       'расчленить', 'отрезать', 'пытать', 'насиловать', 'педофил', 'педофилия',
       'украсть', 'ограбить', 'воровать', 'мошенник', 'скам', 'фишинг', 'взломать',
-      'убийство', 'самоубийство', 'суицид', 'депрессия', 'депрессивный', 'депрессивно',
-      'смерть', 'умереть', 'застрелить', 'задушить', 'зарезать', 'отрубить',
-      'взрывчатка', 'взрывчатку', 'взрывчатое', 'взрывчатые', 'взрывчатых',
-      'террористический', 'террористическая', 'террористическое', 'террористические',
-      'экстремистский', 'экстремистская', 'экстремистское', 'экстремистские',
-      'нацист', 'нацизм', 'фашист', 'фашизм', 'расист', 'расизм', 'ксенофоб', 'ксенофобия',
-      'гомофоб', 'гомофобия', 'трансфоб', 'трансфобия',
-      'педофильский', 'педофильская', 'педофильское', 'педофильские'
+      'убийство', 'самоубийство', 'суицид'
     ];
 
     // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
@@ -209,7 +202,6 @@
       try {
         console.log('📥 Загрузка модели модерации...');
         showToast('Загрузка модели модерации...', '#5f7ecf');
-        // Используем более точную модель toxic-bert
         classifier = await pipeline('text-classification', 'Xenova/toxic-bert');
         modelLoaded = true;
         console.log('✅ Модель загружена');
@@ -250,14 +242,29 @@
       const login = currentUser ? currentUser.login : 'unknown';
       const ip = await getClientIP();
       try {
-        await fetch(`${SERVER_URL}/report_violation`, {
+        const res = await fetch(`${SERVER_URL}/report_violation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ login, ip, text, score })
         });
+        return res.ok;
       } catch (e) {
         console.warn('⚠️ Не удалось отправить репорт:', e);
+        return false;
       }
+    }
+
+    // ====== ПРОВЕРКА БАНА ======
+    async function checkBanAndRedirect() {
+      try {
+        const res = await fetch('/ban-info');
+        if (res.ok) {
+          // Если запрос вернул 200 — значит IP забанен
+          window.location.href = '/ban.html';
+          return true;
+        }
+      } catch (e) {}
+      return false;
     }
 
     // ====== ПРОВЕРКА СТОП-ЛИСТА ======
@@ -274,6 +281,9 @@
       // 1. Проверка стоп-листа (самая быстрая)
       if (containsBannedWords(text)) {
         await sendReport(text, 1.0);
+        // ПРОВЕРЯЕМ БАН СРАЗУ ПОСЛЕ РЕПОРТА
+        const banned = await checkBanAndRedirect();
+        if (banned) return;
         showToast('⚠️ Сообщение содержит запрещённую лексику', '#c44');
         return;
       }
@@ -296,6 +306,9 @@
 
         if (score > TOXIC_THRESHOLD) {
           await sendReport(text, score);
+          // ПРОВЕРЯЕМ БАН СРАЗУ ПОСЛЕ РЕПОРТА
+          const banned = await checkBanAndRedirect();
+          if (banned) return;
           showToast('⚠️ Сообщение заблокировано автоматической модерацией', '#c44');
           return;
         }
@@ -364,9 +377,19 @@
           case 'ice_candidate': handleICECandidate(msg); break;
           case 'call_end': handleCallEnded(); break;
           case 'profile_updated': updateLocalProfile(msg.profile); break;
+          case 'error':
+            if (msg.message && msg.message.includes('заблокирован')) {
+              alert(msg.message);
+              window.location.href = '/ban.html';
+            }
+            break;
         }
       };
-      ws.onclose = () => setTimeout(connectWebSocket, 3000);
+      ws.onclose = () => {
+        // Проверяем бан при закрытии соединения (например, если сервер закрыл)
+        checkBanAndRedirect();
+        setTimeout(connectWebSocket, 3000);
+      };
     }
 
     function sendServerMessage(type, data = {}) {
@@ -519,7 +542,6 @@
       if (text) {
         sendMessageWithModeration(text);
       } else if (editingMessageId) {
-        // если текст пустой при редактировании – ничего не делаем
         return;
       }
     });
