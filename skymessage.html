@@ -62,7 +62,6 @@
   </style>
 </head>
 <body>
-  <!-- Toast уведомление -->
   <div id="toast" class="toast"></div>
 
   <div id="authScreen" class="auth-screen">
@@ -101,7 +100,7 @@
     </div>
   </div>
 
-  <!-- Модалки -->
+  <!-- Модалки (без изменений) -->
   <div class="modal-overlay" id="searchModal">
     <div class="modal">
       <h3>Поиск пользователя</h3>
@@ -170,15 +169,32 @@
         { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     };
-    const TOXIC_THRESHOLD = 0.85; // порог токсичности для блокировки
-    const MAX_VIOLATIONS = 3;     // кол-во нарушений для бана (сервер)
+    const TOXIC_THRESHOLD = 0.5;        // Порог токсичности (снижен для большей строгости)
+    const MAX_VIOLATIONS = 3;           // Кол-во нарушений для бана
+
+    // Расширенный стоп-лист запрещённых слов (терроризм, экстремизм, насилие)
+    const BANNED_WORDS = [
+      'террорист', 'терракт', 'взорвать', 'взрыв', 'бомба', 'оружие', 'стрельба',
+      'убить', 'насилие', 'экстремизм', 'диверсия', 'исламское государство', 'игил',
+      'захват', 'заложник', 'смертник', 'шахид', 'джихад', 'кальян', 'наркотик',
+      'расчленить', 'отрезать', 'пытать', 'насиловать', 'педофил', 'педофилия',
+      'украсть', 'ограбить', 'воровать', 'мошенник', 'скам', 'фишинг', 'взломать',
+      'убийство', 'самоубийство', 'суицид', 'депрессия', 'депрессивный', 'депрессивно',
+      'смерть', 'умереть', 'застрелить', 'задушить', 'зарезать', 'отрубить',
+      'взрывчатка', 'взрывчатку', 'взрывчатое', 'взрывчатые', 'взрывчатых',
+      'террористический', 'террористическая', 'террористическое', 'террористические',
+      'экстремистский', 'экстремистская', 'экстремистское', 'экстремистские',
+      'нацист', 'нацизм', 'фашист', 'фашизм', 'расист', 'расизм', 'ксенофоб', 'ксенофобия',
+      'гомофоб', 'гомофобия', 'трансфоб', 'трансфобия',
+      'педофильский', 'педофильская', 'педофильское', 'педофильские'
+    ];
 
     // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
-    let classifier = null; // модель ИИ
+    let classifier = null;
     let modelLoading = false;
     let modelLoaded = false;
 
@@ -186,16 +202,14 @@
     async function loadModel() {
       if (classifier) return classifier;
       if (modelLoading) {
-        // Ждём, пока завершится загрузка
-        while (modelLoading) {
-          await new Promise(r => setTimeout(r, 200));
-        }
+        while (modelLoading) await new Promise(r => setTimeout(r, 200));
         return classifier;
       }
       modelLoading = true;
       try {
         console.log('📥 Загрузка модели модерации...');
         showToast('Загрузка модели модерации...', '#5f7ecf');
+        // Используем более точную модель toxic-bert
         classifier = await pipeline('text-classification', 'Xenova/toxic-bert');
         modelLoaded = true;
         console.log('✅ Модель загружена');
@@ -210,19 +224,17 @@
       }
     }
 
-    // ====== ТОСТ-УВЕДОМЛЕНИЯ ======
+    // ====== ТОСТ ======
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
       toast.textContent = message;
       toast.style.background = bg;
       toast.style.display = 'block';
       clearTimeout(toast._timeout);
-      toast._timeout = setTimeout(() => {
-        toast.style.display = 'none';
-      }, 3000);
+      toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== ФУНКЦИЯ ПОЛУЧЕНИЯ IP ======
+    // ====== ПОЛУЧЕНИЕ IP ======
     async function getClientIP() {
       try {
         const res = await fetch(`${SERVER_URL}/get_ip`);
@@ -233,31 +245,43 @@
       }
     }
 
-    // ====== ФУНКЦИЯ ОТПРАВКИ РЕПОРТА ======
+    // ====== ОТПРАВКА РЕПОРТА ======
     async function sendReport(text, score) {
       const login = currentUser ? currentUser.login : 'unknown';
       const ip = await getClientIP();
       try {
-        const reportRes = await fetch(`${SERVER_URL}/report_violation`, {
+        await fetch(`${SERVER_URL}/report_violation`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ login, ip, text, score })
         });
-        if (!reportRes.ok) {
-          console.warn('⚠️ Ошибка отправки репорта');
-        }
       } catch (e) {
         console.warn('⚠️ Не удалось отправить репорт:', e);
       }
     }
 
-    // ====== ОТПРАВКА СООБЩЕНИЯ С МОДЕРАЦИЕЙ ======
+    // ====== ПРОВЕРКА СТОП-ЛИСТА ======
+    function containsBannedWords(text) {
+      const lower = text.toLowerCase();
+      for (const word of BANNED_WORDS) {
+        if (lower.includes(word)) return true;
+      }
+      return false;
+    }
+
+    // ====== ОТПРАВКА С МОДЕРАЦИЕЙ ======
     async function sendMessageWithModeration(text) {
+      // 1. Проверка стоп-листа (самая быстрая)
+      if (containsBannedWords(text)) {
+        await sendReport(text, 1.0);
+        showToast('⚠️ Сообщение содержит запрещённую лексику', '#c44');
+        return;
+      }
+
+      // 2. ИИ-модерация
       if (!classifier && !modelLoaded) {
-        // Модель ещё не загружена – пробуем загрузить сейчас
         const cl = await loadModel();
         if (!cl) {
-          // Если модель не загрузилась – пропускаем модерацию (можно отправить)
           console.warn('⚠️ Модель не доступна, отправляем без модерации');
           sendMessageDirect(text);
           return;
@@ -265,31 +289,27 @@
         classifier = cl;
       }
 
-      // Проверка через ИИ
       try {
         const result = await classifier(text);
         const toxicEntry = result.find(r => r.label === 'toxic');
         const score = toxicEntry ? toxicEntry.score : 0;
 
         if (score > TOXIC_THRESHOLD) {
-          // Сообщение заблокировано
           await sendReport(text, score);
           showToast('⚠️ Сообщение заблокировано автоматической модерацией', '#c44');
-          return; // не отправляем
+          return;
         }
       } catch (e) {
         console.error('❌ Ошибка при модерации:', e);
-        // В случае ошибки модерации, чтобы не блокировать общение, можно отправить сообщение,
-        // но лучше предупредить пользователя.
         showToast('⚠️ Ошибка модерации, сообщение отправлено', '#f48024');
-        // Всё равно отправляем, чтобы не нарушать работу
+        // всё равно отправляем, чтобы не нарушать работу
       }
 
-      // Отправляем
+      // 3. Отправка
       sendMessageDirect(text);
     }
 
-    // ====== ПРЯМАЯ ОТПРАВКА (без модерации) ======
+    // ====== ПРЯМАЯ ОТПРАВКА ======
     function sendMessageDirect(text) {
       const input = document.getElementById('messageInput');
       if (editingMessageId) {
@@ -307,7 +327,7 @@
       input.value = '';
     }
 
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (шифрование, WebSocket) ======
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
     const enc = new TextEncoder(); const dec = new TextDecoder();
     async function deriveKey(password, saltBase64) {
       const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
@@ -491,7 +511,7 @@
       }
     }
 
-    // ====== ОБРАБОТЧИК ОТПРАВКИ (с модерацией) ======
+    // ====== ОБРАБОТЧИК ОТПРАВКИ ======
     document.getElementById('sendBtn').addEventListener('click', () => {
       const input = document.getElementById('messageInput');
       const text = input.value.trim();
@@ -499,7 +519,7 @@
       if (text) {
         sendMessageWithModeration(text);
       } else if (editingMessageId) {
-        // Если текст пустой при редактировании – ничего не делаем
+        // если текст пустой при редактировании – ничего не делаем
         return;
       }
     });
@@ -615,7 +635,7 @@
       });
     }
 
-    // ====== ЗВОНКИ (без изменений) ======
+    // ====== ЗВОНКИ ======
     const callModal = document.getElementById('callModal');
     function showCallModalWindow(title, name, showAccept) {
       document.getElementById('callModalTitle').textContent = title;
@@ -719,7 +739,6 @@
     }
 
     // ====== ИНИЦИАЛИЗАЦИЯ ======
-    // После входа модель загружается в фоне
     console.log('SkyMessage загружен. Модель будет загружена после входа.');
   </script>
 </body>
