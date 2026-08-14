@@ -196,7 +196,7 @@
       try {
         console.log('📥 Загрузка модели модерации...');
         showToast('Загрузка модели модерации...', '#5f7ecf');
-        classifier = await pipeline('text-classification', 'Xenova/tinybert-toxic');
+        classifier = await pipeline('text-classification', 'Xenova/toxic-bert');
         modelLoaded = true;
         console.log('✅ Модель загружена');
         showToast('Модель загружена', '#5f7ecf');
