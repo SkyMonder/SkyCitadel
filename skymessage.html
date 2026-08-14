@@ -58,9 +58,13 @@
     video { width: 200px; border-radius: 8px; background: #000; }
     .emoji-panel { display: none; flex-wrap: wrap; gap: 0.3rem; padding: 0.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-width: 280px; position: absolute; bottom: 70px; left: 10px; z-index: 40; }
     .emoji-panel span { cursor: pointer; font-size: 1.4rem; }
+    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #c44; color: white; padding: 0.6rem 1.2rem; border-radius: 20px; font-size: 0.9rem; z-index: 100; display: none; }
   </style>
 </head>
 <body>
+  <!-- Toast уведомление -->
+  <div id="toast" class="toast"></div>
+
   <div id="authScreen" class="auth-screen">
     <div class="auth-box">
       <h2 id="authTitle">Вход</h2>
@@ -97,6 +101,7 @@
     </div>
   </div>
 
+  <!-- Модалки -->
   <div class="modal-overlay" id="searchModal">
     <div class="modal">
       <h3>Поиск пользователя</h3>
@@ -142,8 +147,21 @@
     </div>
   </div>
 
-  <script>
-    const SERVER_URL = 'https://skymutant.cc.cd'; // ← ЗАМЕНИ НА СВОЙ RENDER URL
+  <!-- Import map для transformers -->
+  <script type="importmap">
+    {
+      "imports": {
+        "@xenova/transformers": "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.11.0/dist/transformers.min.js"
+      }
+    }
+  </script>
+
+  <script type="module">
+    // ====== ИМПОРТЫ ======
+    import { pipeline } from '@xenova/transformers';
+
+    // ====== КОНСТАНТЫ ======
+    const SERVER_URL = 'https://skymutant.cc.cd';
     const WS_URL = SERVER_URL.replace('https', 'wss');
     const ICE_SERVERS = {
       iceServers: [
@@ -152,12 +170,144 @@
         { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
       ]
     };
+    const TOXIC_THRESHOLD = 0.85; // порог токсичности для блокировки
+    const MAX_VIOLATIONS = 3;     // кол-во нарушений для бана (сервер)
 
+    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
     let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
+    let classifier = null; // модель ИИ
+    let modelLoading = false;
+    let modelLoaded = false;
 
+    // ====== ИНИЦИАЛИЗАЦИЯ МОДЕЛИ ======
+    async function loadModel() {
+      if (classifier) return classifier;
+      if (modelLoading) {
+        // Ждём, пока завершится загрузка
+        while (modelLoading) {
+          await new Promise(r => setTimeout(r, 200));
+        }
+        return classifier;
+      }
+      modelLoading = true;
+      try {
+        console.log('📥 Загрузка модели модерации...');
+        showToast('Загрузка модели модерации...', '#5f7ecf');
+        classifier = await pipeline('text-classification', 'Xenova/tinybert-toxic');
+        modelLoaded = true;
+        console.log('✅ Модель загружена');
+        showToast('Модель загружена', '#5f7ecf');
+        return classifier;
+      } catch (e) {
+        console.error('❌ Ошибка загрузки модели:', e);
+        showToast('Ошибка загрузки модели модерации', '#c44');
+        return null;
+      } finally {
+        modelLoading = false;
+      }
+    }
+
+    // ====== ТОСТ-УВЕДОМЛЕНИЯ ======
+    function showToast(message, bg = '#c44') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.background = bg;
+      toast.style.display = 'block';
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => {
+        toast.style.display = 'none';
+      }, 3000);
+    }
+
+    // ====== ФУНКЦИЯ ПОЛУЧЕНИЯ IP ======
+    async function getClientIP() {
+      try {
+        const res = await fetch(`${SERVER_URL}/get_ip`);
+        const data = await res.json();
+        return data.ip || '0.0.0.0';
+      } catch (e) {
+        return '0.0.0.0';
+      }
+    }
+
+    // ====== ФУНКЦИЯ ОТПРАВКИ РЕПОРТА ======
+    async function sendReport(text, score) {
+      const login = currentUser ? currentUser.login : 'unknown';
+      const ip = await getClientIP();
+      try {
+        const reportRes = await fetch(`${SERVER_URL}/report_violation`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ login, ip, text, score })
+        });
+        if (!reportRes.ok) {
+          console.warn('⚠️ Ошибка отправки репорта');
+        }
+      } catch (e) {
+        console.warn('⚠️ Не удалось отправить репорт:', e);
+      }
+    }
+
+    // ====== ОТПРАВКА СООБЩЕНИЯ С МОДЕРАЦИЕЙ ======
+    async function sendMessageWithModeration(text) {
+      if (!classifier && !modelLoaded) {
+        // Модель ещё не загружена – пробуем загрузить сейчас
+        const cl = await loadModel();
+        if (!cl) {
+          // Если модель не загрузилась – пропускаем модерацию (можно отправить)
+          console.warn('⚠️ Модель не доступна, отправляем без модерации');
+          sendMessageDirect(text);
+          return;
+        }
+        classifier = cl;
+      }
+
+      // Проверка через ИИ
+      try {
+        const result = await classifier(text);
+        const toxicEntry = result.find(r => r.label === 'toxic');
+        const score = toxicEntry ? toxicEntry.score : 0;
+
+        if (score > TOXIC_THRESHOLD) {
+          // Сообщение заблокировано
+          await sendReport(text, score);
+          showToast('⚠️ Сообщение заблокировано автоматической модерацией', '#c44');
+          return; // не отправляем
+        }
+      } catch (e) {
+        console.error('❌ Ошибка при модерации:', e);
+        // В случае ошибки модерации, чтобы не блокировать общение, можно отправить сообщение,
+        // но лучше предупредить пользователя.
+        showToast('⚠️ Ошибка модерации, сообщение отправлено', '#f48024');
+        // Всё равно отправляем, чтобы не нарушать работу
+      }
+
+      // Отправляем
+      sendMessageDirect(text);
+    }
+
+    // ====== ПРЯМАЯ ОТПРАВКА (без модерации) ======
+    function sendMessageDirect(text) {
+      const input = document.getElementById('messageInput');
+      if (editingMessageId) {
+        sendServerMessage('edit_message', { chatId: activeChatId, messageId: editingMessageId, newText: text });
+        editingMessageId = null;
+        document.getElementById('sendBtn').textContent = '➤';
+      } else {
+        const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
+        if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
+        if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
+        chats[activeChatId].messages.push(msg);
+        addMessageToUI(msg);
+        sendServerMessage('send_message', { chatId: activeChatId, text });
+      }
+      input.value = '';
+    }
+
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (шифрование, WebSocket) ======
     const enc = new TextEncoder(); const dec = new TextDecoder();
     async function deriveKey(password, saltBase64) {
       const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
@@ -206,6 +356,7 @@
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
+    // ====== АВТОРИЗАЦИЯ ======
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -235,10 +386,13 @@
           cryptoKey = await deriveKey(password, saltB64);
           currentUser = { login };
           showAuth(false); showApp(true); connectWebSocket();
+          // Загружаем модель в фоне
+          loadModel();
         }
       } catch(e) { alert('Ошибка: '+e.message); }
     });
 
+    // ====== UI ======
     function renderChatList() {
       const container = document.getElementById('chatList');
       container.innerHTML = '';
@@ -337,25 +491,27 @@
       }
     }
 
+    // ====== ОБРАБОТЧИК ОТПРАВКИ (с модерацией) ======
     document.getElementById('sendBtn').addEventListener('click', () => {
       const input = document.getElementById('messageInput');
       const text = input.value.trim();
       if (!text && !editingMessageId) return;
-      if (editingMessageId) {
-        sendServerMessage('edit_message', { chatId: activeChatId, messageId: editingMessageId, newText: text });
-        editingMessageId = null;
-        document.getElementById('sendBtn').textContent = '➤';
-      } else {
-        const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
-        if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
-        if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
-        chats[activeChatId].messages.push(msg);
-        addMessageToUI(msg);
-        sendServerMessage('send_message', { chatId: activeChatId, text });
+      if (text) {
+        sendMessageWithModeration(text);
+      } else if (editingMessageId) {
+        // Если текст пустой при редактировании – ничего не делаем
+        return;
       }
-      input.value = '';
     });
 
+    document.getElementById('messageInput').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('sendBtn').click();
+      }
+    });
+
+    // ====== РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ ======
     window.editMessage = (id) => {
       const chat = chats[activeChatId];
       if (!chat || !chat.messages) return;
@@ -407,7 +563,7 @@
       e.target.value='';
     });
 
-    // ====== ПОИСК ПОЛЬЗОВАТЕЛЕЙ ======
+    // ====== ПОИСК ======
     document.getElementById('newChatBtn').addEventListener('click', () => {
       const action = prompt('1 - Личный чат\n2 - Создать группу\n3 - Создать канал');
       if (action === '1') openSearchModal('user');
@@ -459,7 +615,7 @@
       });
     }
 
-    // ====== ЗВОНКИ ======
+    // ====== ЗВОНКИ (без изменений) ======
     const callModal = document.getElementById('callModal');
     function showCallModalWindow(title, name, showAccept) {
       document.getElementById('callModalTitle').textContent = title;
@@ -554,12 +710,17 @@
     // ====== ПРОФИЛЬ ======
     document.getElementById('profileBtn').addEventListener('click', () => alert('Профиль в разработке'));
 
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ======
     function escapeHtml(text) { return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
       return (bytes / 1048576).toFixed(1) + ' MB';
     }
+
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
+    // После входа модель загружается в фоне
+    console.log('SkyMessage загружен. Модель будет загружена после входа.');
   </script>
 </body>
 </html>
