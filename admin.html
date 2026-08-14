@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Админ-панель SkyCitadel</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body { background:#0a0f1e; color:#e0e8ff; font-family:'Segoe UI',sans-serif; padding:2rem; }
+    .container { max-width:1400px; margin:0 auto; }
+    h1 { color:#b7ceff; border-left:4px solid #5f7ecf; padding-left:1rem; margin-bottom:2rem; }
+    .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:1rem; margin-bottom:2rem; }
+    .stat-card { background:#1a233a; padding:1rem; border-radius:12px; text-align:center; border:1px solid #2a3450; }
+    .stat-number { font-size:2rem; font-weight:bold; color:#b7ceff; }
+    .stat-label { font-size:0.8rem; color:#8899cc; }
+    .tabs { display:flex; gap:0.5rem; margin-bottom:1.5rem; flex-wrap:wrap; }
+    .tab { padding:0.5rem 1.5rem; background:#1a233a; border:1px solid #2a3450; border-radius:8px; cursor:pointer; }
+    .tab.active { background:#5f7ecf; border-color:#5f7ecf; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    table { width:100%; border-collapse:collapse; background:#1a233a; border-radius:12px; overflow:hidden; }
+    th, td { padding:0.7rem; text-align:left; border-bottom:1px solid #2a3450; }
+    th { background:#0d1425; color:#b7ceff; }
+    .btn { padding:0.3rem 0.8rem; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem; }
+    .btn-danger { background:#c44; color:white; }
+    .btn-success { background:#2a7a2a; color:white; }
+    .btn-warning { background:#b8860b; color:white; }
+    .btn-sm { padding:0.2rem 0.6rem; font-size:0.7rem; }
+    .back-link { display:inline-block; margin-top:2rem; color:#5f7ecf; text-decoration:none; }
+    .back-link:hover { text-decoration:underline; }
+    .login-warning { background:#3a2a1a; padding:1rem; border-radius:12px; margin-bottom:1.5rem; border-left:4px solid #f48024; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🛡️ Админ-панель SkyCitadel</h1>
+    <div id="adminStatus"></div>
+    <div class="stats" id="statsContainer">
+      <div class="stat-card"><div class="stat-number" id="statUsers">-</div><div class="stat-label">Пользователей</div></div>
+      <div class="stat-card"><div class="stat-number" id="statVideos">-</div><div class="stat-label">Видео</div></div>
+      <div class="stat-card"><div class="stat-number" id="statAnnouncements">-</div><div class="stat-label">Объявлений</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="users">👥 Пользователи</button>
+      <button class="tab" data-tab="videos">🎬 Видео</button>
+      <button class="tab" data-tab="comments">💬 Комментарии</button>
+    </div>
+
+    <div id="tab-users" class="tab-content active">
+      <div id="usersTableWrap"><p>Загрузка...</p></div>
+    </div>
+    <div id="tab-videos" class="tab-content">
+      <div id="videosTableWrap"><p>Загрузка...</p></div>
+    </div>
+    <div id="tab-comments" class="tab-content">
+      <div id="commentsTableWrap"><p>Загрузка...</p></div>
+    </div>
+
+    <a href="/" class="back-link">🏰 Вернуться в крепость</a>
+  </div>
+
+  <script>
+    const MUTANT_API = 'https://skymutant.cc.cd';
+    const VIDEO_API = 'https://skymutant.cc.cd/video';
+    let token = localStorage.getItem('skyid_token') || null;
+
+    // Проверка админа
+    async function checkAdmin() {
+      const statusDiv = document.getElementById('adminStatus');
+      if (!token) {
+        statusDiv.innerHTML = `<div class="login-warning">⚠️ Вы не авторизованы. <button onclick="login()" class="btn btn-success">Войти как администратор</button></div>`;
+        return false;
+      }
+      try {
+        const res = await fetch(`${MUTANT_API}/verify`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ token })
+        });
+        if (!res.ok) throw new Error('Invalid token');
+        const data = await res.json();
+        if (data.login !== 'SkyMonder') {
+          statusDiv.innerHTML = `<div class="login-warning">⚠️ У вас нет прав администратора. Доступ запрещён.</div>`;
+          return false;
+        }
+        statusDiv.innerHTML = `<div style="color:#7ebc6f;">✅ Вы вошли как администратор (${data.login})</div>`;
+        return true;
+      } catch (e) {
+        statusDiv.innerHTML = `<div class="login-warning">⚠️ Ошибка авторизации. <button onclick="login()" class="btn btn-success">Войти как администратор</button></div>`;
+        return false;
+      }
+    }
+
+    function login() {
+      const login = prompt('Логин администратора:');
+      if (!login) return;
+      const password = prompt('Пароль:');
+      if (!password) return;
+      // Используем шифрование (как в index.html)
+      const SECRET_KEY_BASE64 = 'BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=';
+      async function encryptPayload(obj) {
+        const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+        const key = await crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const enc = new TextEncoder().encode(JSON.stringify(obj));
+        const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+        const combo = new Uint8Array(iv.byteLength + c.byteLength);
+        combo.set(iv);
+        combo.set(new Uint8Array(c), iv.byteLength);
+        return btoa(String.fromCharCode(...combo));
+      }
+      async function decryptPayload(b64) {
+        const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+        const key = await crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+        const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+        const iv = combo.slice(0, 12);
+        const data = combo.slice(12);
+        const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+        return JSON.parse(new TextDecoder().decode(dec));
+      }
+      (async () => {
+        try {
+          const payload = await encryptPayload({ login, password });
+          const res = await fetch(`${MUTANT_API}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ data: payload })
+          });
+          if (!res.ok) throw new Error('Ошибка входа');
+          const json = await res.json();
+          const data = await decryptPayload(json.data);
+          token = data.jwt || data.token;
+          localStorage.setItem('skyid_token', token);
+          location.reload();
+        } catch (e) {
+          alert('Ошибка: ' + e.message);
+        }
+      })();
+    }
+
+    // Загрузка данных
+    async function fetchAdmin(endpoint, options = {}) {
+      const headers = { Authorization: `Bearer ${token}`, ...options.headers };
+      const res = await fetch(endpoint, { ...options, headers });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      return res.json();
+    }
+
+    async function loadStats() {
+      try {
+        const stats = await fetchAdmin(`${MUTANT_API}/admin/stats`);
+        document.getElementById('statUsers').textContent = stats.users || 0;
+        document.getElementById('statVideos').textContent = stats.videos || 0;
+        document.getElementById('statAnnouncements').textContent = stats.announcements || 0;
+      } catch (e) {
+        console.error('Stats error:', e);
+      }
+    }
+
+    async function loadUsers() {
+      const wrap = document.getElementById('usersTableWrap');
+      try {
+        const users = await fetchAdmin(`${MUTANT_API}/admin/users`);
+        if (!users.length) { wrap.innerHTML = '<p>Нет пользователей</p>'; return; }
+        let html = `<table><tr><th>Логин</th><th>SkyID</th><th>Имя</th><th>Админ</th><th>Действия</th></tr>`;
+        users.forEach(u => {
+          html += `<tr>
+            <td>${escapeHtml(u.login)}</td>
+            <td>${escapeHtml(u.skyid)}</td>
+            <td>${escapeHtml(u.name)}</td>
+            <td>${u.isAdmin ? '✅' : ''}</td>
+            <td>
+              ${!u.isAdmin ? `<button class="btn btn-danger btn-sm" onclick="banUser('${u.login}')">Забанить</button>` : ''}
+            </td>
+          </tr>`;
+        });
+        html += '</table>';
+        wrap.innerHTML = html;
+      } catch (e) {
+        wrap.innerHTML = `<p style="color:#c44;">Ошибка загрузки пользователей: ${e.message}</p>`;
+      }
+    }
+
+    window.banUser = async (login) => {
+      if (!confirm(`Забанить пользователя ${login}?`)) return;
+      try {
+        await fetchAdmin(`${MUTANT_API}/admin/ban`, {
+          method: 'POST',
+          body: JSON.stringify({ login })
+        });
+        alert('Пользователь забанен');
+        loadUsers();
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
+    };
+
+    async function loadVideos() {
+      const wrap = document.getElementById('videosTableWrap');
+      try {
+        const videos = await fetchAdmin(`${VIDEO_API}/admin/videos`);
+        if (!videos.length) { wrap.innerHTML = '<p>Нет видео</p>'; return; }
+        let html = `<table><tr><th>Название</th><th>Автор</th><th>Просмотры</th><th>Лайки</th><th>Комментарии</th><th>Действия</th></tr>`;
+        videos.forEach(v => {
+          html += `<tr>
+            <td>${escapeHtml(v.title)}</td>
+            <td>${escapeHtml(v.author)}</td>
+            <td>${v.views}</td>
+            <td>${v.likes}</td>
+            <td>${v.comments}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteVideo('${v.id}')">Удалить</button></td>
+          </tr>`;
+        });
+        html += '</table>';
+        wrap.innerHTML = html;
+      } catch (e) {
+        wrap.innerHTML = `<p style="color:#c44;">Ошибка загрузки видео: ${e.message}</p>`;
+      }
+    }
+
+    window.deleteVideo = async (id) => {
+      if (!confirm('Удалить видео?')) return;
+      try {
+        await fetchAdmin(`${VIDEO_API}/admin/video/${id}`, { method: 'DELETE' });
+        alert('Видео удалено');
+        loadVideos();
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
+    };
+
+    async function loadComments() {
+      const wrap = document.getElementById('commentsTableWrap');
+      try {
+        const comments = await fetchAdmin(`${VIDEO_API}/admin/comments`);
+        if (!comments.length) { wrap.innerHTML = '<p>Нет комментариев</p>'; return; }
+        let html = `<table><tr><th>Видео</th><th>Автор</th><th>Текст</th><th>Действия</th></tr>`;
+        comments.slice(0, 100).forEach(c => {
+          html += `<tr>
+            <td>${escapeHtml(c.videoTitle)}</td>
+            <td>${escapeHtml(c.author)}</td>
+            <td>${escapeHtml(c.text)}</td>
+            <td><button class="btn btn-danger btn-sm" onclick="deleteComment('${c.videoId}','${c.commentId}')">Удалить</button></td>
+          </tr>`;
+        });
+        html += '</table>';
+        wrap.innerHTML = html;
+      } catch (e) {
+        wrap.innerHTML = `<p style="color:#c44;">Ошибка загрузки комментариев: ${e.message}</p>`;
+      }
+    }
+
+    window.deleteComment = async (videoId, commentId) => {
+      if (!confirm('Удалить комментарий?')) return;
+      try {
+        await fetchAdmin(`${VIDEO_API}/admin/comment/${videoId}/${commentId}`, { method: 'DELETE' });
+        alert('Комментарий удалён');
+        loadComments();
+      } catch (e) {
+        alert('Ошибка: ' + e.message);
+      }
+    };
+
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    // Табы
+    document.querySelectorAll('.tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const target = tab.dataset.tab;
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+        document.getElementById('tab-' + target).classList.add('active');
+        if (target === 'users') loadUsers();
+        if (target === 'videos') loadVideos();
+        if (target === 'comments') loadComments();
+      });
+    });
+
+    // Инициализация
+    (async () => {
+      const isAdmin = await checkAdmin();
+      if (!isAdmin) {
+        document.querySelector('.stats').style.opacity = '0.5';
+        document.querySelector('.tabs').style.pointerEvents = 'none';
+        return;
+      }
+      loadStats();
+      loadUsers();
+    })();
+  </script>
+</body>
+</html>
