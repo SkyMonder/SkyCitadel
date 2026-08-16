@@ -1209,18 +1209,27 @@
   </script>
   <script>
   (function loadFooterStats() {
+    // API_BASE объявлен внутри функции
+    const API_BASE = 'https://skymutant.cc.cd';
 
     function updateStats(data) {
-      document.getElementById('stat-visits').textContent = data.totalVisits || 0;
-      document.getElementById('stat-users').textContent = data.totalUsers || 0;
-      document.getElementById('stat-messages').textContent = data.totalMessages || 0;
-      document.getElementById('stat-videos').textContent = data.totalVideos || 0;
-
+      const visitsEl = document.getElementById('stat-visits');
+      const usersEl = document.getElementById('stat-users');
+      const messagesEl = document.getElementById('stat-messages');
+      const videosEl = document.getElementById('stat-videos');
       const countriesEl = document.getElementById('stat-countries');
-      if (data.topCountries && data.topCountries.length) {
-        countriesEl.textContent = '🌍 ' + data.topCountries.map(c => `${c.country} (${c.count})`).join(', ');
-      } else {
-        countriesEl.textContent = '🌍 Нет данных';
+
+      if (visitsEl) visitsEl.textContent = data.totalVisits || 0;
+      if (usersEl) usersEl.textContent = data.totalUsers || 0;
+      if (messagesEl) messagesEl.textContent = data.totalMessages || 0;
+      if (videosEl) videosEl.textContent = data.totalVideos || 0;
+
+      if (countriesEl) {
+        if (data.topCountries && data.topCountries.length) {
+          countriesEl.textContent = '🌍 ' + data.topCountries.map(c => `${c.country} (${c.count})`).join(', ');
+        } else {
+          countriesEl.textContent = '🌍 Нет данных';
+        }
       }
     }
 
@@ -1232,11 +1241,17 @@
         })
         .then(data => updateStats(data))
         .catch(() => {
-          document.getElementById('stat-visits').textContent = '—';
-          document.getElementById('stat-users').textContent = '—';
-          document.getElementById('stat-messages').textContent = '—';
-          document.getElementById('stat-videos').textContent = '—';
-          document.getElementById('stat-countries').textContent = '🌍 Ошибка загрузки';
+          const visitsEl = document.getElementById('stat-visits');
+          const usersEl = document.getElementById('stat-users');
+          const messagesEl = document.getElementById('stat-messages');
+          const videosEl = document.getElementById('stat-videos');
+          const countriesEl = document.getElementById('stat-countries');
+
+          if (visitsEl) visitsEl.textContent = '—';
+          if (usersEl) usersEl.textContent = '—';
+          if (messagesEl) messagesEl.textContent = '—';
+          if (videosEl) videosEl.textContent = '—';
+          if (countriesEl) countriesEl.textContent = '🌍 Ошибка загрузки';
         });
     }
 
