@@ -449,9 +449,36 @@
   		</div>
 	</div>
 	<footer style="text-align:center; padding:20px; color:#8899cc; font-size:0.8rem;">
+  		<!-- ====== НАШИ ДОСТИЖЕНИЯ ====== -->
+  		<div id="achievements" style="background: rgba(20, 28, 50, 0.6); backdrop-filter: blur(8px); border: 1px solid #2e3b5c; border-radius: 16px; padding: 1.2rem; margin-bottom: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
+    		<div style="display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem 3rem; align-items: center;">
+      		<div style="text-align: center;">
+        		<div style="font-size: 1.4rem; font-weight: bold; color: #b7ceff;" id="stat-visits">—</div>
+        		<div style="font-size: 0.75rem; color: #8899cc;">👀 Визитов (30 дн.)</div>
+      		</div>
+      		<div style="text-align: center;">
+        		<div style="font-size: 1.4rem; font-weight: bold; color: #b7ceff;" id="stat-users">—</div>
+        		<div style="font-size: 0.75rem; color: #8899cc;">👤 Пользователей</div>
+      		</div>
+      		<div style="text-align: center;">
+        		<div style="font-size: 1.4rem; font-weight: bold; color: #b7ceff;" id="stat-messages">—</div>
+        		<div style="font-size: 0.75rem; color: #8899cc;">💬 Сообщений</div>
+      		</div>
+      		<div style="text-align: center;">
+        		<div style="font-size: 1.4rem; font-weight: bold; color: #b7ceff;" id="stat-videos">—</div>
+        		<div style="font-size: 0.75rem; color: #8899cc;">🎬 Видео</div>
+      		</div>
+      		<div style="text-align: center; min-width: 140px;">
+        		<div style="font-size: 0.9rem; color: #b7ceff;" id="stat-countries">🌍 Топ-5: загрузка...</div>
+        		<a href="/stats.html" style="color: #5f7ecf; text-decoration: none; font-size: 0.7rem; border: 1px solid #5f7ecf; padding: 0.1rem 0.8rem; border-radius: 12px; display: inline-block; margin-top: 0.2rem;">Подробнее →</a>
+      		</div>
+    		</div>
+  		</div>
+
+  		<!-- Старые ссылки -->
   		<a href="/privacy.html" style="color:#5f7ecf;">Политика конфиденциальности</a> |
   		<a href="/terms.html" style="color:#5f7ecf;">Пользовательское соглашение</a>
-	</footer>
+  	</footer>
 
   <!-- Leaflet скрипты загружаются с defer (выполнятся до DOMContentLoaded) -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
@@ -1179,5 +1206,44 @@
       await subscribeToPush(registration);
     });
   </script>
+  <script>
+  	(function loadFooterStats() {
+    	function updateStats(data) {
+      	document.getElementById('stat-visits').textContent = data.totalVisits || 0;
+      	document.getElementById('stat-users').textContent = data.totalUsers || 0;
+      	document.getElementById('stat-messages').textContent = data.totalMessages || 0;
+      	document.getElementById('stat-videos').textContent = data.totalVideos || 0;
+
+      	const countriesEl = document.getElementById('stat-countries');
+      	if (data.topCountries && data.topCountries.length) {
+        	countriesEl.textContent = '🌍 ' + data.topCountries.map(c => `${c.country} (${c.count})`).join(', ');
+      	} else {
+        	countriesEl.textContent = '🌍 Нет данных';
+      	}
+    	}
+
+    	function loadData() {
+      		fetch('/api/stats/public')
+        	.then(res => {
+          		if (!res.ok) throw new Error('Ошибка загрузки');
+          		return res.json();
+        		})
+        	.then(data => updateStats(data))
+        	.catch(() => {
+	          document.getElementById('stat-visits').textContent = '—';
+          	document.getElementById('stat-users').textContent = '—';
+          	document.getElementById('stat-messages').textContent = '—';
+          	document.getElementById('stat-videos').textContent = '—';
+          	document.getElementById('stat-countries').textContent = '🌍 Ошибка загрузки';
+        	});
+    	}
+
+    	// Загружаем сразу
+    	loadData();
+
+    	// Обновляем каждые 5 минут
+    	setInterval(loadData, 300000);
+  	  })();
+	</script>  
 </body>
 </html>
