@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkyMusic — Яндекс.Музыка</title>
+  <title>SkyMusic</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -29,7 +29,7 @@
     .header a:hover { text-decoration: underline; }
     .header h1 { color: #b7ceff; font-size: 1.5rem; font-weight: 400; }
     .header .badge { background: #2a7a2a; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.7rem; color: #fff; margin-left: 0.5rem; }
-    .presets {
+    .services {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
@@ -39,7 +39,7 @@
       flex-shrink: 0;
       align-items: center;
     }
-    .preset-btn {
+    .service-btn {
       background: #1a233a;
       border: 1px solid #2a3450;
       color: #cfdbff;
@@ -50,8 +50,8 @@
       transition: all 0.2s;
       white-space: nowrap;
     }
-    .preset-btn:hover { background: #2a3450; border-color: #5f7ecf; }
-    .preset-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
+    .service-btn:hover { background: #2a3450; border-color: #5f7ecf; }
+    .service-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
     .custom-url {
       display: flex;
       gap: 0.3rem;
@@ -84,21 +84,13 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      flex-direction: column;
     }
-    .player .widget-container {
+    .player iframe {
       width: 100%;
-      max-width: 600px;
-      min-height: 240px;
-      background: #1a233a;
+      height: 100%;
+      border: none;
       border-radius: 12px;
-      border: 1px solid #2a3450;
-      padding: 1rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-direction: column;
-      color: #8899cc;
+      background: #0a0f1e;
     }
     .height-control {
       display: flex;
@@ -116,147 +108,112 @@
       .header { padding: 0.5rem 1rem; }
       .header h1 { font-size: 1.2rem; }
       .custom-url input { min-width: 120px; }
-      .presets { gap: 0.3rem; padding: 0.3rem 0.5rem; }
     }
   </style>
 </head>
 <body>
   <div class="header">
     <a href="/">🏰 Назад</a>
-    <h1>🎵 SkyMusic <span class="badge">Яндекс.Музыка</span></h1>
+    <h1>🎵 SkyMusic</h1>
   </div>
 
-  <div class="presets">
-    <span style="color:#8899cc;font-size:0.8rem;">🎶 Быстрый старт:</span>
-    <button class="preset-btn active" data-track="150603141" data-album="41731052">🎵 Даня! (H3KT0N)</button>
-    <button class="preset-btn" data-track="71263" data-album="419460">🎵 Трек</button>
-    <button class="preset-btn" data-album="496406">💿 Альбом</button>
+  <div class="services">
+    <button class="service-btn active" data-service="yandex">Яндекс.Музыка</button>
+    <button class="service-btn" data-service="soundcloud">🎧 SoundCloud</button>
     <div class="custom-url">
-      <input type="text" id="customInput" placeholder="Ссылка Яндекс.Музыки...">
+      <input type="text" id="customInput" placeholder="Ссылка на трек/плейлист...">
       <button id="loadCustomBtn">➤</button>
     </div>
     <div class="height-control">
       <span>Высота:</span>
-      <input type="range" id="heightSlider" min="80" max="600" value="240">
-      <span id="heightLabel">240px</span>
+      <input type="range" id="heightSlider" min="80" max="600" value="350">
+      <span id="heightLabel">350px</span>
     </div>
   </div>
 
   <div class="player" id="player">
-    <div class="widget-container" id="widgetContainer">
-      <p>🎵 Загрузка плеера...</p>
-    </div>
+    <iframe id="musicFrame" src="about:blank" allow="autoplay; encrypted-media"></iframe>
   </div>
 
   <script>
-    const widgetContainer = document.getElementById('widgetContainer');
+    const frame = document.getElementById('musicFrame');
     const customInput = document.getElementById('customInput');
     const loadCustomBtn = document.getElementById('loadCustomBtn');
     const heightSlider = document.getElementById('heightSlider');
     const heightLabel = document.getElementById('heightLabel');
-    let currentPresetBtn = document.querySelector('.preset-btn.active');
 
-    // Функция для определения ID трека и альбома из ссылки
-    function extractIds(input) {
-      let trackId = null, albumId = null;
-      // Попытка извлечь track и album из ссылки
-      const trackMatch = input.match(/\/track\/(\d+)/);
-      const albumMatch = input.match(/\/album\/(\d+)/);
-      if (trackMatch) trackId = trackMatch[1];
-      if (albumMatch) albumId = albumMatch[1];
-      // Если только одно число — считаем, что это трек (если нет альбома)
-      const singleNumber = input.match(/\/(\d{5,})\D*$/);
-      if (!trackId && !albumId && singleNumber) {
-        // Если в ссылке одно число — это может быть и трек, и альбом, но лучше попробовать и то и другое
-        // Для простоты считаем, что это трек
-        trackId = singleNumber[1];
-      }
-      return { trackId, albumId };
+    // Пресеты для Яндекс.Музыки (embed-ссылки с #)
+    const yandexPresets = {
+      'Даня! (H3KT0N)': 'https://music.yandex.ru/iframe/#track/150603141',
+      'Трек': 'https://music.yandex.ru/iframe/#track/71263',
+      'Альбом': 'https://music.yandex.ru/iframe/#album/496406',
+    };
+
+    // Пресеты для SoundCloud (прямые ссылки на треки)
+    const soundcloudPresets = {
+      'Даня! (H3KT0N)': 'https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/769846361&color=%235f7ecf&auto_play=false',
+      'Популярный трек': 'https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/123456789&color=%235f7ecf&auto_play=false',
+    };
+
+    let currentService = 'yandex';
+
+    function loadMusic(url) {
+      frame.src = url;
     }
 
-    // Загрузить плеер
-    function loadWidget(trackId, albumId) {
-      // Очищаем контейнер
-      widgetContainer.innerHTML = '<p style="color:#8899cc;">⏳ Загрузка плеера...</p>';
-
-      // Создаём элемент для виджета
-      const div = document.createElement('div');
-      div.className = 'yandex-music-player';
-      if (trackId) div.setAttribute('data-track', trackId);
-      if (albumId) div.setAttribute('data-album', albumId);
-      div.setAttribute('data-lang', 'ru');
-      widgetContainer.appendChild(div);
-
-      // Загружаем скрипт, если ещё не загружен
-      if (!document.querySelector('script[src*="player.js"]')) {
-        const script = document.createElement('script');
-        script.src = 'https://music.yandex.ru/widgets/player.js';
-        script.async = true;
-        script.onload = () => {
-          // Виджет должен автоматически подхватиться
-        };
-        script.onerror = () => {
-          widgetContainer.innerHTML = '<p style="color:#f48024;">❌ Не удалось загрузить плеер Яндекс.Музыки.<br>Попробуйте обновить страницу.</p>';
-        };
-        document.head.appendChild(script);
+    function switchService(service) {
+      currentService = service;
+      // Загружаем первый пресет для выбранного сервиса
+      const presets = service === 'yandex' ? yandexPresets : soundcloudPresets;
+      const firstKey = Object.keys(presets)[0];
+      if (firstKey) {
+        loadMusic(presets[firstKey]);
       } else {
-        // Если скрипт уже загружен, пробуем переинициализировать
-        if (window.YMPlayer) {
-          window.YMPlayer.init();
-        }
+        loadMusic('about:blank');
       }
-
-      // Обновляем активную кнопку
-      document.querySelectorAll('.preset-btn').forEach(btn => {
-        const btnTrack = btn.dataset.track || null;
-        const btnAlbum = btn.dataset.album || null;
-        const isActive = (btnTrack && btnTrack === trackId) || (btnAlbum && btnAlbum === albumId);
-        btn.classList.toggle('active', isActive);
-        if (isActive) currentPresetBtn = btn;
-      });
     }
 
-    // Обработчик для кнопок пресетов
-    document.querySelectorAll('.preset-btn').forEach(btn => {
+    // Обработчики кнопок сервисов
+    document.querySelectorAll('.service-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const trackId = btn.dataset.track || null;
-        const albumId = btn.dataset.album || null;
-        if (trackId || albumId) {
-          loadWidget(trackId, albumId);
-          currentPresetBtn = btn;
-        }
+        document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        switchService(btn.dataset.service);
       });
     });
 
-    // Обработчик для ввода своей ссылки
+    // Обработчик пользовательской ссылки
     loadCustomBtn.addEventListener('click', () => {
       const val = customInput.value.trim();
       if (!val) return;
-      const { trackId, albumId } = extractIds(val);
-      if (trackId || albumId) {
-        loadWidget(trackId, albumId);
-        // Находим или создаём кнопку для пользовательского трека
-        const existingCustomBtn = document.querySelector('.preset-btn.custom');
-        if (!existingCustomBtn) {
-          const btn = document.createElement('button');
-          btn.className = 'preset-btn custom';
-          btn.textContent = '🎵 Пользовательский';
-          document.querySelector('.presets').insertBefore(btn, document.querySelector('.custom-url'));
-          btn.addEventListener('click', () => {
-            if (btn.dataset.track || btn.dataset.album) {
-              loadWidget(btn.dataset.track, btn.dataset.album);
-            }
-          });
+      // Если ссылка на Яндекс.Музыку — преобразуем
+      let url = val;
+      if (currentService === 'yandex') {
+        // Пытаемся извлечь ID
+        const trackMatch = val.match(/\/track\/(\d+)/);
+        const albumMatch = val.match(/\/album\/(\d+)/);
+        if (trackMatch) {
+          url = `https://music.yandex.ru/iframe/#track/${trackMatch[1]}`;
+        } else if (albumMatch) {
+          url = `https://music.yandex.ru/iframe/#album/${albumMatch[1]}`;
+        } else {
+          // Возможно, уже embed-ссылка
+          if (!val.includes('iframe/#')) {
+            // Если просто число — считаем треком
+            const num = val.match(/\d+/);
+            if (num) url = `https://music.yandex.ru/iframe/#track/${num[0]}`;
+          }
         }
-        const customBtn = document.querySelector('.preset-btn.custom');
-        customBtn.dataset.track = trackId;
-        customBtn.dataset.album = albumId;
-        customBtn.textContent = `🎵 ${trackId ? 'Трек' : 'Альбом'} (польз.)`;
-        // Загружаем
-        loadWidget(trackId, albumId);
       } else {
-        widgetContainer.innerHTML = '<p style="color:#f48024;">❌ Не удалось распознать ссылку. Убедитесь, что это ссылка на трек или альбом Яндекс.Музыки.</p>';
+        // SoundCloud — если вставлена ссылка на трек, нужно обернуть в embed
+        if (!val.includes('w.soundcloud.com/player')) {
+          const trackId = val.match(/\/(\d+)/);
+          if (trackId) {
+            url = `https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/${trackId[1]}&color=%235f7ecf&auto_play=false`;
+          }
+        }
       }
+      loadMusic(url);
       customInput.value = '';
     });
 
@@ -268,23 +225,11 @@
     heightSlider.addEventListener('input', () => {
       const h = heightSlider.value;
       heightLabel.textContent = h + 'px';
-      widgetContainer.style.height = h + 'px';
+      frame.style.height = h + 'px';
     });
 
-    // Загрузка первого пресета при старте
-    if (currentPresetBtn) {
-      const trackId = currentPresetBtn.dataset.track || null;
-      const albumId = currentPresetBtn.dataset.album || null;
-      if (trackId || albumId) loadWidget(trackId, albumId);
-    } else {
-      // fallback: загружаем первый трек
-      const firstBtn = document.querySelector('.preset-btn');
-      if (firstBtn) {
-        const trackId = firstBtn.dataset.track || null;
-        const albumId = firstBtn.dataset.album || null;
-        loadWidget(trackId, albumId);
-      }
-    }
+    // Инициализация — загружаем Яндекс.Музыку по умолчанию
+    switchService('yandex');
   </script>
 </body>
 </html>
