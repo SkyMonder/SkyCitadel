@@ -495,6 +495,7 @@
       const SERVICE2_URL = 'https://skymutant.cc.cd';
       const SERVICE4_URL = 'https://skymutant.cc.cd';
       const SKYID_URL = 'https://skymutant.cc.cd';
+	  const API_BASE = 'https://skymutant.cc.cd';
 
       // ====== КЕШИРОВАННЫЙ FETCH ======
       async function cachedFetch(url, ttl = 60000) {
@@ -1207,43 +1208,44 @@
     });
   </script>
   <script>
-  	(function loadFooterStats() {
-    	function updateStats(data) {
-      	document.getElementById('stat-visits').textContent = data.totalVisits || 0;
-      	document.getElementById('stat-users').textContent = data.totalUsers || 0;
-      	document.getElementById('stat-messages').textContent = data.totalMessages || 0;
-      	document.getElementById('stat-videos').textContent = data.totalVideos || 0;
+  (function loadFooterStats() {
 
-      	const countriesEl = document.getElementById('stat-countries');
-      	if (data.topCountries && data.topCountries.length) {
-        	countriesEl.textContent = '🌍 ' + data.topCountries.map(c => `${c.country} (${c.count})`).join(', ');
-      	} else {
-        	countriesEl.textContent = '🌍 Нет данных';
-      	}
-    	}
+    function updateStats(data) {
+      document.getElementById('stat-visits').textContent = data.totalVisits || 0;
+      document.getElementById('stat-users').textContent = data.totalUsers || 0;
+      document.getElementById('stat-messages').textContent = data.totalMessages || 0;
+      document.getElementById('stat-videos').textContent = data.totalVideos || 0;
 
-    	function loadData() {
-      		fetch('/api/stats/public')
-        	.then(res => {
-          		if (!res.ok) throw new Error('Ошибка загрузки');
-          		return res.json();
-        		})
-        	.then(data => updateStats(data))
-        	.catch(() => {
-	          document.getElementById('stat-visits').textContent = '—';
-          	document.getElementById('stat-users').textContent = '—';
-          	document.getElementById('stat-messages').textContent = '—';
-          	document.getElementById('stat-videos').textContent = '—';
-          	document.getElementById('stat-countries').textContent = '🌍 Ошибка загрузки';
-        	});
-    	}
+      const countriesEl = document.getElementById('stat-countries');
+      if (data.topCountries && data.topCountries.length) {
+        countriesEl.textContent = '🌍 ' + data.topCountries.map(c => `${c.country} (${c.count})`).join(', ');
+      } else {
+        countriesEl.textContent = '🌍 Нет данных';
+      }
+    }
 
-    	// Загружаем сразу
-    	loadData();
+    function loadData() {
+      fetch(`${API_BASE}/api/stats/public`)
+        .then(res => {
+          if (!res.ok) throw new Error('Ошибка загрузки');
+          return res.json();
+        })
+        .then(data => updateStats(data))
+        .catch(() => {
+          document.getElementById('stat-visits').textContent = '—';
+          document.getElementById('stat-users').textContent = '—';
+          document.getElementById('stat-messages').textContent = '—';
+          document.getElementById('stat-videos').textContent = '—';
+          document.getElementById('stat-countries').textContent = '🌍 Ошибка загрузки';
+        });
+    }
 
-    	// Обновляем каждые 5 минут
-    	setInterval(loadData, 300000);
-  	  })();
-	</script>  
+    // Загружаем сразу
+    loadData();
+
+    // Обновляем каждые 5 минут
+    setInterval(loadData, 300000);
+  })();
+</script>
 </body>
 </html>
