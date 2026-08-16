@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Статистика SkyCitadel</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 2rem 1rem;
+      max-width: 1200px;
+      margin: 0 auto;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .back-link {
+      display: inline-block;
+      color: #5f7ecf;
+      text-decoration: none;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    h1 {
+      color: #b7ceff;
+      border-left: 4px solid #5f7ecf;
+      padding-left: 1rem;
+      margin-bottom: 0.5rem;
+      font-weight: 300;
+    }
+    .subtitle {
+      color: #8899cc;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+    }
+    .subtitle .badge {
+      background: #2a7a2a;
+      color: #fff;
+      padding: 0.2rem 0.7rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      margin-left: 0.5rem;
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+    .stat-card {
+      background: #1a233a;
+      padding: 1.2rem 0.8rem;
+      border-radius: 12px;
+      text-align: center;
+      border: 1px solid #2a3450;
+    }
+    .stat-number {
+      font-size: 2.2rem;
+      font-weight: bold;
+      color: #b7ceff;
+      line-height: 1.2;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: #8899cc;
+      margin-top: 0.3rem;
+    }
+    .chart-container {
+      background: #1a233a;
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      border: 1px solid #2a3450;
+    }
+    .chart-container h3 {
+      color: #b7ceff;
+      margin-bottom: 1rem;
+      font-weight: 400;
+      font-size: 1.1rem;
+    }
+    .bar-chart {
+      display: flex;
+      align-items: flex-end;
+      gap: 4px;
+      height: 150px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+    .bar-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 0 0 28px;
+    }
+    .bar {
+      width: 100%;
+      background: #5f7ecf;
+      border-radius: 4px 4px 0 0;
+      min-height: 2px;
+      transition: height 0.5s ease;
+    }
+    .bar-label {
+      font-size: 0.55rem;
+      color: #8899cc;
+      margin-top: 4px;
+      transform: rotate(-45deg);
+      transform-origin: top center;
+      white-space: nowrap;
+    }
+    .inline-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem 1.5rem;
+      margin-top: 0.5rem;
+    }
+    .inline-item {
+      background: #0d1225;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      border: 1px solid #2a3450;
+      font-size: 0.9rem;
+    }
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .footer {
+      margin-top: auto;
+      border-top: 1px solid #2a3450;
+      padding-top: 1.5rem;
+      font-size: 0.8rem;
+      color: #8899cc;
+      text-align: center;
+    }
+    .updated {
+      color: #5f7ecf;
+      font-weight: bold;
+    }
+    @media (max-width: 768px) {
+      .two-col { grid-template-columns: 1fr; }
+      .bar-wrap { flex: 0 0 22px; }
+      .bar-label { font-size: 0.45rem; }
+    }
+    @media (max-width: 480px) {
+      .stats-grid { grid-template-columns: 1fr 1fr; }
+      .stat-number { font-size: 1.6rem; }
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-link">🏰 Вернуться в крепость</a>
+  <h1>📊 Статистика SkyCitadel</h1>
+  <p class="subtitle">
+    Анонимная агрегированная статистика проекта.
+    <span class="badge">Публичные данные</span>
+  </p>
+
+  <div id="statsContent">
+    <div class="stats-grid" id="mainStats">
+      <div class="stat-card"><div class="stat-number" id="statVisits">—</div><div class="stat-label">👀 Визитов (30 дн.)</div></div>
+      <div class="stat-card"><div class="stat-number" id="statUsers">—</div><div class="stat-label">👤 Пользователей</div></div>
+      <div class="stat-card"><div class="stat-number" id="statMessages">—</div><div class="stat-label">💬 Сообщений</div></div>
+      <div class="stat-card"><div class="stat-number" id="statVideos">—</div><div class="stat-label">🎬 Видео</div></div>
+    </div>
+
+    <div class="chart-container">
+      <h3>📅 Активность по дням (последние 30 дней)</h3>
+      <div class="bar-chart" id="dailyChart"></div>
+    </div>
+
+    <div class="two-col">
+      <div class="chart-container">
+        <h3>📱 Устройства</h3>
+        <div class="inline-list" id="devicesList"></div>
+      </div>
+      <div class="chart-container">
+        <h3>🌍 Топ-5 стран</h3>
+        <div class="inline-list" id="countriesList"></div>
+      </div>
+    </div>
+
+    <div class="chart-container">
+      <h3>⏰ Пиковые часы (топ-3)</h3>
+      <div class="inline-list" id="peakHoursList"></div>
+    </div>
+
+    <div class="footer">
+      Данные обновляются автоматически. <span id="updatedAt" class="updated">Загрузка...</span>
+    </div>
+  </div>
+
+  <script>
+    (function loadStats() {
+      const elements = {
+        visits: document.getElementById('statVisits'),
+        users: document.getElementById('statUsers'),
+        messages: document.getElementById('statMessages'),
+        videos: document.getElementById('statVideos'),
+        daily: document.getElementById('dailyChart'),
+        devices: document.getElementById('devicesList'),
+        countries: document.getElementById('countriesList'),
+        peakHours: document.getElementById('peakHoursList'),
+        updated: document.getElementById('updatedAt')
+      };
+
+      function renderDaily(dailyData) {
+        if (!dailyData || dailyData.length === 0) {
+          elements.daily.innerHTML = '<p style="color:#8899cc;">Нет данных</p>';
+          return;
+        }
+        const maxVal = Math.max(...dailyData.map(d => d.visits), 1);
+        let html = '';
+        dailyData.forEach(day => {
+          const height = Math.max(4, (day.visits / maxVal) * 140);
+          html += `
+            <div class="bar-wrap">
+              <div class="bar" style="height: ${height}px;"></div>
+              <div class="bar-label">${day.date.slice(-5)}</div>
+            </div>
+          `;
+        });
+        elements.daily.innerHTML = html;
+      }
+
+      function renderList(container, items, labelKey = '') {
+        if (!items || items.length === 0) {
+          container.innerHTML = '<span style="color:#8899cc;">Нет данных</span>';
+          return;
+        }
+        container.innerHTML = items.map(item => {
+          const label = labelKey ? item[labelKey] : item;
+          const count = item.count || '';
+          return `<span class="inline-item">${label}${count ? ' ('+count+')' : ''}</span>`;
+        }).join('');
+      }
+
+      function updateUI(data) {
+        elements.visits.textContent = data.totalVisits || 0;
+        elements.users.textContent = data.totalUsers || 0;
+        elements.messages.textContent = data.totalMessages || 0;
+        elements.videos.textContent = data.totalVideos || 0;
+        renderDaily(data.dailyActivity);
+        renderList(elements.devices, data.devices, 'type');
+        renderList(elements.countries, data.topCountries, 'country');
+        if (data.peakHours && data.peakHours.length) {
+          elements.peakHours.innerHTML = data.peakHours.map(h => 
+            `<span class="inline-item">${String(h.hour).padStart(2,'0')}:00 — ${h.count} визитов</span>`
+          ).join('');
+        } else {
+          elements.peakHours.innerHTML = '<span style="color:#8899cc;">Нет данных</span>';
+        }
+        elements.updated.textContent = data.updatedAt ? new Date(data.updatedAt).toLocaleString() : 'только что';
+      }
+
+      function fetchData() {
+        fetch('/api/stats/public')
+          .then(res => {
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            return res.json();
+          })
+          .then(data => updateUI(data))
+          .catch(err => {
+            console.warn('Ошибка загрузки статистики:', err);
+            // Показываем прочерки
+            elements.visits.textContent = '—';
+            elements.users.textContent = '—';
+            elements.messages.textContent = '—';
+            elements.videos.textContent = '—';
+            elements.daily.innerHTML = '<p style="color:#8899cc;">Ошибка загрузки</p>';
+            elements.devices.innerHTML = '<span style="color:#8899cc;">Ошибка</span>';
+            elements.countries.innerHTML = '<span style="color:#8899cc;">Ошибка</span>';
+            elements.peakHours.innerHTML = '<span style="color:#8899cc;">Ошибка</span>';
+            elements.updated.textContent = 'ошибка';
+          });
+      }
+
+      // Загружаем сразу и каждые 60 секунд
+      fetchData();
+      setInterval(fetchData, 60000);
+    })();
+  </script>
+</body>
+</html>
