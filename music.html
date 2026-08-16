@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkyMusic — Invidious</title>
+  <title>SkyMusic — Яндекс.Музыка</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -29,7 +29,7 @@
     .header a:hover { text-decoration: underline; }
     .header h1 { color: #b7ceff; font-size: 1.5rem; font-weight: 400; }
     .header .badge { background: #2a7a2a; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.7rem; color: #fff; margin-left: 0.5rem; }
-    .playlist-selector {
+    .presets {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
@@ -39,7 +39,7 @@
       flex-shrink: 0;
       align-items: center;
     }
-    .playlist-btn {
+    .preset-btn {
       background: #1a233a;
       border: 1px solid #2a3450;
       color: #cfdbff;
@@ -50,15 +50,16 @@
       transition: all 0.2s;
       white-space: nowrap;
     }
-    .playlist-btn:hover { background: #2a3450; border-color: #5f7ecf; }
-    .playlist-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
-    .custom-playlist {
+    .preset-btn:hover { background: #2a3450; border-color: #5f7ecf; }
+    .preset-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
+    .custom-url {
       display: flex;
       gap: 0.3rem;
       margin-left: auto;
       flex-wrap: wrap;
+      align-items: center;
     }
-    .custom-playlist input {
+    .custom-url input {
       padding: 0.3rem 0.6rem;
       background: #0d1225;
       border: 1px solid #2a3450;
@@ -67,7 +68,7 @@
       font-size: 0.8rem;
       min-width: 200px;
     }
-    .custom-playlist button {
+    .custom-url button {
       background: #5f7ecf;
       border: none;
       color: #fff;
@@ -75,7 +76,7 @@
       border-radius: 16px;
       cursor: pointer;
     }
-    .custom-playlist button:hover { background: #7a9aef; }
+    .custom-url button:hover { background: #7a9aef; }
     .player {
       flex: 1;
       background: #111827;
@@ -88,65 +89,83 @@
       border-radius: 12px;
       background: #0a0f1e;
     }
+    .height-control {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.8rem;
+      color: #8899cc;
+      margin-left: 0.5rem;
+    }
+    .height-control input[type="range"] {
+      width: 80px;
+      accent-color: #5f7ecf;
+    }
     @media (max-width: 768px) {
       .header { padding: 0.5rem 1rem; }
       .header h1 { font-size: 1.2rem; }
-      .custom-playlist input { min-width: 120px; }
-      .playlist-selector { gap: 0.3rem; padding: 0.3rem 0.5rem; }
+      .custom-url input { min-width: 120px; }
+      .presets { gap: 0.3rem; padding: 0.3rem 0.5rem; }
     }
   </style>
 </head>
 <body>
   <div class="header">
     <a href="/">🏰 Назад</a>
-    <h1>🎵 SkyMusic <span class="badge">Invidious</span></h1>
+    <h1>🎵 SkyMusic <span class="badge">Яндекс.Музыка</span></h1>
   </div>
 
-  <div class="playlist-selector">
-    <span style="color:#8899cc;font-size:0.8rem;">🎶 Плейлист:</span>
-    <button class="playlist-btn active" data-playlist="PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m">🎧 Поп-хиты</button>
-    <button class="playlist-btn" data-playlist="PL7bW8q7nBf8uFqLv2kE9oH6QxW0aMp9sA">🎸 Рок</button>
-    <button class="playlist-btn" data-playlist="PLv7T6b5kH9wL1Nc2xJ0sQrP3s8Y4nK0W">🧘 Релакс</button>
-    <button class="playlist-btn" data-playlist="PLJhI5o0jS9k1fGqE0p3Lk2W5nY0tN4mD">🎹 Классика</button>
-    <div class="custom-playlist">
-      <input type="text" id="customPlaylistInput" placeholder="ID плейлиста...">
+  <div class="presets">
+    <span style="color:#8899cc;font-size:0.8rem;">🎶 Быстрый старт:</span>
+    <button class="preset-btn active" data-src="https://music.yandex.ru/iframe/#track/71263/419460">🎵 Трек</button>
+    <button class="preset-btn" data-src="https://music.yandex.ru/iframe/#album/496406">💿 Альбом</button>
+    <button class="preset-btn" data-src="https://music.yandex.ru/iframe/#playlist/10773311">📋 Плейлист</button>
+    <div class="custom-url">
+      <input type="text" id="customInput" placeholder="Ссылка Яндекс.Музыки...">
       <button id="loadCustomBtn">➤</button>
+    </div>
+    <div class="height-control">
+      <span>Высота:</span>
+      <input type="range" id="heightSlider" min="80" max="600" value="350">
+      <span id="heightLabel">350px</span>
     </div>
   </div>
 
   <div class="player" id="player">
-    <iframe id="musicFrame" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+    <iframe id="musicFrame" src="https://music.yandex.ru/iframe/#track/71263/419460" allow="encrypted-media"></iframe>
   </div>
 
   <script>
     const frame = document.getElementById('musicFrame');
-    const customInput = document.getElementById('customPlaylistInput');
+    const customInput = document.getElementById('customInput');
     const loadCustomBtn = document.getElementById('loadCustomBtn');
-    const BASE_URL = 'https://skymutant.cc.cd/invidious/embed/playlist?list=';
+    const heightSlider = document.getElementById('heightSlider');
+    const heightLabel = document.getElementById('heightLabel');
 
-    // Загрузка плейлиста через Invidious
-    function loadPlaylist(playlistId) {
-      const url = BASE_URL + playlistId + '&autoplay=1&loop=1';
-      frame.src = url;
-      // Обновляем активную кнопку
-      document.querySelectorAll('.playlist-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.playlist === playlistId);
+    function loadMusic(src) {
+      frame.src = src;
+      document.querySelectorAll('.preset-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.src === src);
       });
     }
 
-    // События кнопок
-    document.querySelectorAll('.playlist-btn').forEach(btn => {
+    // Кнопки-пресеты
+    document.querySelectorAll('.preset-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        const playlistId = btn.dataset.playlist;
-        if (playlistId) loadPlaylist(playlistId);
+        const src = btn.dataset.src;
+        if (src) loadMusic(src);
       });
     });
 
-    // Загрузка своего плейлиста
+    // Своя ссылка
     loadCustomBtn.addEventListener('click', () => {
-      const id = customInput.value.trim();
-      if (!id) return;
-      loadPlaylist(id);
+      const val = customInput.value.trim();
+      if (!val) return;
+      // Если пользователь вставил полный iframe, пытаемся извлечь src
+      let src = val;
+      const srcMatch = val.match(/src=["']([^"']+)["']/);
+      if (srcMatch) src = srcMatch[1];
+      loadMusic(src);
       customInput.value = '';
     });
 
@@ -154,10 +173,17 @@
       if (e.key === 'Enter') loadCustomBtn.click();
     });
 
-    // Загружаем первый плейлист
-    const defaultPlaylist = document.querySelector('.playlist-btn.active');
-    if (defaultPlaylist) {
-      loadPlaylist(defaultPlaylist.dataset.playlist);
+    // Управление высотой
+    heightSlider.addEventListener('input', () => {
+      const h = heightSlider.value;
+      heightLabel.textContent = h + 'px';
+      frame.style.height = h + 'px';
+    });
+
+    // Загрузка первого пресета при старте
+    const defaultPreset = document.querySelector('.preset-btn.active');
+    if (defaultPreset) {
+      loadMusic(defaultPreset.dataset.src);
     }
   </script>
 </body>
