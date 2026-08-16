@@ -144,38 +144,39 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dashjs/4.7.4/dash.all.min.js"></script>
   <script>
-    // ====== СПИСОК КАНАЛОВ (из вашего M3U, только прямые потоки) ======
+    // ====== СПИСОК КАНАЛОВ ======
     const channels = [
-      { name: 'Первый канал', url: 'https://edge1.1internet.tv/dash-live2/streams/1tv-dvr/1tvdash.mpd' },
-      { name: 'Матч ТВ', url: 'https://streaming.televizor-24-tochka.ru/live/6.m3u8' },
-      { name: 'НТВ', url: 'http://ott-cdn.ucom.am/s17/index.m3u8' },
-      { name: 'Пятый канал', url: 'https://streaming.televizor-24-tochka.ru/live/8.m3u8' },
-      { name: 'Карусель', url: 'https://streaming102.interskytech.com/live/232.m3u8' },
-      { name: 'ОТР', url: 'https://streaming.televizor-24-tochka.ru/live/12.m3u8' },
-      { name: 'ТВ Центр', url: 'http://ott-cdn.ucom.am/s54/index.m3u8' },
-      { name: 'Рен ТВ', url: 'https://streaming.televizor-24-tochka.ru/live/14.m3u8' },
-      { name: 'Спас', url: 'https://spas.mediacdn.ru/cdn/spas/playlist.m3u8' },
-      { name: 'СТС', url: 'http://ott-cdn.ucom.am/s52/04.m3u8' },
-      { name: 'Домашний', url: 'http://ott-cdn.ucom.am/s88/index.m3u8' },
-      { name: 'ТВ-3', url: 'https://streaming.televizor-24-tochka.ru/live/18.m3u8' },
-      { name: 'Пятница!', url: 'https://streaming.televizor-24-tochka.ru/live/19.m3u8' },
-      { name: 'Звезда', url: 'https://tvchannelstream1.tvzvezda.ru/cdn/tvzvezda/playlist.m3u8' },
-      { name: 'Мир', url: 'http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv_2500/playlist.m3u8' },
-      { name: 'ТНТ', url: 'http://ott-cdn.ucom.am/s19/index.m3u8' },
-      { name: 'Муз-ТВ', url: 'https://streaming102.interskytech.com/live/618.m3u8' },
-      { name: 'РБК', url: 'http://92.50.128.180/utv/1358/index.m3u8' },
-      { name: 'RT Д Русский', url: 'https://hls.rt.com/hls/rtdru.m3u8' },
-      { name: 'CGTN Русский', url: 'https://news.cgtn.com/resource/live/russian/cgtn-r.m3u8' }
+      { name: 'Первый канал', url: 'https://edge1.1internet.tv/dash-live2/streams/1tv-dvr/1tvdash.mpd', type: 'dash' },
+      { name: 'Матч ТВ', url: 'https://streaming.televizor-24-tochka.ru/live/6.m3u8', type: 'hls' },
+      { name: 'НТВ', url: 'http://ott-cdn.ucom.am/s17/index.m3u8', type: 'hls' },
+      { name: 'Пятый канал', url: 'https://streaming.televizor-24-tochka.ru/live/8.m3u8', type: 'hls' },
+      { name: 'Карусель', url: 'https://streaming102.interskytech.com/live/232.m3u8', type: 'hls' },
+      { name: 'ОТР', url: 'https://streaming.televizor-24-tochka.ru/live/12.m3u8', type: 'hls' },
+      { name: 'ТВ Центр', url: 'http://ott-cdn.ucom.am/s54/index.m3u8', type: 'hls' },
+      { name: 'Рен ТВ', url: 'https://streaming.televizor-24-tochka.ru/live/14.m3u8', type: 'hls' },
+      { name: 'Спас', url: 'https://spas.mediacdn.ru/cdn/spas/playlist.m3u8', type: 'hls' },
+      { name: 'СТС', url: 'http://ott-cdn.ucom.am/s52/04.m3u8', type: 'hls' },
+      { name: 'Домашний', url: 'http://ott-cdn.ucom.am/s88/index.m3u8', type: 'hls' },
+      { name: 'ТВ-3', url: 'https://streaming.televizor-24-tochka.ru/live/18.m3u8', type: 'hls' },
+      { name: 'Пятница!', url: 'https://streaming.televizor-24-tochka.ru/live/19.m3u8', type: 'hls' },
+      { name: 'Звезда', url: 'https://tvchannelstream1.tvzvezda.ru/cdn/tvzvezda/playlist.m3u8', type: 'hls' },
+      { name: 'Мир', url: 'http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv_2500/playlist.m3u8', type: 'hls' },
+      { name: 'ТНТ', url: 'http://ott-cdn.ucom.am/s19/index.m3u8', type: 'hls' },
+      { name: 'Муз-ТВ', url: 'https://streaming102.interskytech.com/live/618.m3u8', type: 'hls' },
+      { name: 'РБК', url: 'http://92.50.128.180/utv/1358/index.m3u8', type: 'hls' },
+      { name: 'RT Д Русский', url: 'https://hls.rt.com/hls/rtdru.m3u8', type: 'hls' },
+      { name: 'CGTN Русский', url: 'https://news.cgtn.com/resource/live/russian/cgtn-r.m3u8', type: 'hls' }
     ];
 
     const video = document.getElementById('video');
     const loading = document.getElementById('loading');
     const bar = document.getElementById('channelsBar');
     let hls = null;
+    let dashPlayer = null;
     let currentIndex = 0;
 
-    // Строим кнопки
     function renderChannels() {
       bar.innerHTML = '';
       channels.forEach((ch, i) => {
@@ -192,7 +193,6 @@
       if (!channel) return;
       currentIndex = index;
 
-      // Обновляем активную кнопку
       document.querySelectorAll('.channel-btn').forEach((btn, i) => {
         btn.classList.toggle('active', i === index);
       });
@@ -200,46 +200,70 @@
       loading.classList.remove('hidden');
       loading.innerHTML = '<div class="spinner"></div><span>Загрузка...</span>';
 
-      // Уничтожаем старый HLS
+      // Очистка старых плееров
       if (hls) {
         hls.destroy();
         hls = null;
       }
+      if (dashPlayer) {
+        dashPlayer.reset();
+        dashPlayer = null;
+      }
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
 
       const url = channel.url;
+      const type = channel.type || 'hls';
 
-      // Проверяем, поддерживается ли HLS
-      if (Hls.isSupported()) {
-        hls = new Hls({
-          enableWorker: true,
-          lowLatencyMode: true,
-        });
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => {
-          video.play().catch(() => {});
-          loading.classList.add('hidden');
-        });
-        hls.on(Hls.Events.ERROR, (event, data) => {
-          if (data.fatal) {
-            loading.innerHTML = `<span class="error-msg">❌ Не удалось загрузить канал</span><span style="font-size:0.8rem;color:#8899cc;">Попробуйте другой</span>`;
+      if (type === 'dash') {
+        // DASH-поток
+        if (dashjs && dashjs.MediaPlayer) {
+          dashPlayer = dashjs.MediaPlayer().create();
+          dashPlayer.initialize(video, url, true);
+          dashPlayer.on('error', (e) => {
+            loading.innerHTML = `<span class="error-msg">❌ Ошибка загрузки канала</span><span style="font-size:0.8rem;color:#8899cc;">Попробуйте другой</span>`;
             setTimeout(() => loading.classList.add('hidden'), 4000);
-          }
-        });
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Safari (native HLS)
-        video.src = url;
-        video.addEventListener('loadedmetadata', () => {
-          video.play().catch(() => {});
-          loading.classList.add('hidden');
-        });
+          });
+          dashPlayer.on('streamInitialized', () => {
+            loading.classList.add('hidden');
+          });
+        } else {
+          loading.innerHTML = '<span class="error-msg">❌ Dash.js не загружен</span>';
+          setTimeout(() => loading.classList.add('hidden'), 3000);
+        }
       } else {
-        loading.innerHTML = '<span class="error-msg">❌ Ваш браузер не поддерживает HLS</span>';
-        setTimeout(() => loading.classList.add('hidden'), 4000);
+        // HLS-поток
+        if (Hls.isSupported()) {
+          hls = new Hls({
+            enableWorker: true,
+            lowLatencyMode: true,
+          });
+          hls.loadSource(url);
+          hls.attachMedia(video);
+          hls.on(Hls.Events.MANIFEST_PARSED, () => {
+            video.play().catch(() => {});
+            loading.classList.add('hidden');
+          });
+          hls.on(Hls.Events.ERROR, (event, data) => {
+            if (data.fatal) {
+              loading.innerHTML = `<span class="error-msg">❌ Не удалось загрузить канал</span><span style="font-size:0.8rem;color:#8899cc;">Попробуйте другой</span>`;
+              setTimeout(() => loading.classList.add('hidden'), 4000);
+            }
+          });
+        } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+          video.src = url;
+          video.addEventListener('loadedmetadata', () => {
+            video.play().catch(() => {});
+            loading.classList.add('hidden');
+          });
+        } else {
+          loading.innerHTML = '<span class="error-msg">❌ Ваш браузер не поддерживает HLS</span>';
+          setTimeout(() => loading.classList.add('hidden'), 4000);
+        }
       }
     }
 
-    // Инициализация
     renderChannels();
     if (channels.length > 0) {
       loadChannel(0);
