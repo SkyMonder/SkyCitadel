@@ -433,20 +433,33 @@
         elements.daily.innerHTML = html;
       }
 
-      function renderList(container, items, labelKey = '') {
-        if (!items || items.length === 0) {
-          container.innerHTML = '<span style="color:#8899cc;">Нет данных</span>';
-          return;
-        }
-        container.innerHTML = items.map(item => {
-          let label = labelKey ? item[labelKey] : item;
-          if (labelKey === 'country') {
-            label = getCountryName(label);
-          }
-          const count = item.count || '';
-          return `<span class="inline-item">${label}${count ? ' ('+count+')' : ''}</span>`;
-        }).join('');
-      }
+function renderList(container, items, labelKey = '') {
+  if (!items || items.length === 0) {
+    container.innerHTML = '<span style="color:#8899cc;">Нет данных</span>';
+    return;
+  }
+
+  // Если это страны — объединяем дубликаты
+  if (labelKey === 'country') {
+    const merged = {};
+    items.forEach(item => {
+      const name = getCountryName(item[labelKey]);
+      merged[name] = (merged[name] || 0) + item.count;
+    });
+    const sorted = Object.entries(merged)
+      .sort((a, b) => b[1] - a[1])
+      .map(([name, count]) => `<span class="inline-item">${name} (${count})</span>`);
+    container.innerHTML = sorted.join('');
+    return;
+  }
+
+  // Для остальных полей (тип устройства и т.д.)
+  container.innerHTML = items.map(item => {
+    const label = labelKey ? item[labelKey] : item;
+    const count = item.count || '';
+    return `<span class="inline-item">${label}${count ? ' ('+count+')' : ''}</span>`;
+  }).join('');
+}
 
       function updateUI(data) {
         elements.visits.textContent = data.totalVisits || 0;
