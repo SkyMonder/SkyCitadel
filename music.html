@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyMusic — YouTube плейлисты</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .header {
+      padding: 0.8rem 1.5rem;
+      background: #111827;
+      border-bottom: 1px solid #2a3450;
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      flex-shrink: 0;
+      flex-wrap: wrap;
+    }
+    .header a {
+      color: #5f7ecf;
+      text-decoration: none;
+      font-weight: 500;
+    }
+    .header a:hover { text-decoration: underline; }
+    .header h1 {
+      color: #b7ceff;
+      font-size: 1.5rem;
+      font-weight: 400;
+    }
+    .header .badge {
+      background: #2a7a2a;
+      padding: 0.2rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.7rem;
+      color: #fff;
+      margin-left: 0.5rem;
+    }
+    .playlist-selector {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #0d1425;
+      border-bottom: 1px solid #1e2a40;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .playlist-btn {
+      background: #1a233a;
+      border: 1px solid #2a3450;
+      color: #cfdbff;
+      padding: 0.3rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .playlist-btn:hover { background: #2a3450; border-color: #5f7ecf; }
+    .playlist-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
+    .custom-playlist {
+      display: flex;
+      gap: 0.3rem;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+    .custom-playlist input {
+      padding: 0.3rem 0.6rem;
+      background: #0d1225;
+      border: 1px solid #2a3450;
+      color: #e0e8ff;
+      border-radius: 16px;
+      font-size: 0.8rem;
+      min-width: 200px;
+    }
+    .custom-playlist button {
+      background: #5f7ecf;
+      border: none;
+      color: #fff;
+      padding: 0.2rem 0.8rem;
+      border-radius: 16px;
+      cursor: pointer;
+    }
+    .custom-playlist button:hover { background: #7a9aef; }
+    .player {
+      flex: 1;
+      background: #111827;
+      padding: 1rem;
+    }
+    .player iframe {
+      width: 100%;
+      height: 100%;
+      border: none;
+      border-radius: 12px;
+      background: #0a0f1e;
+    }
+    @media (max-width: 768px) {
+      .header { padding: 0.5rem 1rem; }
+      .header h1 { font-size: 1.2rem; }
+      .custom-playlist input { min-width: 120px; }
+      .playlist-selector { gap: 0.3rem; padding: 0.3rem 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <a href="/">🏰 Назад</a>
+    <h1>🎵 SkyMusic <span class="badge">YouTube</span></h1>
+  </div>
+
+  <div class="playlist-selector">
+    <span style="color:#8899cc;font-size:0.8rem;">🎶 Плейлист:</span>
+    <button class="playlist-btn active" data-playlist="PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m">🎧 Поп-хиты</button>
+    <button class="playlist-btn" data-playlist="PL7bW8q7nBf8uFqLv2kE9oH6QxW0aMp9sA">🎸 Рок</button>
+    <button class="playlist-btn" data-playlist="PLv7T6b5kH9wL1Nc2xJ0sQrP3s8Y4nK0W">🧘 Релакс</button>
+    <button class="playlist-btn" data-playlist="PLJhI5o0jS9k1fGqE0p3Lk2W5nY0tN4mD">🎹 Классика</button>
+    <div class="custom-playlist">
+      <input type="text" id="customPlaylistInput" placeholder="ID плейлиста...">
+      <button id="loadCustomBtn">➤</button>
+    </div>
+  </div>
+
+  <div class="player" id="player">
+    <iframe id="musicFrame" src="" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+  </div>
+
+  <script>
+    const frame = document.getElementById('musicFrame');
+    const customInput = document.getElementById('customPlaylistInput');
+    const loadCustomBtn = document.getElementById('loadCustomBtn');
+    const BASE_URL = 'https://skymutant.cc.cd/youtube/embed/videoseries?list=';
+
+    // Плейлисты (ID берутся из URL плейлиста на YouTube)
+    // Пример: https://www.youtube.com/playlist?list=PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m
+    function loadPlaylist(playlistId) {
+      const url = BASE_URL + playlistId + '&autoplay=1&loop=1&modestbranding=1&rel=0&showinfo=0&controls=1';
+      frame.src = url;
+      // Обновляем активную кнопку
+      document.querySelectorAll('.playlist-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.playlist === playlistId);
+      });
+    }
+
+    // События кнопок
+    document.querySelectorAll('.playlist-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const playlistId = btn.dataset.playlist;
+        if (playlistId) loadPlaylist(playlistId);
+      });
+    });
+
+    // Загрузка своего плейлиста
+    loadCustomBtn.addEventListener('click', () => {
+      const id = customInput.value.trim();
+      if (!id) return;
+      loadPlaylist(id);
+      customInput.value = '';
+    });
+
+    customInput.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') loadCustomBtn.click();
+    });
+
+    // Загружаем первый плейлист при старте
+    const defaultPlaylist = document.querySelector('.playlist-btn.active');
+    if (defaultPlaylist) {
+      loadPlaylist(defaultPlaylist.dataset.playlist);
+    } else {
+      // fallback
+      loadPlaylist('PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m');
+    }
+  </script>
+</body>
+</html>
