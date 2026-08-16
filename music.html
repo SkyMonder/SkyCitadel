@@ -13,223 +13,51 @@
       height: 100vh;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
-    }
-    .header {
-      padding: 0.8rem 1.5rem;
-      background: #111827;
-      border-bottom: 1px solid #2a3450;
-      display: flex;
-      align-items: center;
-      gap: 1.5rem;
-      flex-shrink: 0;
-      flex-wrap: wrap;
-    }
-    .header a { color: #5f7ecf; text-decoration: none; font-weight: 500; }
-    .header a:hover { text-decoration: underline; }
-    .header h1 { color: #b7ceff; font-size: 1.5rem; font-weight: 400; }
-    .header .badge { background: #2a7a2a; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.7rem; color: #fff; margin-left: 0.5rem; }
-    .services {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 0.5rem;
-      padding: 0.5rem 1rem;
-      background: #0d1425;
-      border-bottom: 1px solid #1e2a40;
-      flex-shrink: 0;
-      align-items: center;
-    }
-    .service-btn {
-      background: #1a233a;
-      border: 1px solid #2a3450;
-      color: #cfdbff;
-      padding: 0.3rem 1rem;
-      border-radius: 20px;
-      cursor: pointer;
-      font-size: 0.8rem;
-      transition: all 0.2s;
-      white-space: nowrap;
-    }
-    .service-btn:hover { background: #2a3450; border-color: #5f7ecf; }
-    .service-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
-    .custom-url {
-      display: flex;
-      gap: 0.3rem;
-      margin-left: auto;
-      flex-wrap: wrap;
-      align-items: center;
-    }
-    .custom-url input {
-      padding: 0.3rem 0.6rem;
-      background: #0d1225;
-      border: 1px solid #2a3450;
-      color: #e0e8ff;
-      border-radius: 16px;
-      font-size: 0.8rem;
-      min-width: 200px;
-    }
-    .custom-url button {
-      background: #5f7ecf;
-      border: none;
-      color: #fff;
-      padding: 0.2rem 0.8rem;
-      border-radius: 16px;
-      cursor: pointer;
-    }
-    .custom-url button:hover { background: #7a9aef; }
-    .player {
-      flex: 1;
-      background: #111827;
-      padding: 1rem;
-      display: flex;
       align-items: center;
       justify-content: center;
+      padding: 2rem;
     }
-    .player iframe {
+    .container {
+      max-width: 500px;
       width: 100%;
-      height: 100%;
-      border: none;
+      background: #1a233a;
+      border-radius: 20px;
+      border: 1px solid #2a3450;
+      padding: 2rem;
+      text-align: center;
+    }
+    h1 { color: #b7ceff; margin-bottom: 1.5rem; }
+    .music-link {
+      display: block;
+      background: #2a3450;
+      color: #cfdbff;
+      padding: 1rem;
       border-radius: 12px;
-      background: #0a0f1e;
+      margin-bottom: 0.8rem;
+      text-decoration: none;
+      transition: 0.2s;
+      font-size: 1.1rem;
     }
-    .height-control {
-      display: flex;
-      align-items: center;
-      gap: 0.5rem;
-      font-size: 0.8rem;
-      color: #8899cc;
-      margin-left: 0.5rem;
+    .music-link:hover {
+      background: #5f7ecf;
+      color: #fff;
+      transform: translateX(4px);
     }
-    .height-control input[type="range"] {
-      width: 80px;
-      accent-color: #5f7ecf;
+    .back-link {
+      color: #5f7ecf;
+      text-decoration: none;
+      margin-top: 1.5rem;
     }
-    @media (max-width: 768px) {
-      .header { padding: 0.5rem 1rem; }
-      .header h1 { font-size: 1.2rem; }
-      .custom-url input { min-width: 120px; }
-    }
+    .back-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
-  <div class="header">
-    <a href="/">🏰 Назад</a>
+  <div class="container">
     <h1>🎵 SkyMusic</h1>
+    <a href="https://soundcloud.com/discover" target="_blank" class="music-link">🎧 SoundCloud</a>
+    <a href="https://music.yandex.ru/home" target="_blank" class="music-link">🎶 Яндекс.Музыка</a>
+    <a href="https://www.mixcloud.com/explore/" target="_blank" class="music-link">🎚️ MixCloud</a>
+    <a href="/" class="back-link">🏰 Вернуться в крепость</a>
   </div>
-
-  <div class="services">
-    <button class="service-btn active" data-service="yandex">Яндекс.Музыка</button>
-    <button class="service-btn" data-service="soundcloud">🎧 SoundCloud</button>
-    <div class="custom-url">
-      <input type="text" id="customInput" placeholder="Ссылка на трек/плейлист...">
-      <button id="loadCustomBtn">➤</button>
-    </div>
-    <div class="height-control">
-      <span>Высота:</span>
-      <input type="range" id="heightSlider" min="80" max="600" value="350">
-      <span id="heightLabel">350px</span>
-    </div>
-  </div>
-
-  <div class="player" id="player">
-    <iframe id="musicFrame" src="about:blank" allow="autoplay; encrypted-media"></iframe>
-  </div>
-
-  <script>
-    const frame = document.getElementById('musicFrame');
-    const customInput = document.getElementById('customInput');
-    const loadCustomBtn = document.getElementById('loadCustomBtn');
-    const heightSlider = document.getElementById('heightSlider');
-    const heightLabel = document.getElementById('heightLabel');
-
-    // Пресеты для Яндекс.Музыки (embed-ссылки с #)
-    const yandexPresets = {
-      'Даня! (H3KT0N)': 'https://music.yandex.ru/iframe/#track/150603141',
-      'Трек': 'https://music.yandex.ru/iframe/#track/71263',
-      'Альбом': 'https://music.yandex.ru/iframe/#album/496406',
-    };
-
-    // Пресеты для SoundCloud (прямые ссылки на треки)
-    const soundcloudPresets = {
-      'Даня! (H3KT0N)': 'https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/769846361&color=%235f7ecf&auto_play=false',
-      'Популярный трек': 'https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/123456789&color=%235f7ecf&auto_play=false',
-    };
-
-    let currentService = 'yandex';
-
-    function loadMusic(url) {
-      frame.src = url;
-    }
-
-    function switchService(service) {
-      currentService = service;
-      // Загружаем первый пресет для выбранного сервиса
-      const presets = service === 'yandex' ? yandexPresets : soundcloudPresets;
-      const firstKey = Object.keys(presets)[0];
-      if (firstKey) {
-        loadMusic(presets[firstKey]);
-      } else {
-        loadMusic('about:blank');
-      }
-    }
-
-    // Обработчики кнопок сервисов
-    document.querySelectorAll('.service-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('.service-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        switchService(btn.dataset.service);
-      });
-    });
-
-    // Обработчик пользовательской ссылки
-    loadCustomBtn.addEventListener('click', () => {
-      const val = customInput.value.trim();
-      if (!val) return;
-      // Если ссылка на Яндекс.Музыку — преобразуем
-      let url = val;
-      if (currentService === 'yandex') {
-        // Пытаемся извлечь ID
-        const trackMatch = val.match(/\/track\/(\d+)/);
-        const albumMatch = val.match(/\/album\/(\d+)/);
-        if (trackMatch) {
-          url = `https://music.yandex.ru/iframe/#track/${trackMatch[1]}`;
-        } else if (albumMatch) {
-          url = `https://music.yandex.ru/iframe/#album/${albumMatch[1]}`;
-        } else {
-          // Возможно, уже embed-ссылка
-          if (!val.includes('iframe/#')) {
-            // Если просто число — считаем треком
-            const num = val.match(/\d+/);
-            if (num) url = `https://music.yandex.ru/iframe/#track/${num[0]}`;
-          }
-        }
-      } else {
-        // SoundCloud — если вставлена ссылка на трек, нужно обернуть в embed
-        if (!val.includes('w.soundcloud.com/player')) {
-          const trackId = val.match(/\/(\d+)/);
-          if (trackId) {
-            url = `https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/${trackId[1]}&color=%235f7ecf&auto_play=false`;
-          }
-        }
-      }
-      loadMusic(url);
-      customInput.value = '';
-    });
-
-    customInput.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') loadCustomBtn.click();
-    });
-
-    // Управление высотой
-    heightSlider.addEventListener('input', () => {
-      const h = heightSlider.value;
-      heightLabel.textContent = h + 'px';
-      frame.style.height = h + 'px';
-    });
-
-    // Инициализация — загружаем Яндекс.Музыку по умолчанию
-    switchService('yandex');
-  </script>
 </body>
 </html>
