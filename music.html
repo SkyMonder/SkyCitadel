@@ -117,9 +117,9 @@
 
   <div class="presets">
     <span style="color:#8899cc;font-size:0.8rem;">🎶 Быстрый старт:</span>
-    <button class="preset-btn active" data-src="https://music.yandex.ru/iframe/album/41731052/track/150603141">🎵 Даня! (H3KT0N)</button>
-    <button class="preset-btn" data-src="https://music.yandex.ru/iframe/album/496406">💿 Альбом</button>
-    <button class="preset-btn" data-src="https://music.yandex.ru/iframe/playlist/10773311">📋 Плейлист</button>
+    <button class="preset-btn active" data-src="https://music.yandex.ru/iframe/#track/150603141">🎵 Даня! (H3KT0N)</button>
+    <button class="preset-btn" data-src="https://music.yandex.ru/iframe/#album/496406">💿 Альбом</button>
+    <button class="preset-btn" data-src="https://music.yandex.ru/iframe/#playlist/10773311">📋 Плейлист</button>
     <div class="custom-url">
       <input type="text" id="customInput" placeholder="Ссылка Яндекс.Музыки...">
       <button id="loadCustomBtn">➤</button>
@@ -132,7 +132,7 @@
   </div>
 
   <div class="player" id="player">
-    <iframe id="musicFrame" src="https://music.yandex.ru/iframe/album/41731052/track/150603141" allow="encrypted-media"></iframe>
+    <iframe id="musicFrame" src="https://music.yandex.ru/iframe/#track/150603141" allow="autoplay; encrypted-media"></iframe>
   </div>
 
   <script>
@@ -146,31 +146,29 @@
       // 1. Если уже iframe, извлекаем src
       const srcMatch = input.match(/src=["']([^"']+)["']/);
       if (srcMatch) return srcMatch[1];
-      
-      // 2. Если уже embed-ссылка (содержит /iframe/), возвращаем как есть
-      if (input.includes('/iframe/')) return input;
 
-      // 3. Извлекаем ID альбома и трека (если есть)
-      const trackMatch = input.match(/\/album\/(\d+)\/track\/(\d+)/);
-      if (trackMatch) {
-        const albumId = trackMatch[1];
-        const trackId = trackMatch[2];
-        return `https://music.yandex.ru/iframe/album/${albumId}/track/${trackId}`;
+      // 2. Уже embed-ссылка с # — возвращаем как есть
+      if (input.includes('iframe/#')) return input;
+
+      // 3. Попытка извлечь ID трека (альбом/трек или просто track)
+      let match = input.match(/\/track\/(\d+)/);
+      if (match) {
+        return `https://music.yandex.ru/iframe/#track/${match[1]}`;
       }
 
-      // 4. Только альбом
-      const albumMatch = input.match(/\/album\/(\d+)/);
-      if (albumMatch) {
-        return `https://music.yandex.ru/iframe/album/${albumMatch[1]}`;
+      // 4. Попытка извлечь ID альбома
+      match = input.match(/\/album\/(\d+)/);
+      if (match) {
+        return `https://music.yandex.ru/iframe/#album/${match[1]}`;
       }
 
-      // 5. Плейлист
-      const playlistMatch = input.match(/\/playlist\/(\d+)/);
-      if (playlistMatch) {
-        return `https://music.yandex.ru/iframe/playlist/${playlistMatch[1]}`;
+      // 5. Попытка извлечь ID плейлиста
+      match = input.match(/\/playlist\/(\d+)/);
+      if (match) {
+        return `https://music.yandex.ru/iframe/#playlist/${match[1]}`;
       }
 
-      // 6. Если ничего не подошло, возвращаем как есть (может не сработать)
+      // 6. Если ничего не подошло — возвращаем исходную строку
       return input;
     }
 
@@ -179,6 +177,7 @@
       document.querySelectorAll('.preset-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.src === src);
       });
+      // Сброс высоты (если нужно) — оставляем ползунок
     }
 
     // Кнопки-пресеты
