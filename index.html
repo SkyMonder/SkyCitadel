@@ -1260,12 +1260,10 @@
 
     const API_BASE = 'https://skymutant.cc.cd';
 
-    // Определяем тип устройства
     const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     const deviceType = isMobile ? 'mobile' : 'desktop';
     const page = window.location.pathname || '/';
 
-    // Определяем страну (анонимно) через ipapi.co
     fetch('https://ipapi.co/country/')
       .then(res => res.text())
       .then(country => {
@@ -1276,7 +1274,6 @@
         }).catch(() => {});
       })
       .catch(() => {
-        // Если не удалось определить страну — отправляем без неё
         fetch(`${API_BASE}/api/analytics`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
