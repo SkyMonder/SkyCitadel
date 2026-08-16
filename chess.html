@@ -209,14 +209,21 @@
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"></script>
+  <!-- Пробуем загрузить Stockfish с двух CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/stockfish.js@10.0.2/stockfish.js"></script>
+  <script>
+    // Если stockfish не загрузился с первого CDN, пробуем второй
+    if (typeof Stockfish === 'undefined') {
+      document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js"><\/script>');
+    }
+  </script>
 
   <script>
     // ====== СОСТОЯНИЕ ======
     const chess = new Chess();
     let board = null;
-    let gameMode = 'ai'; // 'ai' или 'two'
-    let playerColor = 'white'; // 'white' или 'black'
+    let gameMode = 'ai';
+    let playerColor = 'white';
     let isAIThinking = false;
     let moveHistory = [];
     let stockfish = null;
@@ -237,15 +244,20 @@
 
     // ====== ИНИЦИАЛИЗАЦИЯ STOCKFISH ======
     function initStockfish() {
-      if (typeof Stockfish !== 'undefined') {
-        stockfish = new Stockfish();
-        stockfish.postMessage('uci');
-        stockfish.postMessage('setoption name Skill Level value ' + levelSelect.value);
-        stockfish.postMessage('isready');
-        console.log('✅ Stockfish загружен');
-        return true;
-      } else {
-        console.warn('⚠️ Stockfish не загружен');
+      try {
+        if (typeof Stockfish !== 'undefined') {
+          stockfish = new Stockfish();
+          stockfish.postMessage('uci');
+          stockfish.postMessage('setoption name Skill Level value ' + levelSelect.value);
+          stockfish.postMessage('isready');
+          console.log('✅ Stockfish загружен');
+          return true;
+        } else {
+          console.warn('⚠️ Stockfish не найден');
+          return false;
+        }
+      } catch (e) {
+        console.warn('⚠️ Ошибка загрузки Stockfish:', e);
         return false;
       }
     }
@@ -271,7 +283,6 @@
         if (playerColor === 'black' && piece[0] !== 'b') return false;
         return true;
       } else {
-        // Режим двух игроков
         const turn = chess.turn() === 'w' ? 'white' : 'black';
         if (piece[0] !== (turn === 'white' ? 'w' : 'b')) return false;
         return true;
@@ -287,10 +298,8 @@
       if (move === null) return 'snapback';
       updateUI(move);
       board.position(chess.fen());
-      // Проверка окончания игры
       if (checkGameOver()) return;
 
-      // Ход ИИ или ожидание
       if (gameMode === 'ai' && !gameOver) {
         const turn = chess.turn() === 'w' ? 'white' : 'black';
         if (turn !== playerColor) {
@@ -308,71 +317,90 @@
     }
 
     function makeAIMove() {
-      if (!stockfish) {
-        // fallback: случайный ход
-        const moves = chess.moves();
-        if (moves.length === 0) return;
-        const randomMove = moves[Math.floor(Math.random() * moves.length)];
-        chess.move(randomMove);
-        updateUI(chess.history().slice(-1)[0]);
-        board.position(chess.fen());
-        isAIThinking = false;
-        if (checkGameOver()) return;
-        if (gameMode === 'ai' && chess.turn() === (playerColor === 'white' ? 'w' : 'b')) {
-          scheduleAIMove();
-        }
-        return;
-      }
+      if (stockfish) {
+        stockfish.postMessage('position fen ' + chess.fen());
+        const depth = parseInt(levelSelect.value) + 5;
+        stockfish.postMessage('go depth ' + depth);
 
-      stockfish.postMessage('position fen ' + chess.fen());
-      const depth = parseInt(levelSelect.value) + 5;
-      stockfish.postMessage('go depth ' + depth);
-
-      stockfish.onmessage = (event) => {
-        const message = event.data;
-        if (message.startsWith('bestmove')) {
-          const parts = message.split(' ');
-          const bestMove = parts[1];
-          if (bestMove) {
-            const move = chess.move(bestMove);
-            if (move) {
-              updateUI(move);
-              board.position(chess.fen());
-              isAIThinking = false;
-              if (checkGameOver()) return;
-              if (gameMode === 'ai' && !gameOver) {
-                const turn = chess.turn() === 'w' ? 'white' : 'black';
-                if (turn !== playerColor) {
-                  scheduleAIMove();
-                } else {
-                  statusEl.textContent = 'Ваш ход';
+        stockfish.onmessage = (event) => {
+          const message = event.data;
+          if (message.startsWith('bestmove')) {
+            const parts = message.split(' ');
+            const bestMove = parts[1];
+            if (bestMove) {
+              const move = chess.move(bestMove);
+              if (move) {
+                updateUI(move);
+                board.position(chess.fen());
+                isAIThinking = false;
+                if (checkGameOver()) return;
+                if (gameMode === 'ai' && !gameOver) {
+                  const turn = chess.turn() === 'w' ? 'white' : 'black';
+                  if (turn !== playerColor) {
+                    scheduleAIMove();
+                  } else {
+                    statusEl.textContent = 'Ваш ход';
+                  }
                 }
+              } else {
+                isAIThinking = false;
+                makeRandomMove();
               }
             } else {
               isAIThinking = false;
+              makeRandomMove();
             }
-          } else {
-            isAIThinking = false;
+          } else if (message.startsWith('info')) {
+            const evalMatch = message.match(/score cp (-?\d+)/);
+            if (evalMatch) {
+              const cp = parseInt(evalMatch[1]);
+              const evalStr = (cp / 100).toFixed(2);
+              evalInfoEl.textContent = evalStr;
+            }
           }
-        } else if (message.startsWith('info')) {
-          // Можно парсить оценку для отображения
-          const evalMatch = message.match(/score cp (-?\d+)/);
-          if (evalMatch) {
-            const cp = parseInt(evalMatch[1]);
-            const evalStr = (cp / 100).toFixed(2);
-            evalInfoEl.textContent = evalStr;
+        };
+      } else {
+        makeRandomMove();
+      }
+    }
+
+    function makeRandomMove() {
+      const moves = chess.moves();
+      if (moves.length === 0) { isAIThinking = false; return; }
+      const randomMove = moves[Math.floor(Math.random() * moves.length)];
+      const move = chess.move(randomMove);
+      if (move) {
+        updateUI(move);
+        board.position(chess.fen());
+        isAIThinking = false;
+        if (checkGameOver()) return;
+        if (gameMode === 'ai' && !gameOver) {
+          const turn = chess.turn() === 'w' ? 'white' : 'black';
+          if (turn !== playerColor) {
+            scheduleAIMove();
+          } else {
+            statusEl.textContent = 'Ваш ход';
           }
         }
-      };
+      } else {
+        isAIThinking = false;
+      }
     }
 
     // ====== UI ОБНОВЛЕНИЯ ======
     function updateUI(move) {
-      moveHistory.push(move.san || move);
-      moveHistoryEl.textContent = 'История ходов: ' + moveHistory.join(' ');
-      moveCountEl.textContent = chess.history().length;
-      updateMaterial();
-      statusEl.textContent = chess.turn() === 'w' ? 'Ход белых' : 'Ход чёрных';
+      if (move) {
+        moveHistory.push(move.san || move);
+        moveHistoryEl.textContent = 'История ходов: ' + moveHistory.join(' ');
+        moveCountEl.textContent = chess.history().length;
+        updateMaterial();
+        statusEl.textContent = chess.turn() === 'w' ? 'Ход белых' : 'Ход чёрных';
+      } else {
+        // Обновляем только счётчики
+        moveCountEl.textContent = chess.history().length;
+        updateMaterial();
+        statusEl.textContent = chess.turn() === 'w' ? 'Ход белых' : 'Ход чёрных';
+      }
     }
 
     function updateMaterial() {
@@ -419,16 +447,13 @@
       statusEl.textContent = `Новая игра! Вы играете ${playerColor === 'white' ? 'белыми' : 'чёрными'}`;
       if (gameMode === 'ai') {
         if (playerColor === 'black') {
-          // Если игрок чёрными, ИИ ходит первым
           setTimeout(() => scheduleAIMove(), 500);
         }
       }
     }
 
     function undoMove() {
-      // Отмена последнего хода (только в режиме двух игроков или если ИИ уже сходил)
       if (gameMode === 'ai') {
-        // Сложно отменять ход ИИ, просто перезапуск
         if (confirm('В режиме ИИ отмена хода не поддерживается. Начать новую игру?')) {
           newGame();
         }
@@ -451,7 +476,6 @@
     undoBtn.addEventListener('click', undoMove);
     flipBtn.addEventListener('click', flipBoard);
 
-    // Обновление уровня сложности
     levelSelect.addEventListener('change', () => {
       if (stockfish) {
         stockfish.postMessage('setoption name Skill Level value ' + levelSelect.value);
@@ -466,7 +490,6 @@
       }
       initBoard();
       newGame();
-      // Обновляем доску при изменении размера окна
       window.addEventListener('resize', () => board.resize());
     })();
   </script>
