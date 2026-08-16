@@ -1056,32 +1056,6 @@
             videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
           }
         });
-      }
-
-      // ====== СЧЁТЧИК ======
-      (function() {
-        const site = 'skycitadel.onrender.com';
-        const apiUrl = 'https://sky-counter-wine.vercel.app/checkvizit';
-        let deviceId = localStorage.getItem('device_id');
-        if (!deviceId) {
-          deviceId = 'dev_' + Math.random().toString(36).substring(2) + Date.now().toString(36);
-          localStorage.setItem('device_id', deviceId);
-        }
-        fetch(`${apiUrl}?site=${encodeURIComponent(site)}&device_id=${encodeURIComponent(deviceId)}`, { method: 'GET', cache: 'no-store', mode: 'cors' })
-          .then(r => r.json())
-          .then(data => console.log('Visits counter:', data.status))
-          .catch(() => {});
-      })();
-
-      function escapeHtml(t) {
-        return String(t).replace(/[&<>"']/g, m => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        }));
-      }
 
       // ====== ОТЛОЖЕННАЯ ЗАГРУЗКА ======
       setTimeout(() => {
@@ -1261,6 +1235,39 @@
 
     // Обновляем каждые 5 минут
     setInterval(loadData, 300000);
+  })();
+</script>
+<script>
+  (function trackVisit() {
+    // Отправляем только один раз за сессию
+    if (sessionStorage.getItem('visit_tracked')) return;
+    sessionStorage.setItem('visit_tracked', 'true');
+
+    const API_BASE = 'https://skymutant.cc.cd';
+
+    // Определяем тип устройства
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+    const deviceType = isMobile ? 'mobile' : 'desktop';
+    const page = window.location.pathname || '/';
+
+    // Определяем страну (анонимно) через ipapi.co
+    fetch('https://ipapi.co/country/')
+      .then(res => res.text())
+      .then(country => {
+        fetch(`${API_BASE}/api/analytics`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page, deviceType, country })
+        }).catch(() => {});
+      })
+      .catch(() => {
+        // Если не удалось определить страну — отправляем без неё
+        fetch(`${API_BASE}/api/analytics`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ page, deviceType })
+        }).catch(() => {});
+      });
   })();
 </script>
 </body>
