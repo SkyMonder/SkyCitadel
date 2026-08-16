@@ -1056,6 +1056,17 @@
             videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
           }
         });
+      }
+
+      function escapeHtml(t) {
+        return String(t).replace(/[&<>"']/g, m => ({
+          '&': '&amp;',
+          '<': '&lt;',
+          '>': '&gt;',
+          '"': '&quot;',
+          "'": '&#39;'
+        }));
+      }
 
       // ====== ОТЛОЖЕННАЯ ЗАГРУЗКА ======
       setTimeout(() => {
