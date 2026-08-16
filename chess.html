@@ -288,7 +288,6 @@
       if (!token) {
         userInfo.textContent = '❌ Не авторизован';
         userInfo.style.color = '#f48024';
-        // Пробуем форму входа (упрощённо)
         const login = prompt('Введите логин SkyID:');
         const password = prompt('Введите пароль:');
         if (login && password) {
@@ -392,7 +391,6 @@
           chess = new Chess();
           if (board) board.position('start');
           updateControls();
-          // Если был поиск, отменяем
           if (isSearching) cancelSearch();
           break;
 
@@ -432,6 +430,7 @@
       const config = {
         position: 'start',
         draggable: true,
+        pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png',
         onDragStart: (source, piece) => {
           if (!isMyTurn) return false;
           if (piece.charAt(0) !== playerColor) return false;
@@ -603,17 +602,11 @@
     // ====== ИНИЦИАЛИЗАЦИЯ ======
     (async function init() {
       const authOk = await initAuth();
-      if (!authOk) {
-        return; // уже обработано внутри initAuth
-      }
+      if (!authOk) return;
 
-      // Инициализируем доску
       initBoard();
-
-      // Подключаем WebSocket
       connectWS();
 
-      // События
       findGameBtn.addEventListener('click', findGame);
       cancelSearchBtn.addEventListener('click', cancelSearch);
       resignBtn.addEventListener('click', resignGame);
@@ -632,7 +625,6 @@
         if (e.key === 'Enter') chatSendBtn.click();
       });
 
-      // Периодическое обновление списка игроков
       setInterval(() => {
         if (ws && ws.readyState === WebSocket.OPEN) {
           sendWS('chess_get_players');
