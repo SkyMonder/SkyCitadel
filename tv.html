@@ -54,6 +54,7 @@
       flex-shrink: 0;
       overflow-y: auto;
       max-height: 80px;
+      align-items: center;
     }
     .channel-btn {
       background: #1a233a;
@@ -101,8 +102,23 @@
       font-size: 1.2rem;
       pointer-events: none;
       transition: opacity 0.5s;
+      flex-direction: column;
+      gap: 0.5rem;
     }
-    .loading-overlay.hidden { opacity: 0; }
+    .loading-overlay.hidden { opacity: 0; pointer-events: none; }
+    .loading-overlay .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #2a3450;
+      border-top: 4px solid #5f7ecf;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .error-msg {
+      color: #f48024;
+      font-size: 0.9rem;
+    }
     @media (max-width: 768px) {
       .header { padding: 0.5rem 1rem; }
       .header h1 { font-size: 1.2rem; }
@@ -114,63 +130,91 @@
 <body>
   <div class="header">
     <a href="/">🏰 Назад</a>
-    <h1>📺 SkyTV <span class="badge">hls.js</span></h1>
+    <h1>📺 SkyTV <span class="badge">Open IPTV</span></h1>
   </div>
 
   <div class="channels-bar" id="channelsBar"></div>
 
   <div class="player">
     <video id="video" controls autoplay></video>
-    <div class="loading-overlay" id="loading">⏳ Загрузка...</div>
+    <div class="loading-overlay" id="loading">
+      <div class="spinner"></div>
+      <span>Загрузка...</span>
+    </div>
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <script>
-    // ====== СПИСОК КАНАЛОВ (из открытого плейлиста iptv-org) ======
+    // ====== СПИСОК КАНАЛОВ (из вашего M3U, только прямые потоки) ======
     const channels = [
-      { name: 'Россия 24', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_russia24_720/playlist.m3u8' },
-      { name: 'Россия 1', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_russia1_720/playlist.m3u8' },
-      { name: 'Россия-К', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_russia_k_720/playlist.m3u8' },
-      { name: 'Первый канал', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_1tv_720/playlist.m3u8' },
-      { name: 'НТВ', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_ntv_720/playlist.m3u8' },
-      { name: 'ТНТ', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_tnt_720/playlist.m3u8' },
-      { name: 'СТС', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_ctc_720/playlist.m3u8' },
-      { name: 'РЕН ТВ', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_ren_tv_720/playlist.m3u8' },
-      { name: 'Матч ТВ', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_match_tv_720/playlist.m3u8' },
-      { name: 'Пятый канал', url: 'https://stream-ice.cdn-tvcenter.ru/stream/rt_5tv_720/playlist.m3u8' }
+      { name: 'Первый канал', url: 'https://edge1.1internet.tv/dash-live2/streams/1tv-dvr/1tvdash.mpd' },
+      { name: 'Матч ТВ', url: 'https://streaming.televizor-24-tochka.ru/live/6.m3u8' },
+      { name: 'НТВ', url: 'http://ott-cdn.ucom.am/s17/index.m3u8' },
+      { name: 'Пятый канал', url: 'https://streaming.televizor-24-tochka.ru/live/8.m3u8' },
+      { name: 'Карусель', url: 'https://streaming102.interskytech.com/live/232.m3u8' },
+      { name: 'ОТР', url: 'https://streaming.televizor-24-tochka.ru/live/12.m3u8' },
+      { name: 'ТВ Центр', url: 'http://ott-cdn.ucom.am/s54/index.m3u8' },
+      { name: 'Рен ТВ', url: 'https://streaming.televizor-24-tochka.ru/live/14.m3u8' },
+      { name: 'Спас', url: 'https://spas.mediacdn.ru/cdn/spas/playlist.m3u8' },
+      { name: 'СТС', url: 'http://ott-cdn.ucom.am/s52/04.m3u8' },
+      { name: 'Домашний', url: 'http://ott-cdn.ucom.am/s88/index.m3u8' },
+      { name: 'ТВ-3', url: 'https://streaming.televizor-24-tochka.ru/live/18.m3u8' },
+      { name: 'Пятница!', url: 'https://streaming.televizor-24-tochka.ru/live/19.m3u8' },
+      { name: 'Звезда', url: 'https://tvchannelstream1.tvzvezda.ru/cdn/tvzvezda/playlist.m3u8' },
+      { name: 'Мир', url: 'http://hls.mirtv.cdnvideo.ru/mirtv-parampublish/mirtv_2500/playlist.m3u8' },
+      { name: 'ТНТ', url: 'http://ott-cdn.ucom.am/s19/index.m3u8' },
+      { name: 'Муз-ТВ', url: 'https://streaming102.interskytech.com/live/618.m3u8' },
+      { name: 'РБК', url: 'http://92.50.128.180/utv/1358/index.m3u8' },
+      { name: 'RT Д Русский', url: 'https://hls.rt.com/hls/rtdru.m3u8' },
+      { name: 'CGTN Русский', url: 'https://news.cgtn.com/resource/live/russian/cgtn-r.m3u8' }
     ];
 
     const video = document.getElementById('video');
     const loading = document.getElementById('loading');
     const bar = document.getElementById('channelsBar');
     let hls = null;
-    let currentChannelIndex = 0;
+    let currentIndex = 0;
+
+    // Строим кнопки
+    function renderChannels() {
+      bar.innerHTML = '';
+      channels.forEach((ch, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'channel-btn' + (i === 0 ? ' active' : '');
+        btn.textContent = ch.name;
+        btn.addEventListener('click', () => loadChannel(i));
+        bar.appendChild(btn);
+      });
+    }
 
     function loadChannel(index) {
       const channel = channels[index];
       if (!channel) return;
-      currentChannelIndex = index;
+      currentIndex = index;
 
-      // Обновляем кнопки
+      // Обновляем активную кнопку
       document.querySelectorAll('.channel-btn').forEach((btn, i) => {
         btn.classList.toggle('active', i === index);
       });
 
       loading.classList.remove('hidden');
+      loading.innerHTML = '<div class="spinner"></div><span>Загрузка...</span>';
 
-      // Уничтожаем старый HLS, если есть
+      // Уничтожаем старый HLS
       if (hls) {
         hls.destroy();
         hls = null;
       }
 
-      // Проверяем поддержку HLS
+      const url = channel.url;
+
+      // Проверяем, поддерживается ли HLS
       if (Hls.isSupported()) {
         hls = new Hls({
           enableWorker: true,
           lowLatencyMode: true,
         });
-        hls.loadSource(channel.url);
+        hls.loadSource(url);
         hls.attachMedia(video);
         hls.on(Hls.Events.MANIFEST_PARSED, () => {
           video.play().catch(() => {});
@@ -178,35 +222,28 @@
         });
         hls.on(Hls.Events.ERROR, (event, data) => {
           if (data.fatal) {
-            loading.innerHTML = '❌ Ошибка загрузки канала<br><small>Попробуйте другой</small>';
+            loading.innerHTML = `<span class="error-msg">❌ Не удалось загрузить канал</span><span style="font-size:0.8rem;color:#8899cc;">Попробуйте другой</span>`;
             setTimeout(() => loading.classList.add('hidden'), 4000);
           }
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        // Для Safari (native HLS)
-        video.src = channel.url;
+        // Safari (native HLS)
+        video.src = url;
         video.addEventListener('loadedmetadata', () => {
           video.play().catch(() => {});
           loading.classList.add('hidden');
         });
       } else {
-        loading.innerHTML = '❌ Ваш браузер не поддерживает HLS';
-        loading.classList.add('hidden');
+        loading.innerHTML = '<span class="error-msg">❌ Ваш браузер не поддерживает HLS</span>';
+        setTimeout(() => loading.classList.add('hidden'), 4000);
       }
     }
 
-    // Строим кнопки
-    channels.forEach((ch, i) => {
-      const btn = document.createElement('button');
-      btn.className = 'channel-btn';
-      btn.textContent = ch.name;
-      if (i === 0) btn.classList.add('active');
-      btn.addEventListener('click', () => loadChannel(i));
-      bar.appendChild(btn);
-    });
-
-    // Загружаем первый канал
-    loadChannel(0);
+    // Инициализация
+    renderChannels();
+    if (channels.length > 0) {
+      loadChannel(0);
+    }
   </script>
 </body>
 </html>
