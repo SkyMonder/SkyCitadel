@@ -1198,59 +1198,254 @@
     });
   </script>
   <script>
-  (function loadFooterStats() {
-    // API_BASE объявлен внутри функции
-    const API_BASE = 'https://skymutant.cc.cd';
+  // ====== ФУТЕР: ЗАГРУЗКА СТАТИСТИКИ ======
+(function loadFooterStats() {
+  const API_BASE = 'https://skymutant.cc.cd';
 
-    function updateStats(data) {
-      const visitsEl = document.getElementById('stat-visits');
-      const usersEl = document.getElementById('stat-users');
-      const messagesEl = document.getElementById('stat-messages');
-      const videosEl = document.getElementById('stat-videos');
-      const countriesEl = document.getElementById('stat-countries');
+  // ====== СЛОВАРЬ СТРАН (используем тот же, что и в stats.html) ======
+  const countryMap = {
+      'af': 'Афганистан', 'afghanistan': 'Афганистан',
+      'al': 'Албания', 'albania': 'Албания',
+      'dz': 'Алжир', 'algeria': 'Алжир',
+      'ad': 'Андорра', 'andorra': 'Андорра',
+      'ao': 'Ангола', 'angola': 'Ангола',
+      'ag': 'Антигуа и Барбуда', 'antigua and barbuda': 'Антигуа и Барбуда',
+      'ar': 'Аргентина', 'argentina': 'Аргентина',
+      'am': 'Армения', 'armenia': 'Армения',
+      'au': 'Австралия', 'australia': 'Австралия',
+      'at': 'Австрия', 'austria': 'Австрия',
+      'az': 'Азербайджан', 'azerbaijan': 'Азербайджан',
+      'bs': 'Багамы', 'bahamas': 'Багамы',
+      'bh': 'Бахрейн', 'bahrain': 'Бахрейн',
+      'bd': 'Бангладеш', 'bangladesh': 'Бангладеш',
+      'bb': 'Барбадос', 'barbados': 'Барбадос',
+      'by': 'Беларусь', 'belarus': 'Беларусь',
+      'be': 'Бельгия', 'belgium': 'Бельгия',
+      'bz': 'Белиз', 'belize': 'Белиз',
+      'bj': 'Бенин', 'benin': 'Бенин',
+      'bt': 'Бутан', 'bhutan': 'Бутан',
+      'bo': 'Боливия', 'bolivia': 'Боливия',
+      'ba': 'Босния и Герцеговина', 'bosnia and herzegovina': 'Босния и Герцеговина',
+      'bw': 'Ботсвана', 'botswana': 'Ботсвана',
+      'br': 'Бразилия', 'brazil': 'Бразилия',
+      'bn': 'Бруней', 'brunei': 'Бруней',
+      'bg': 'Болгария', 'bulgaria': 'Болгария',
+      'bf': 'Буркина-Фасо', 'burkina faso': 'Буркина-Фасо',
+      'bi': 'Бурунди', 'burundi': 'Бурунди',
+      'cv': 'Кабо-Верде', 'cabo verde': 'Кабо-Верде',
+      'kh': 'Камбоджа', 'cambodia': 'Камбоджа',
+      'cm': 'Камерун', 'cameroon': 'Камерун',
+      'ca': 'Канада', 'canada': 'Канада',
+      'cf': 'Центральноафриканская Республика', 'central african republic': 'Центральноафриканская Республика',
+      'td': 'Чад', 'chad': 'Чад',
+      'cl': 'Чили', 'chile': 'Чили',
+      'cn': 'Китай', 'china': 'Китай',
+      'co': 'Колумбия', 'colombia': 'Колумбия',
+      'km': 'Коморы', 'comoros': 'Коморы',
+      'cd': 'Демократическая Республика Конго', 'democratic republic of the congo': 'Демократическая Республика Конго',
+      'cg': 'Республика Конго', 'republic of the congo': 'Республика Конго',
+      'cr': 'Коста-Рика', 'costa rica': 'Коста-Рика',
+      'hr': 'Хорватия', 'croatia': 'Хорватия',
+      'cu': 'Куба', 'cuba': 'Куба',
+      'cy': 'Кипр', 'cyprus': 'Кипр',
+      'cz': 'Чехия', 'czech republic': 'Чехия', 'czechia': 'Чехия',
+      'dk': 'Дания', 'denmark': 'Дания',
+      'dj': 'Джибути', 'djibouti': 'Джибути',
+      'dm': 'Доминика', 'dominica': 'Доминика',
+      'do': 'Доминиканская Республика', 'dominican republic': 'Доминиканская Республика',
+      'ec': 'Эквадор', 'ecuador': 'Эквадор',
+      'eg': 'Египет', 'egypt': 'Египет',
+      'sv': 'Сальвадор', 'el salvador': 'Сальвадор',
+      'gq': 'Экваториальная Гвинея', 'equatorial guinea': 'Экваториальная Гвинея',
+      'er': 'Эритрея', 'eritrea': 'Эритрея',
+      'ee': 'Эстония', 'estonia': 'Эстония',
+      'sz': 'Эсватини', 'eswatini': 'Эсватини', 'swaziland': 'Эсватини',
+      'et': 'Эфиопия', 'ethiopia': 'Эфиопия',
+      'fj': 'Фиджи', 'fiji': 'Фиджи',
+      'fi': 'Финляндия', 'finland': 'Финляндия',
+      'fr': 'Франция', 'france': 'Франция',
+      'ga': 'Габон', 'gabon': 'Габон',
+      'gm': 'Гамбия', 'gambia': 'Гамбия',
+      'ge': 'Грузия', 'georgia': 'Грузия',
+      'de': 'Германия', 'germany': 'Германия',
+      'gh': 'Гана', 'ghana': 'Гана',
+      'gr': 'Греция', 'greece': 'Греция',
+      'gd': 'Гренада', 'grenada': 'Гренада',
+      'gt': 'Гватемала', 'guatemala': 'Гватемала',
+      'gn': 'Гвинея', 'guinea': 'Гвинея',
+      'gw': 'Гвинея-Бисау', 'guinea-bissau': 'Гвинея-Бисау',
+      'gy': 'Гайана', 'guyana': 'Гайана',
+      'ht': 'Гаити', 'haiti': 'Гаити',
+      'hn': 'Гондурас', 'honduras': 'Гондурас',
+      'hu': 'Венгрия', 'hungary': 'Венгрия',
+      'is': 'Исландия', 'iceland': 'Исландия',
+      'in': 'Индия', 'india': 'Индия',
+      'id': 'Индонезия', 'indonesia': 'Индонезия',
+      'ir': 'Иран', 'iran': 'Иран',
+      'iq': 'Ирак', 'iraq': 'Ирак',
+      'ie': 'Ирландия', 'ireland': 'Ирландия',
+      'il': 'Израиль', 'israel': 'Израиль',
+      'it': 'Италия', 'italy': 'Италия',
+      'jm': 'Ямайка', 'jamaica': 'Ямайка',
+      'jp': 'Япония', 'japan': 'Япония',
+      'jo': 'Иордания', 'jordan': 'Иордания',
+      'kz': 'Казахстан', 'kazakhstan': 'Казахстан',
+      'ke': 'Кения', 'kenya': 'Кения',
+      'ki': 'Кирибати', 'kiribati': 'Кирибати',
+      'kp': 'Северная Корея', 'north korea': 'Северная Корея',
+      'kr': 'Южная Корея', 'south korea': 'Южная Корея',
+      'kw': 'Кувейт', 'kuwait': 'Кувейт',
+      'kg': 'Кыргызстан', 'kyrgyzstan': 'Кыргызстан',
+      'la': 'Лаос', 'laos': 'Лаос',
+      'lv': 'Латвия', 'latvia': 'Латвия',
+      'lb': 'Ливан', 'lebanon': 'Ливан',
+      'ls': 'Лесото', 'lesotho': 'Лесото',
+      'lr': 'Либерия', 'liberia': 'Либерия',
+      'ly': 'Ливия', 'libya': 'Ливия',
+      'li': 'Лихтенштейн', 'liechtenstein': 'Лихтенштейн',
+      'lt': 'Литва', 'lithuania': 'Литва',
+      'lu': 'Люксембург', 'luxembourg': 'Люксембург',
+      'mg': 'Мадагаскар', 'madagascar': 'Мадагаскар',
+      'mw': 'Малави', 'malawi': 'Малави',
+      'my': 'Малайзия', 'malaysia': 'Малайзия',
+      'mv': 'Мальдивы', 'maldives': 'Мальдивы',
+      'ml': 'Мали', 'mali': 'Мали',
+      'mt': 'Мальта', 'malta': 'Мальта',
+      'mh': 'Маршалловы Острова', 'marshall islands': 'Маршалловы Острова',
+      'mr': 'Мавритания', 'mauritania': 'Мавритания',
+      'mu': 'Маврикий', 'mauritius': 'Маврикий',
+      'mx': 'Мексика', 'mexico': 'Мексика',
+      'fm': 'Микронезия', 'micronesia': 'Микронезия',
+      'md': 'Молдова', 'moldova': 'Молдова',
+      'mc': 'Монако', 'monaco': 'Монако',
+      'mn': 'Монголия', 'mongolia': 'Монголия',
+      'me': 'Черногория', 'montenegro': 'Черногория',
+      'ma': 'Марокко', 'morocco': 'Марокко',
+      'mz': 'Мозамбик', 'mozambique': 'Мозамбик',
+      'mm': 'Мьянма', 'myanmar': 'Мьянма',
+      'na': 'Намибия', 'namibia': 'Намибия',
+      'nr': 'Науру', 'nauru': 'Науру',
+      'np': 'Непал', 'nepal': 'Непал',
+      'nl': 'Нидерланды', 'netherlands': 'Нидерланды', 'the netherlands': 'Нидерланды',
+      'nz': 'Новая Зеландия', 'new zealand': 'Новая Зеландия',
+      'ni': 'Никарагуа', 'nicaragua': 'Никарагуа',
+      'ne': 'Нигер', 'niger': 'Нигер',
+      'ng': 'Нигерия', 'nigeria': 'Нигерия',
+      'mk': 'Северная Македония', 'north macedonia': 'Северная Македония',
+      'no': 'Норвегия', 'norway': 'Норвегия',
+      'om': 'Оман', 'oman': 'Оман',
+      'pk': 'Пакистан', 'pakistan': 'Пакистан',
+      'pw': 'Палау', 'palau': 'Палау',
+      'pa': 'Панама', 'panama': 'Панама',
+      'pg': 'Папуа-Новая Гвинея', 'papua new guinea': 'Папуа-Новая Гвинея',
+      'py': 'Парагвай', 'paraguay': 'Парагвай',
+      'pe': 'Перу', 'peru': 'Перу',
+      'ph': 'Филиппины', 'philippines': 'Филиппины',
+      'pl': 'Польша', 'poland': 'Польша',
+      'pt': 'Португалия', 'portugal': 'Португалия',
+      'qa': 'Катар', 'qatar': 'Катар',
+      'ro': 'Румыния', 'romania': 'Румыния',
+      'ru': 'Россия', 'russia': 'Россия', 'russian federation': 'Россия',
+      'rw': 'Руанда', 'rwanda': 'Руанда',
+      'kn': 'Сент-Китс и Невис', 'saint kitts and nevis': 'Сент-Китс и Невис',
+      'lc': 'Сент-Люсия', 'saint lucia': 'Сент-Люсия',
+      'vc': 'Сент-Винсент и Гренадины', 'saint vincent and the grenadines': 'Сент-Винсент и Гренадины',
+      'ws': 'Самоа', 'samoa': 'Самоа',
+      'sm': 'Сан-Марино', 'san marino': 'Сан-Марино',
+      'st': 'Сан-Томе и Принсипи', 'sao tome and principe': 'Сан-Томе и Принсипи',
+      'sa': 'Саудовская Аравия', 'saudi arabia': 'Саудовская Аравия',
+      'sn': 'Сенегал', 'senegal': 'Сенегал',
+      'rs': 'Сербия', 'serbia': 'Сербия',
+      'sc': 'Сейшелы', 'seychelles': 'Сейшелы',
+      'sl': 'Сьерра-Леоне', 'sierra leone': 'Сьерра-Леоне',
+      'sg': 'Сингапур', 'singapore': 'Сингапур',
+      'sk': 'Словакия', 'slovakia': 'Словакия',
+      'si': 'Словения', 'slovenia': 'Словения',
+      'sb': 'Соломоновы Острова', 'solomon islands': 'Соломоновы Острова',
+      'so': 'Сомали', 'somalia': 'Сомали',
+      'za': 'Южно-Африканская Республика', 'south africa': 'Южно-Африканская Республика',
+      'ss': 'Южный Судан', 'south sudan': 'Южный Судан',
+      'es': 'Испания', 'spain': 'Испания',
+      'lk': 'Шри-Ланка', 'sri lanka': 'Шри-Ланка',
+      'sd': 'Судан', 'sudan': 'Судан',
+      'sr': 'Суринам', 'suriname': 'Суринам',
+      'se': 'Швеция', 'sweden': 'Швеция',
+      'ch': 'Швейцария', 'switzerland': 'Швейцария',
+      'sy': 'Сирия', 'syria': 'Сирия',
+      'tj': 'Таджикистан', 'tajikistan': 'Таджикистан',
+      'tz': 'Танзания', 'tanzania': 'Танзания',
+      'th': 'Таиланд', 'thailand': 'Таиланд',
+      'tl': 'Тимор-Лесте', 'timor-leste': 'Тимор-Лесте',
+      'tg': 'Того', 'togo': 'Того',
+      'to': 'Тонга', 'tonga': 'Тонга',
+      'tt': 'Тринидад и Тобаго', 'trinidad and tobago': 'Тринидад и Тобаго',
+      'tn': 'Тунис', 'tunisia': 'Тунис',
+      'tr': 'Турция', 'turkey': 'Турция',
+      'tm': 'Туркменистан', 'turkmenistan': 'Туркменистан',
+      'tv': 'Тувалу', 'tuvalu': 'Тувалу',
+      'ug': 'Уганда', 'uganda': 'Уганда',
+      'ua': 'Украина', 'ukraine': 'Украина',
+      'ae': 'Объединенные Арабские Эмираты', 'united arab emirates': 'Объединенные Арабские Эмираты',
+      'gb': 'Великобритания', 'uk': 'Великобритания', 'united kingdom': 'Великобритания',
+      'us': 'США', 'usa': 'США', 'united states': 'США',
+      'uy': 'Уругвай', 'uruguay': 'Уругвай',
+      'uz': 'Узбекистан', 'uzbekistan': 'Узбекистан',
+      'vu': 'Вануату', 'vanuatu': 'Вануату',
+      'va': 'Ватикан', 'vatican': 'Ватикан',
+      've': 'Венесуэла', 'venezuela': 'Венесуэла',
+      'vn': 'Вьетнам', 'vietnam': 'Вьетнам',
+      'ye': 'Йемен', 'yemen': 'Йемен',
+      'zm': 'Замбия', 'zambia': 'Замбия',
+      'zw': 'Зимбабве', 'zimbabwe': 'Зимбабве'
+    };
+	
+  function getCountryName(raw) {
+    if (!raw) return 'Неизвестно';
+    const lower = raw.toLowerCase().trim();
+    return countryMap[lower] || raw;
+  }
 
-      if (visitsEl) visitsEl.textContent = data.totalVisits || 0;
-      if (usersEl) usersEl.textContent = data.totalUsers || 0;
-      if (messagesEl) messagesEl.textContent = data.totalMessages || 0;
-      if (videosEl) videosEl.textContent = data.totalVideos || 0;
+  function updateStats(data) {
+    const visitsEl = document.getElementById('stat-visits');
+    const usersEl = document.getElementById('stat-users');
+    const messagesEl = document.getElementById('stat-messages');
+    const videosEl = document.getElementById('stat-videos');
+    const countriesEl = document.getElementById('stat-countries');
 
-      if (countriesEl) {
-        if (data.topCountries && data.topCountries.length) {
-          countriesEl.textContent = '🌍 ' + data.topCountries.map(c => `${c.country} (${c.count})`).join(', ');
-        } else {
-          countriesEl.textContent = '🌍 Нет данных';
-        }
+    if (visitsEl) visitsEl.textContent = data.totalVisits || 0;
+    if (usersEl) usersEl.textContent = data.totalUsers || 0;
+    if (messagesEl) messagesEl.textContent = data.totalMessages || 0;
+    if (videosEl) videosEl.textContent = data.totalVideos || 0;
+
+    if (countriesEl) {
+      if (data.topCountries && data.topCountries.length) {
+        const display = data.topCountries.map(c => {
+          const name = getCountryName(c.country);
+          return `${name} (${c.count})`;
+        }).join(', ');
+        countriesEl.textContent = '🌍 ' + display;
+      } else {
+        countriesEl.textContent = '🌍 Нет данных';
       }
     }
+  }
 
-    function loadData() {
-      fetch(`${API_BASE}/api/stats/public`)
-        .then(res => {
-          if (!res.ok) throw new Error('Ошибка загрузки');
-          return res.json();
-        })
-        .then(data => updateStats(data))
-        .catch(() => {
-          const visitsEl = document.getElementById('stat-visits');
-          const usersEl = document.getElementById('stat-users');
-          const messagesEl = document.getElementById('stat-messages');
-          const videosEl = document.getElementById('stat-videos');
-          const countriesEl = document.getElementById('stat-countries');
+  function loadData() {
+    fetch(`${API_BASE}/api/stats/public`)
+      .then(res => {
+        if (!res.ok) throw new Error('Ошибка загрузки');
+        return res.json();
+      })
+      .then(data => updateStats(data))
+      .catch(() => {
+        const countriesEl = document.getElementById('stat-countries');
+        if (countriesEl) countriesEl.textContent = '🌍 Ошибка загрузки';
+      });
+  }
 
-          if (visitsEl) visitsEl.textContent = '—';
-          if (usersEl) usersEl.textContent = '—';
-          if (messagesEl) messagesEl.textContent = '—';
-          if (videosEl) videosEl.textContent = '—';
-          if (countriesEl) countriesEl.textContent = '🌍 Ошибка загрузки';
-        });
-    }
-
-    // Загружаем сразу
-    loadData();
-
-    // Обновляем каждые 5 минут
-    setInterval(loadData, 300000);
-  })();
+  loadData();
+  setInterval(loadData, 300000);
+})();
 </script>
 <script>
   (function trackVisit() {
