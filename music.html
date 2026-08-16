@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkyMusic — YouTube плейлисты</title>
+  <title>SkyMusic — Invidious</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -25,25 +25,10 @@
       flex-shrink: 0;
       flex-wrap: wrap;
     }
-    .header a {
-      color: #5f7ecf;
-      text-decoration: none;
-      font-weight: 500;
-    }
+    .header a { color: #5f7ecf; text-decoration: none; font-weight: 500; }
     .header a:hover { text-decoration: underline; }
-    .header h1 {
-      color: #b7ceff;
-      font-size: 1.5rem;
-      font-weight: 400;
-    }
-    .header .badge {
-      background: #2a7a2a;
-      padding: 0.2rem 0.8rem;
-      border-radius: 20px;
-      font-size: 0.7rem;
-      color: #fff;
-      margin-left: 0.5rem;
-    }
+    .header h1 { color: #b7ceff; font-size: 1.5rem; font-weight: 400; }
+    .header .badge { background: #2a7a2a; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.7rem; color: #fff; margin-left: 0.5rem; }
     .playlist-selector {
       display: flex;
       flex-wrap: wrap;
@@ -114,7 +99,7 @@
 <body>
   <div class="header">
     <a href="/">🏰 Назад</a>
-    <h1>🎵 SkyMusic <span class="badge">YouTube</span></h1>
+    <h1>🎵 SkyMusic <span class="badge">Invidious</span></h1>
   </div>
 
   <div class="playlist-selector">
@@ -137,12 +122,11 @@
     const frame = document.getElementById('musicFrame');
     const customInput = document.getElementById('customPlaylistInput');
     const loadCustomBtn = document.getElementById('loadCustomBtn');
-    const BASE_URL = 'https://skymutant.cc.cd/youtube/embed/videoseries?list=';
+    const BASE_URL = 'https://skymutant.cc.cd/invidious/embed/playlist?list=';
 
-    // Плейлисты (ID берутся из URL плейлиста на YouTube)
-    // Пример: https://www.youtube.com/playlist?list=PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m
+    // Загрузка плейлиста через Invidious
     function loadPlaylist(playlistId) {
-      const url = BASE_URL + playlistId + '&autoplay=1&loop=1&modestbranding=1&rel=0&showinfo=0&controls=1';
+      const url = BASE_URL + playlistId + '&autoplay=1&loop=1';
       frame.src = url;
       // Обновляем активную кнопку
       document.querySelectorAll('.playlist-btn').forEach(btn => {
@@ -170,13 +154,10 @@
       if (e.key === 'Enter') loadCustomBtn.click();
     });
 
-    // Загружаем первый плейлист при старте
+    // Загружаем первый плейлист
     const defaultPlaylist = document.querySelector('.playlist-btn.active');
     if (defaultPlaylist) {
       loadPlaylist(defaultPlaylist.dataset.playlist);
-    } else {
-      // fallback
-      loadPlaylist('PL4fGSI1pDJn6jXS_Tv_N9B8Z0HTRVJE0m');
     }
   </script>
 </body>
