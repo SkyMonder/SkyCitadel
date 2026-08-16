@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkyChess — Шахматы</title>
+  <title>SkyChess — Играть в шахматы</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -44,593 +44,94 @@
       color: #fff;
       margin-left: 0.5rem;
     }
-    .header .user-info {
-      margin-left: auto;
-      color: #8899cc;
-      font-size: 0.9rem;
-    }
+    .header .badge.live { background: #c44; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
     .container {
       flex: 1;
       display: flex;
-      gap: 1.5rem;
-      padding: 1rem;
-      overflow: hidden;
-    }
-    .game-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      background: #111827;
-      border-radius: 12px;
-      border: 1px solid #2a3450;
       padding: 1rem;
-      min-width: 400px;
+      background: radial-gradient(circle at 20% 20%, #121a30, #080d1a);
     }
-    #board-container {
+    .chess-wrapper {
       width: 100%;
-      max-width: 560px;
-      aspect-ratio: 1/1;
-    }
-    .status {
-      margin-top: 0.8rem;
-      font-size: 1.1rem;
-      color: #b7ceff;
-      text-align: center;
-      min-height: 2rem;
-    }
-    .sidebar {
-      width: 300px;
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
+      max-width: 800px;
+      height: 100%;
+      max-height: 700px;
       background: #111827;
-      border-radius: 12px;
+      border-radius: 16px;
       border: 1px solid #2a3450;
-      padding: 1rem;
-      overflow-y: auto;
-      flex-shrink: 0;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
     }
-    .sidebar h3 {
-      color: #b7ceff;
-      font-weight: 400;
-      border-bottom: 1px solid #2a3450;
-      padding-bottom: 0.5rem;
-    }
-    .player-list {
-      display: flex;
-      flex-direction: column;
-      gap: 0.3rem;
-      flex: 1;
-      overflow-y: auto;
-      max-height: 300px;
-    }
-    .player-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.4rem 0.8rem;
-      background: #0d1425;
-      border-radius: 8px;
-      border: 1px solid #1e2a40;
-    }
-    .player-item .name { font-size: 0.9rem; }
-    .player-item .status-badge {
-      font-size: 0.7rem;
-      padding: 0.1rem 0.5rem;
-      border-radius: 10px;
-      background: #2a7a2a;
-      color: #fff;
-    }
-    .player-item .status-badge.waiting { background: #b8860b; }
-    .player-item .status-badge.playing { background: #5f7ecf; }
-    .btn {
-      background: #5f7ecf;
+    .chess-wrapper iframe {
+      width: 100%;
+      height: 100%;
       border: none;
-      color: #fff;
-      padding: 0.4rem 1rem;
-      border-radius: 8px;
-      cursor: pointer;
-      transition: 0.2s;
+      background: #1a233a;
     }
-    .btn:hover { background: #7a9aef; }
-    .btn:disabled { opacity: 0.4; pointer-events: none; }
-    .btn-danger { background: #c44; }
-    .btn-danger:hover { background: #a33; }
-    .btn-secondary { background: #2a3450; }
-    .btn-secondary:hover { background: #3a4a6a; }
-    .move-history {
-      margin-top: 0.5rem;
+    .info-bar {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      padding: 0.5rem 1rem;
+      background: #0d1425;
+      border-top: 1px solid #1e2a40;
+      flex-shrink: 0;
       font-size: 0.8rem;
       color: #8899cc;
-      max-height: 150px;
-      overflow-y: auto;
-      background: #0d1425;
-      padding: 0.5rem;
-      border-radius: 8px;
-      font-family: monospace;
-    }
-    .game-controls {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.5rem;
       flex-wrap: wrap;
     }
-    .chat-area {
-      margin-top: 0.5rem;
-      border-top: 1px solid #2a3450;
-      padding-top: 0.5rem;
+    .info-bar a {
+      color: #5f7ecf;
+      text-decoration: none;
     }
-    .chat-area .chat-messages {
-      max-height: 100px;
-      overflow-y: auto;
-      font-size: 0.8rem;
-      color: #8899cc;
-      background: #0d1425;
-      padding: 0.3rem 0.6rem;
-      border-radius: 8px;
-      margin-bottom: 0.3rem;
-    }
-    .chat-area .chat-input {
-      display: flex;
-      gap: 0.3rem;
-    }
-    .chat-area .chat-input input {
-      flex: 1;
-      padding: 0.3rem 0.6rem;
-      background: #0d1225;
-      border: 1px solid #2a3450;
-      color: #e0e8ff;
-      border-radius: 8px;
-      font-size: 0.8rem;
-    }
-    .chat-area .chat-input button {
-      padding: 0.2rem 0.8rem;
-      background: #5f7ecf;
-      border: none;
-      color: #fff;
-      border-radius: 8px;
-      cursor: pointer;
-    }
+    .info-bar a:hover { text-decoration: underline; }
     @media (max-width: 768px) {
-      .container { flex-direction: column; align-items: center; }
-      .sidebar { width: 100%; max-width: 500px; }
-      .game-area { min-width: unset; width: 100%; }
+      .header { padding: 0.5rem 1rem; }
+      .header h1 { font-size: 1.2rem; }
+      .container { padding: 0.5rem; }
+      .chess-wrapper { max-height: 600px; }
+    }
+    @media (max-width: 480px) {
+      .chess-wrapper { max-height: 500px; border-radius: 12px; }
+      .info-bar { font-size: 0.7rem; gap: 1rem; }
     }
   </style>
 </head>
 <body>
   <div class="header">
     <a href="/">🏰 Назад</a>
-    <h1>♟️ SkyChess <span class="badge">Мультиплеер</span></h1>
-    <div class="user-info" id="userInfo">Вход...</div>
+    <h1>♟️ SkyChess <span class="badge live">Live</span></h1>
   </div>
 
   <div class="container">
-    <div class="game-area">
-      <div id="board-container"></div>
-      <div class="status" id="status">
-        <span id="statusText">Ожидание соперника...</span>
-      </div>
-      <div class="game-controls">
-        <button class="btn btn-secondary" id="newGameBtn">🔄 Новая игра</button>
-        <button class="btn btn-secondary" id="resignBtn" disabled>🏳️ Сдаться</button>
-        <button class="btn btn-secondary" id="drawBtn" disabled>🤝 Ничья</button>
-      </div>
-      <div class="move-history" id="moveHistory">История ходов:</div>
-    </div>
-
-    <div class="sidebar">
-      <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-        <button class="btn" id="findGameBtn">🔍 Найти игру</button>
-        <button class="btn btn-secondary" id="cancelSearchBtn" style="display:none;">❌ Отменить</button>
-      </div>
-
-      <h3>👥 Игроки онлайн</h3>
-      <div class="player-list" id="playerList"></div>
-
-      <div class="chat-area">
-        <h3>💬 Чат</h3>
-        <div class="chat-messages" id="chatMessages"></div>
-        <div class="chat-input">
-          <input type="text" id="chatInput" placeholder="Сообщение...">
-          <button id="chatSendBtn">➤</button>
-        </div>
-      </div>
+    <div class="chess-wrapper">
+      <!-- Lichess iframe — бесплатно, без рекламы, работает в РФ -->
+      <iframe 
+        src="https://lichess.org/embed?theme=wood&bg=dark" 
+        allowtransparency="true"
+        allow="fullscreen"
+        loading="lazy"
+        title="SkyChess — играть в шахматы онлайн"
+      ></iframe>
     </div>
   </div>
 
-  <!-- Библиотеки -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+  <div class="info-bar">
+    <span>🎯 <a href="https://lichess.org/" target="_blank">Lichess</a> — бесплатный шахматный сервер</span>
+    <span>👥 <a href="https://lichess.org/tv" target="_blank">Смотреть трансляции</a></span>
+    <span>🤖 <a href="https://lichess.org/analysis" target="_blank">Анализ партий</a></span>
+  </div>
 
-  <script>
-    // ====== КОНФИГУРАЦИЯ ======
-    const WS_URL = 'wss://skymutant.cc.cd';
-    const API_BASE = 'https://skymutant.cc.cd';
-    let token = localStorage.getItem('skyid_token') || null;
-    let username = localStorage.getItem('skyid_login') || null;
-
-    // ====== СОСТОЯНИЕ ======
-    let ws = null;
-    let board = null;
-    let chess = new Chess();
-    let gameId = null;
-    let playerColor = null; // 'w' или 'b'
-    let isMyTurn = false;
-    let isSearching = false;
-    let players = [];
-    let moveHistory = [];
-    let chatMessages = [];
-
-    // ====== ЭЛЕМЕНТЫ UI ======
-    const boardContainer = document.getElementById('board-container');
-    const statusText = document.getElementById('statusText');
-    const playerList = document.getElementById('playerList');
-    const moveHistoryEl = document.getElementById('moveHistory');
-    const chatMessagesEl = document.getElementById('chatMessages');
-    const chatInput = document.getElementById('chatInput');
-    const chatSendBtn = document.getElementById('chatSendBtn');
-    const userInfo = document.getElementById('userInfo');
-    const findGameBtn = document.getElementById('findGameBtn');
-    const cancelSearchBtn = document.getElementById('cancelSearchBtn');
-    const newGameBtn = document.getElementById('newGameBtn');
-    const resignBtn = document.getElementById('resignBtn');
-    const drawBtn = document.getElementById('drawBtn');
-
-    // ====== АВТОРИЗАЦИЯ ======
-    async function initAuth() {
-      if (!token) {
-        token = localStorage.getItem('skyid_token');
-      }
-      if (!token) {
-        userInfo.textContent = '❌ Не авторизован';
-        userInfo.style.color = '#f48024';
-        const login = prompt('Введите логин SkyID:');
-        const password = prompt('Введите пароль:');
-        if (login && password) {
-          try {
-            const payload = await encryptPayload({ login, password });
-            const res = await fetch(`${API_BASE}/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: payload })
-            });
-            const json = await res.json();
-            const data = await decryptPayload(json.data);
-            token = data.jwt || data.token;
-            localStorage.setItem('skyid_token', token);
-            localStorage.setItem('skyid_login', login);
-            location.reload();
-          } catch (e) {
-            alert('Ошибка входа: ' + e.message);
-          }
-        }
-        return false;
-      }
-
-      try {
-        const res = await fetch(`${API_BASE}/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
-        });
-        if (!res.ok) throw new Error('Invalid token');
-        const data = await res.json();
-        username = data.login || data.skyid || 'Игрок';
-        userInfo.textContent = `👤 ${username}`;
-        localStorage.setItem('skyid_login', username);
-        return true;
-      } catch (e) {
-        userInfo.textContent = '❌ Ошибка авторизации';
-        userInfo.style.color = '#f48024';
-        return false;
-      }
-    }
-
-    // ====== WEBSOCKET ======
-    function connectWS() {
-      ws = new WebSocket(WS_URL);
-
-      ws.onopen = () => {
-        console.log('✅ WebSocket подключён');
-        if (token && username) {
-          ws.send(JSON.stringify({
-            type: 'chess_auth',
-            token: token,
-            username: username
-          }));
-        }
-        ws.send(JSON.stringify({ type: 'chess_get_players' }));
-      };
-
-      ws.onmessage = (event) => {
-        try {
-          const msg = JSON.parse(event.data);
-          handleWSMessage(msg);
-        } catch (e) {
-          console.error('Ошибка парсинга:', e);
-        }
-      };
-
-      ws.onclose = () => {
-        console.log('❌ WebSocket закрыт, переподключение через 3 секунды...');
-        setTimeout(connectWS, 3000);
-      };
-
-      ws.onerror = (err) => {
-        console.error('❌ WebSocket ошибка:', err);
-      };
-    }
-
-    function sendWS(type, data = {}) {
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, ...data }));
-      }
-    }
-
-    // ====== ОБРАБОТКА СООБЩЕНИЙ ======
-    function handleWSMessage(msg) {
-      switch (msg.type) {
-        case 'chess_auth_ok':
-          console.log('✅ Авторизован в шахматах');
-          break;
-
-        case 'chess_players_list':
-          players = msg.players || [];
-          renderPlayers();
-          break;
-
-        case 'chess_game_found':
-          gameId = msg.gameId;
-          playerColor = msg.color;
-          isMyTurn = playerColor === 'w';
-          statusText.textContent = `Игра началась! Вы играете ${playerColor === 'w' ? 'белыми' : 'чёрными'}`;
-          chess = new Chess();
-          if (board) board.position('start');
-          updateControls();
-          if (isSearching) cancelSearch();
-          break;
-
-        case 'chess_move':
-          const move = chess.move(msg.move);
-          if (move) {
-            board.position(chess.fen());
-            isMyTurn = chess.turn() === playerColor;
-            updateStatus();
-            updateControls();
-            addMoveToHistory(move);
-          }
-          break;
-
-        case 'chess_game_over':
-          const result = msg.result;
-          statusText.textContent = `🏁 ${result}`;
-          isMyTurn = false;
-          updateControls();
-          break;
-
-        case 'chess_chat':
-          addChatMessage(msg.from, msg.text);
-          break;
-
-        case 'chess_error':
-          statusText.textContent = `❌ ${msg.message}`;
-          break;
-
-        default:
-          console.log('📨 Неизвестное сообщение:', msg);
-      }
-    }
-
-    // ====== ДОСКА ======
-    function initBoard() {
-      const config = {
-        position: 'start',
-        draggable: true,
-        pieceTheme: 'https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/img/chesspieces/wikipedia/{piece}.png',
-        onDragStart: (source, piece) => {
-          if (!isMyTurn) return false;
-          if (piece.charAt(0) !== playerColor) return false;
-          return true;
-        },
-        onDrop: (source, target) => {
-          const move = chess.move({
-            from: source,
-            to: target,
-            promotion: 'q'
-          });
-          if (move === null) return 'snapback';
-          sendWS('chess_move', {
-            gameId: gameId,
-            move: { from: source, to: target, promotion: 'q' }
-          });
-          isMyTurn = false;
-          updateStatus();
-          updateControls();
-          board.position(chess.fen());
-          addMoveToHistory(move);
-          return;
-        },
-        onSnapEnd: () => {
-          board.position(chess.fen());
-        }
-      };
-      board = Chessboard('board-container', config);
-    }
-
-    // ====== UI ОБНОВЛЕНИЯ ======
-    function updateStatus() {
-      if (chess.in_checkmate()) {
-        statusText.textContent = '🏁 Мат!';
-        isMyTurn = false;
-        return;
-      }
-      if (chess.in_draw()) {
-        statusText.textContent = '🤝 Ничья';
-        isMyTurn = false;
-        return;
-      }
-      if (chess.in_check()) {
-        statusText.textContent = '⚠️ Шах!';
-      }
-      const turn = chess.turn();
-      const turnText = turn === 'w' ? 'белые' : 'чёрные';
-      const isYourTurn = turn === playerColor;
-      statusText.textContent = `Ход ${turnText}${isYourTurn ? ' (ваш ход!)' : ''}`;
-    }
-
-    function updateControls() {
-      resignBtn.disabled = !gameId;
-      drawBtn.disabled = !gameId || !isMyTurn;
-    }
-
-    function addMoveToHistory(move) {
-      const san = move.san || `${move.from}->${move.to}`;
-      moveHistory.push(san);
-      const historyText = moveHistory.join(' ');
-      moveHistoryEl.textContent = `История ходов: ${historyText}`;
-    }
-
-    function renderPlayers() {
-      playerList.innerHTML = '';
-      if (players.length === 0) {
-        playerList.innerHTML = '<div style="color:#8899cc;padding:0.5rem;">Нет игроков</div>';
-        return;
-      }
-      players.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'player-item';
-        const statusBadge = p.status === 'searching' ? 'waiting' :
-                           p.status === 'playing' ? 'playing' : '';
-        div.innerHTML = `
-          <span class="name">${p.username}</span>
-          <span class="status-badge ${statusBadge}">
-            ${p.status === 'searching' ? '🔍' :
-              p.status === 'playing' ? '♟️' : '🟢'}
-          </span>
-        `;
-        playerList.appendChild(div);
-      });
-    }
-
-    function addChatMessage(from, text) {
-      chatMessages.push({ from, text });
-      const el = document.createElement('div');
-      el.innerHTML = `<strong>${from}</strong>: ${text}`;
-      chatMessagesEl.appendChild(el);
-      chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
-    }
-
-    // ====== ДЕЙСТВИЯ ======
-    function findGame() {
-      if (isSearching) return;
-      isSearching = true;
-      findGameBtn.disabled = true;
-      cancelSearchBtn.style.display = 'inline-block';
-      statusText.textContent = '⏳ Поиск соперника...';
-      sendWS('chess_find_game');
-    }
-
-    function cancelSearch() {
-      if (!isSearching) return;
-      isSearching = false;
-      findGameBtn.disabled = false;
-      cancelSearchBtn.style.display = 'none';
-      statusText.textContent = '❌ Поиск отменён';
-      sendWS('chess_cancel_search');
-    }
-
-    function resignGame() {
-      if (!gameId) return;
-      if (!confirm('Вы уверены, что хотите сдаться?')) return;
-      sendWS('chess_resign', { gameId });
-      statusText.textContent = '🏳️ Вы сдались';
-      isMyTurn = false;
-      updateControls();
-    }
-
-    function proposeDraw() {
-      if (!gameId || !isMyTurn) return;
-      if (!confirm('Предложить ничью?')) return;
-      sendWS('chess_draw', { gameId });
-    }
-
-    function newGame() {
-      if (gameId) {
-        sendWS('chess_leave_game', { gameId });
-      }
-      gameId = null;
-      playerColor = null;
-      isMyTurn = false;
-      chess = new Chess();
-      if (board) board.position('start');
-      moveHistory = [];
-      moveHistoryEl.textContent = 'История ходов:';
-      statusText.textContent = 'Ожидание соперника...';
-      updateControls();
-      if (isSearching) cancelSearch();
-    }
-
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ШИФРОВАНИЯ ======
-    const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
-    async function getKey() {
-      const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
-      return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-    }
-    async function encryptPayload(obj) {
-      const key = await getKey();
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const enc = new TextEncoder().encode(JSON.stringify(obj));
-      const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-      const combo = new Uint8Array(iv.byteLength + c.byteLength);
-      combo.set(iv);
-      combo.set(new Uint8Array(c), iv.byteLength);
-      return btoa(String.fromCharCode(...combo));
-    }
-    async function decryptPayload(b64) {
-      const key = await getKey();
-      const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const iv = combo.slice(0, 12);
-      const data = combo.slice(12);
-      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-      return JSON.parse(new TextDecoder().decode(dec));
-    }
-
-    // ====== ИНИЦИАЛИЗАЦИЯ ======
-    (async function init() {
-      const authOk = await initAuth();
-      if (!authOk) return;
-
-      initBoard();
-      connectWS();
-
-      findGameBtn.addEventListener('click', findGame);
-      cancelSearchBtn.addEventListener('click', cancelSearch);
-      resignBtn.addEventListener('click', resignGame);
-      drawBtn.addEventListener('click', proposeDraw);
-      newGameBtn.addEventListener('click', newGame);
-
-      chatSendBtn.addEventListener('click', () => {
-        const text = chatInput.value.trim();
-        if (!text) return;
-        sendWS('chess_chat', { gameId, text });
-        addChatMessage('Вы', text);
-        chatInput.value = '';
-      });
-
-      chatInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') chatSendBtn.click();
-      });
-
-      setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          sendWS('chess_get_players');
-        }
-      }, 5000);
-    })();
-  </script>
+  <!-- Альтернативные ссылки (на случай, если основной iframe не грузится) -->
+  <div style="display:none;">
+    <!-- Если Lichess заблокирован, можно использовать другие варианты: -->
+    <!-- Chess.com (с рекламой) -->
+    <!-- <iframe src="https://www.chess.com/emboard?id=123456" ...></iframe> -->
+    <!-- Chess24 (требуется регистрация) -->
+    <!-- <iframe src="https://chess24.com/en/embed/..." ...></iframe> -->
+  </div>
 </body>
 </html>
