@@ -80,14 +80,6 @@
       text-align: center;
       min-height: 2rem;
     }
-    .status .player-indicator {
-      display: inline-block;
-      padding: 0.2rem 1rem;
-      border-radius: 12px;
-      margin: 0 0.3rem;
-    }
-    .status .player-indicator.white { background: #5f7ecf; color: #fff; }
-    .status .player-indicator.black { background: #2a3450; color: #fff; }
     .sidebar {
       width: 300px;
       display: flex;
@@ -250,6 +242,7 @@
   </div>
 
   <!-- Библиотеки -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.2/chess.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
 
@@ -290,12 +283,32 @@
     // ====== АВТОРИЗАЦИЯ ======
     async function initAuth() {
       if (!token) {
-        // Пытаемся получить из localStorage
         token = localStorage.getItem('skyid_token');
       }
       if (!token) {
         userInfo.textContent = '❌ Не авторизован';
         userInfo.style.color = '#f48024';
+        // Пробуем форму входа (упрощённо)
+        const login = prompt('Введите логин SkyID:');
+        const password = prompt('Введите пароль:');
+        if (login && password) {
+          try {
+            const payload = await encryptPayload({ login, password });
+            const res = await fetch(`${API_BASE}/login`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ data: payload })
+            });
+            const json = await res.json();
+            const data = await decryptPayload(json.data);
+            token = data.jwt || data.token;
+            localStorage.setItem('skyid_token', token);
+            localStorage.setItem('skyid_login', login);
+            location.reload();
+          } catch (e) {
+            alert('Ошибка входа: ' + e.message);
+          }
+        }
         return false;
       }
 
@@ -324,7 +337,6 @@
 
       ws.onopen = () => {
         console.log('✅ WebSocket подключён');
-        // Авторизуемся в WebSocket
         if (token && username) {
           ws.send(JSON.stringify({
             type: 'chess_auth',
@@ -332,7 +344,6 @@
             username: username
           }));
         }
-        // Запрашиваем список игроков
         ws.send(JSON.stringify({ type: 'chess_get_players' }));
       };
 
@@ -378,14 +389,14 @@
           playerColor = msg.color;
           isMyTurn = playerColor === 'w';
           statusText.textContent = `Игра началась! Вы играете ${playerColor === 'w' ? 'белыми' : 'чёрными'}`;
-          // Обновляем доску
           chess = new Chess();
-          board.position('start');
+          if (board) board.position('start');
           updateControls();
+          // Если был поиск, отменяем
+          if (isSearching) cancelSearch();
           break;
 
         case 'chess_move':
-          // Применяем ход соперника
           const move = chess.move(msg.move);
           if (move) {
             board.position(chess.fen());
@@ -433,7 +444,6 @@
             promotion: 'q'
           });
           if (move === null) return 'snapback';
-          // Отправляем ход на сервер
           sendWS('chess_move', {
             gameId: gameId,
             move: { from: source, to: target, promotion: 'q' }
@@ -557,41 +567,44 @@
       playerColor = null;
       isMyTurn = false;
       chess = new Chess();
-      board.position('start');
+      if (board) board.position('start');
       moveHistory = [];
       moveHistoryEl.textContent = 'История ходов:';
       statusText.textContent = 'Ожидание соперника...';
       updateControls();
-      // Если был поиск, отменяем
       if (isSearching) cancelSearch();
+    }
+
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ШИФРОВАНИЯ ======
+    const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
+    async function getKey() {
+      const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+      return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+    }
+    async function encryptPayload(obj) {
+      const key = await getKey();
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const enc = new TextEncoder().encode(JSON.stringify(obj));
+      const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+      const combo = new Uint8Array(iv.byteLength + c.byteLength);
+      combo.set(iv);
+      combo.set(new Uint8Array(c), iv.byteLength);
+      return btoa(String.fromCharCode(...combo));
+    }
+    async function decryptPayload(b64) {
+      const key = await getKey();
+      const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+      const iv = combo.slice(0, 12);
+      const data = combo.slice(12);
+      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+      return JSON.parse(new TextDecoder().decode(dec));
     }
 
     // ====== ИНИЦИАЛИЗАЦИЯ ======
     (async function init() {
       const authOk = await initAuth();
       if (!authOk) {
-        // Попытка войти через форму (можно добавить упрощённую)
-        const login = prompt('Введите логин SkyID:');
-        const password = prompt('Введите пароль:');
-        if (login && password) {
-          try {
-            const payload = await encryptPayload({ login, password });
-            const res = await fetch(`${API_BASE}/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: payload })
-            });
-            const json = await res.json();
-            const data = await decryptPayload(json.data);
-            token = data.jwt || data.token;
-            localStorage.setItem('skyid_token', token);
-            localStorage.setItem('skyid_login', login);
-            location.reload();
-          } catch (e) {
-            alert('Ошибка входа: ' + e.message);
-          }
-        }
-        return;
+        return; // уже обработано внутри initAuth
       }
 
       // Инициализируем доску
@@ -626,31 +639,6 @@
         }
       }, 5000);
     })();
-
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ШИФРОВАНИЯ ======
-    const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
-    async function getKey() {
-      const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
-      return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-    }
-    async function encryptPayload(obj) {
-      const key = await getKey();
-      const iv = crypto.getRandomValues(new Uint8Array(12));
-      const enc = new TextEncoder().encode(JSON.stringify(obj));
-      const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-      const combo = new Uint8Array(iv.byteLength + c.byteLength);
-      combo.set(iv);
-      combo.set(new Uint8Array(c), iv.byteLength);
-      return btoa(String.fromCharCode(...combo));
-    }
-    async function decryptPayload(b64) {
-      const key = await getKey();
-      const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-      const iv = combo.slice(0, 12);
-      const data = combo.slice(12);
-      const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-      return JSON.parse(new TextDecoder().decode(dec));
-    }
   </script>
 </body>
 </html>
