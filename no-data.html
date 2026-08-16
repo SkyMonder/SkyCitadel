@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Данные пользователей — SkyCitadel</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 2rem 1rem;
+      max-width: 900px;
+      margin: 0 auto;
+      line-height: 1.7;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    h1 {
+      color: #b7ceff;
+      border-left: 4px solid #5f7ecf;
+      padding-left: 1rem;
+      margin-bottom: 0.5rem;
+      font-weight: 300;
+    }
+    .sub {
+      color: #8899cc;
+      margin-bottom: 2rem;
+      font-size: 0.95rem;
+      border-bottom: 1px solid #2a3450;
+      padding-bottom: 0.5rem;
+    }
+    h2 {
+      color: #b7ceff;
+      margin: 2rem 0 0.8rem 0;
+      font-weight: 400;
+      font-size: 1.2rem;
+      border-left: 2px solid #5f7ecf;
+      padding-left: 0.8rem;
+    }
+    p { margin-bottom: 0.8rem; color: #cfdbff; }
+    ul { padding-left: 1.5rem; margin: 0.5rem 0 1rem 0; }
+    li { margin-bottom: 0.5rem; color: #cfdbff; }
+    .highlight {
+      background: #1a233a;
+      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      border-left: 4px solid #5f7ecf;
+      margin: 1.5rem 0;
+    }
+    .highlight strong { color: #b7ceff; }
+    .footer {
+      margin-top: auto;
+      border-top: 1px solid #2a3450;
+      padding-top: 1.5rem;
+      font-size: 0.8rem;
+      color: #8899cc;
+      text-align: center;
+    }
+    .footer a { color: #5f7ecf; text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
+    @media (max-width: 600px) { body { padding: 1rem; } h1 { font-size: 1.5rem; } }
+  </style>
+</head>
+<body>
+  <h1>🔒 Данные пользователей SkyCitadel</h1>
+  <div class="sub">Что мы храним, а чего у нас нет</div>
+
+  <p>
+    SkyCitadel спроектирован так, чтобы <strong>минимизировать</strong> хранение любых данных, которые могут идентифицировать пользователя. 
+    Ниже — полный перечень того, что физически находится на сервере, а чего нет.
+  </p>
+
+  <h2>❌ Чего у нас нет</h2>
+  <ul>
+    <li><strong>Сообщения, посты, файлы</strong> — они зашифрованы на вашем устройстве (AES-256-GCM), сервер хранит только зашифрованный «мусор», который невозможно расшифровать без вашего ключа.</li>
+    <li><strong>IP-адреса обычных пользователей</strong> — мы не логируем и не храним IP-адреса. Единственное исключение — забаненные нарушители (см. ниже).</li>
+    <li><strong>История посещений, время на сайте, клики</strong> — никаких логов активности.</li>
+    <li><strong>Уникальные идентификаторы устройств (device_id)</strong> — мы не генерируем и не храним отпечатки устройств.</li>
+    <li><strong>Браузер, ОС, разрешение экрана</strong> — эти данные не собираются.</li>
+  </ul>
+
+  <h2>✅ Что мы храним</h2>
+  <ul>
+    <li><strong>Логин и хеш пароля</strong> — только для входа. Пароль не хранится в открытом виде, используется PBKDF2 с солью.</li>
+    <li><strong>Зашифрованные сообщения и файлы</strong> — в таком виде, который не поддаётся расшифровке без ключа пользователя.</li>
+    <li><strong>Анонимную агрегированную статистику</strong> — общее число визитов, тип устройства (мобилка/десктоп), страна (без привязки к IP).</li>
+    <li><strong>Список забаненных IP-адресов</strong> — только для нарушителей (экстремизм, угрозы, насилие). Хранится текст нарушения и сам IP. После разбана — удаляется.</li>
+  </ul>
+
+  <div class="highlight">
+    <strong>Главное:</strong> Мы физически не храним данных, которые можно было бы передать по запросу — все сообщения зашифрованы, IP не сохраняются, а анонимная статистика не позволяет идентифицировать человека.
+  </div>
+
+  <h2>📂 Открытый код</h2>
+  <p>
+    Весь исходный код SkyCitadel доступен на <a href="https://github.com/SkyMonder/SkyCitadel" style="color:#5f7ecf;">GitHub</a>. 
+    Любой желающий может проверить, что логирование действительно отсутствует.
+  </p>
+
+  <h2>📞 Контакты</h2>
+  <p>
+    По вопросам, связанным с данными, пишите: <a href="mailto:skymonder@yandex.ru" style="color:#5f7ecf;">skymonder@yandex.ru</a>
+  </p>
+
+  <div class="footer">
+    <a href="/">🏰 Вернуться в крепость</a> &nbsp;|&nbsp;
+    <a href="/privacy.html">🔒 Политика конфиденциальности</a> &nbsp;|&nbsp;
+    <a href="/terms.html">📜 Пользовательское соглашение</a>
+  </div>
+</body>
+</html>
