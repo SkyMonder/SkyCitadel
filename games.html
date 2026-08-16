@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SkyGames — Игровой центр</title>
+  <title>SkyGames</title>
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
     body {
@@ -25,328 +25,199 @@
       flex-shrink: 0;
       flex-wrap: wrap;
     }
-    .header a { color: #5f7ecf; text-decoration: none; font-weight: 500; }
+    .header a {
+      color: #5f7ecf;
+      text-decoration: none;
+      font-weight: 500;
+    }
     .header a:hover { text-decoration: underline; }
-    .header h1 { color: #b7ceff; font-size: 1.5rem; font-weight: 400; }
-    .header .badge { background: #2a7a2a; padding: 0.2rem 0.8rem; border-radius: 20px; font-size: 0.7rem; color: #fff; margin-left: 0.5rem; }
-    .header .user-info { margin-left: auto; color: #8899cc; font-size: 0.9rem; }
+    .header h1 {
+      color: #b7ceff;
+      font-size: 1.5rem;
+      font-weight: 400;
+    }
+    .header .user-info {
+      margin-left: auto;
+      color: #8899cc;
+      font-size: 0.9rem;
+    }
     .container {
       flex: 1;
       display: flex;
-      gap: 1.5rem;
-      padding: 1rem;
-      overflow: hidden;
+      flex-direction: column;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+    .game-selector {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
       flex-wrap: wrap;
     }
-    .lobby {
-      width: 280px;
-      display: flex;
-      flex-direction: column;
-      gap: 0.8rem;
-      background: #111827;
-      border-radius: 12px;
+    .game-btn {
+      background: #1a233a;
       border: 1px solid #2a3450;
-      padding: 1rem;
-      overflow-y: auto;
-      flex-shrink: 0;
-      max-height: 100%;
-    }
-    .lobby h3 { color: #b7ceff; font-weight: 400; border-bottom: 1px solid #2a3450; padding-bottom: 0.5rem; }
-    .room-list { display: flex; flex-direction: column; gap: 0.3rem; flex: 1; overflow-y: auto; }
-    .room-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 0.4rem 0.8rem;
-      background: #0d1425;
-      border-radius: 8px;
-      border: 1px solid #1e2a40;
-      cursor: pointer;
-    }
-    .room-item:hover { border-color: #5f7ecf; }
-    .room-item .name { font-size: 0.9rem; }
-    .room-item .players { font-size: 0.7rem; color: #8899cc; }
-    .room-item .join-btn { background: #5f7ecf; border: none; color: #fff; padding: 0.2rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.7rem; }
-    .room-item .join-btn:hover { background: #7a9aef; }
-    .game-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      background: #111827;
-      border-radius: 12px;
-      border: 1px solid #2a3450;
-      padding: 1rem;
-      min-width: 400px;
-      max-height: 100%;
-      overflow-y: auto;
-    }
-    .game-area .game-title { color: #b7ceff; font-size: 1.3rem; margin-bottom: 0.5rem; }
-    .game-area .game-status { color: #8899cc; margin-bottom: 0.5rem; font-size: 0.9rem; }
-    .game-board {
-      background: #0d1425;
-      border-radius: 8px;
-      padding: 1rem;
-      display: inline-block;
-      border: 1px solid #1e2a40;
-    }
-    .game-controls { display: flex; gap: 0.5rem; margin-top: 0.8rem; flex-wrap: wrap; justify-content: center; }
-    .btn {
-      background: #5f7ecf;
-      border: none;
-      color: #fff;
-      padding: 0.4rem 1rem;
-      border-radius: 8px;
+      color: #cfdbff;
+      padding: 0.5rem 1.5rem;
+      border-radius: 20px;
       cursor: pointer;
       transition: 0.2s;
     }
-    .btn:hover { background: #7a9aef; }
-    .btn:disabled { opacity: 0.4; pointer-events: none; }
-    .btn-secondary { background: #2a3450; }
-    .btn-secondary:hover { background: #3a4a6a; }
-    .btn-success { background: #2a7a2a; }
-    .btn-danger { background: #c44; }
-    .btn-danger:hover { background: #a33; }
-    .tictac-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 80px);
-      gap: 4px;
-      background: #1a233a;
-      padding: 4px;
-      border-radius: 8px;
-    }
-    .tictac-cell {
-      width: 80px;
-      height: 80px;
-      background: #0d1425;
+    .game-btn:hover { background: #2a3450; border-color: #5f7ecf; }
+    .game-btn.active { background: #5f7ecf; border-color: #5f7ecf; color: #fff; }
+    .game-area {
+      flex: 1;
+      background: #111827;
+      border-radius: 12px;
       border: 1px solid #2a3450;
-      border-radius: 4px;
-      font-size: 2.8rem;
-      cursor: pointer;
+      padding: 1.5rem;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #b7ceff;
-      transition: background 0.2s;
+      gap: 1rem;
     }
-    .tictac-cell:hover { background: #1a233a; }
-    .tictac-cell.x { color: #5f7ecf; }
-    .tictac-cell.o { color: #f48024; }
-    .hangman-word {
-      font-size: 2.2rem;
-      letter-spacing: 8px;
-      font-family: monospace;
-      color: #b7ceff;
-      margin: 0.5rem 0;
-    }
-    .hangman-letters { display: flex; flex-wrap: wrap; gap: 0.3rem; max-width: 300px; justify-content: center; }
-    .hangman-letter {
-      width: 36px;
-      height: 36px;
-      background: #0d1425;
-      border: 1px solid #2a3450;
-      border-radius: 4px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      text-transform: uppercase;
-      cursor: pointer;
-      color: #cfdbff;
-    }
-    .hangman-letter:hover { background: #1a233a; }
-    .hangman-letter.used { opacity: 0.3; pointer-events: none; }
-    .hangman-letter.wrong { background: #4a1a1a; border-color: #c44; }
-    .hangman-letter.correct { background: #1a4a1a; border-color: #2a7a2a; }
-    .guess-input {
-      display: flex;
-      gap: 0.5rem;
-      align-items: center;
-      margin: 0.5rem 0;
-    }
-    .guess-input input {
-      padding: 0.3rem 0.6rem;
-      background: #0d1225;
-      border: 1px solid #2a3450;
-      color: #e0e8ff;
-      border-radius: 6px;
-      width: 60px;
-      text-align: center;
+    .game-area .status {
       font-size: 1.2rem;
+      color: #b7ceff;
     }
-    .guess-input button { padding: 0.3rem 1rem; }
-    .battleship-grid {
+    .game-area .board {
       display: grid;
-      grid-template-columns: repeat(10, 30px);
-      gap: 2px;
-      background: #1a233a;
-      padding: 4px;
-      border-radius: 8px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      width: 300px;
+      height: 300px;
     }
-    .bs-cell {
-      width: 30px;
-      height: 30px;
+    .game-area .cell {
       background: #0d1425;
       border: 1px solid #2a3450;
-      border-radius: 2px;
+      border-radius: 8px;
+      font-size: 3rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
+      transition: 0.2s;
+      color: #b7ceff;
     }
-    .bs-cell:hover { background: #1a233a; }
-    .bs-cell.hit { background: #c44; }
-    .bs-cell.miss { background: #2a3450; }
-    .bs-cell.ship { background: #5f7ecf; }
-    .chat-area {
-      margin-top: 0.5rem;
-      border-top: 1px solid #2a3450;
-      padding-top: 0.5rem;
+    .game-area .cell:hover { background: #1a233a; }
+    .game-area .cell.disabled { cursor: not-allowed; opacity: 0.6; }
+    .game-area .room-list {
       width: 100%;
-    }
-    .chat-messages {
-      max-height: 80px;
+      max-width: 500px;
+      max-height: 200px;
       overflow-y: auto;
-      font-size: 0.8rem;
-      color: #8899cc;
+    }
+    .room-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.5rem 1rem;
       background: #0d1425;
-      padding: 0.3rem 0.6rem;
       border-radius: 8px;
       margin-bottom: 0.3rem;
+      border: 1px solid #1e2a40;
     }
-    .chat-input {
-      display: flex;
-      gap: 0.3rem;
-    }
-    .chat-input input { flex: 1; padding: 0.3rem 0.6rem; background: #0d1225; border: 1px solid #2a3450; color: #e0e8ff; border-radius: 8px; font-size: 0.8rem; }
-    .chat-input button { padding: 0.2rem 0.8rem; background: #5f7ecf; border: none; color: #fff; border-radius: 8px; cursor: pointer; }
-    .create-room {
-      display: flex;
-      gap: 0.5rem;
-      margin-bottom: 0.5rem;
-    }
-    .create-room select { padding: 0.3rem; background: #0d1225; border: 1px solid #2a3450; color: #e0e8ff; border-radius: 6px; flex: 1; }
-    .create-room button { padding: 0.3rem 0.8rem; background: #5f7ecf; border: none; color: #fff; border-radius: 6px; cursor: pointer; }
+    .room-item button { background: #5f7ecf; border: none; color: #fff; padding: 0.2rem 1rem; border-radius: 6px; cursor: pointer; }
+    .room-item button:hover { background: #7a9aef; }
+    .btn { background: #5f7ecf; border: none; color: #fff; padding: 0.5rem 1.5rem; border-radius: 8px; cursor: pointer; }
+    .btn:hover { background: #7a9aef; }
+    .btn-secondary { background: #2a3450; }
+    .btn-secondary:hover { background: #3a4a6a; }
+    .btn-danger { background: #c44; }
+    .btn-danger:hover { background: #a33; }
     @media (max-width: 768px) {
-      .container { flex-direction: column; align-items: center; }
-      .lobby { width: 100%; max-height: 300px; }
-      .game-area { min-width: unset; width: 100%; }
-      .tictac-grid { grid-template-columns: repeat(3, 60px); }
-      .tictac-cell { width: 60px; height: 60px; font-size: 2rem; }
-      .battleship-grid { grid-template-columns: repeat(10, 24px); }
-      .bs-cell { width: 24px; height: 24px; }
-      .hangman-word { font-size: 1.6rem; letter-spacing: 4px; }
+      .game-area .board { width: 200px; height: 200px; }
+      .game-area .cell { font-size: 2rem; }
     }
   </style>
 </head>
 <body>
   <div class="header">
     <a href="/">🏰 Назад</a>
-    <h1>🎮 SkyGames <span class="badge">Live</span></h1>
+    <h1>🎮 SkyGames</h1>
     <div class="user-info" id="userInfo">Загрузка...</div>
   </div>
 
   <div class="container">
-    <!-- Лобби -->
-    <div class="lobby">
-      <h3>🏠 Лобби</h3>
-      <div class="create-room">
-        <select id="gameTypeSelect">
-          <option value="tictac">Крестики-нолики</option>
-          <option value="hangman">Виселица</option>
-          <option value="battleship">Морской бой</option>
-          <option value="guess">Угадай число</option>
-        </select>
-        <button id="createRoomBtn" class="btn">Создать</button>
-      </div>
-      <div class="room-list" id="roomList">
-        <div style="color:#8899cc;text-align:center;padding:1rem;">Комнат нет</div>
-      </div>
+    <div class="game-selector">
+      <button class="game-btn active" data-game="tictac">❌ Крестики-нолики</button>
+      <button class="game-btn" data-game="hangman">🔤 Виселица</button>
+      <button class="game-btn" data-game="battleship">🚢 Морской бой</button>
+      <button class="game-btn" data-game="guess">🔢 Угадай число</button>
     </div>
 
-    <!-- Игровая область -->
     <div class="game-area" id="gameArea">
-      <div class="game-title" id="gameTitle">🎮 Выберите игру</div>
-      <div class="game-status" id="gameStatus">Создайте или присоединитесь к комнате</div>
-      <div id="gameBoard"></div>
-      <div class="game-controls" id="gameControls"></div>
-      <div class="chat-area" id="chatArea" style="display:none;">
-        <div class="chat-messages" id="gameChatMessages"></div>
-        <div class="chat-input">
-          <input type="text" id="gameChatInput" placeholder="Сообщение...">
-          <button id="gameChatSend">➤</button>
-        </div>
+      <div class="status" id="gameStatus">Выберите игру и найдите соперника</div>
+      <div id="gameBoard" style="display:flex;flex-direction:column;align-items:center;gap:1rem;">
+        <button class="btn" id="findGameBtn">🔍 Найти игру</button>
+        <button class="btn btn-secondary" id="cancelGameBtn" style="display:none;">❌ Отменить</button>
+        <div class="room-list" id="roomList"></div>
       </div>
     </div>
   </div>
 
   <script>
     // ====== КОНФИГУРАЦИЯ ======
-    const WS_URL = 'wss://skymutant.cc.cd';
     const API_BASE = 'https://skymutant.cc.cd';
+    const WS_URL = 'wss://skymutant.cc.cd';
     let token = localStorage.getItem('skyid_token') || null;
-    let username = localStorage.getItem('skyid_login') || 'Игрок';
-
-    // ====== СОСТОЯНИЕ ======
+    let username = localStorage.getItem('skyid_login') || null;
     let ws = null;
-    let currentRoom = null; // roomId
-    let currentGame = null; // 'tictac', 'hangman', 'battleship', 'guess'
-    let myTurn = false;
-    let gameState = {};
-    let rooms = [];
+    let currentGame = 'tictac';
+    let currentRoomId = null;
+    let isSearching = false;
+    let isMyTurn = false;
 
     // ====== ЭЛЕМЕНТЫ UI ======
-    const userInfo = document.getElementById('userInfo');
-    const roomList = document.getElementById('roomList');
-    const gameTitle = document.getElementById('gameTitle');
+    const userInfoEl = document.getElementById('userInfo');
     const gameStatus = document.getElementById('gameStatus');
     const gameBoard = document.getElementById('gameBoard');
-    const gameControls = document.getElementById('gameControls');
-    const chatArea = document.getElementById('chatArea');
-    const gameChatMessages = document.getElementById('gameChatMessages');
-    const gameChatInput = document.getElementById('gameChatInput');
-    const gameChatSend = document.getElementById('gameChatSend');
-    const gameTypeSelect = document.getElementById('gameTypeSelect');
-    const createRoomBtn = document.getElementById('createRoomBtn');
+    const findGameBtn = document.getElementById('findGameBtn');
+    const cancelGameBtn = document.getElementById('cancelGameBtn');
+    const roomListEl = document.getElementById('roomList');
 
     // ====== АВТОРИЗАЦИЯ ======
     async function initAuth() {
-      if (!token) token = localStorage.getItem('skyid_token');
       if (!token) {
-        userInfo.textContent = '❌ Не авторизован';
-        const login = prompt('Введите логин SkyID:');
-        const password = prompt('Введите пароль:');
-        if (login && password) {
-          try {
-            const payload = await encryptPayload({ login, password });
-            const res = await fetch(`${API_BASE}/login`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ data: payload })
-            });
-            const json = await res.json();
-            const data = await decryptPayload(json.data);
-            token = data.jwt || data.token;
-            localStorage.setItem('skyid_token', token);
-            localStorage.setItem('skyid_login', login);
-            username = login;
-            location.reload();
-          } catch (e) { alert('Ошибка входа: ' + e.message); }
+        token = localStorage.getItem('skyid_token');
+        if (!token) {
+          userInfoEl.textContent = '❌ Не авторизован';
+          // Запрашиваем логин/пароль (упрощённо)
+          const login = prompt('Введите логин SkyID:');
+          const password = prompt('Введите пароль:');
+          if (login && password) {
+            try {
+              const payload = await encryptPayload({ login, password });
+              const res = await fetch(`${API_BASE}/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ data: payload })
+              });
+              const json = await res.json();
+              const data = await decryptPayload(json.data);
+              token = data.jwt || data.token;
+              localStorage.setItem('skyid_token', token);
+              localStorage.setItem('skyid_login', login);
+              location.reload();
+            } catch (e) { alert('Ошибка входа: ' + e.message); }
+          }
+          return false;
         }
-        return false;
       }
+
       try {
-        const res = await fetch(`${API_BASE}/verify`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token })
+        // Используем GET /gaverify
+        const res = await fetch(`${API_BASE}/gaverify`, {
+          headers: { 'Authorization': `Bearer ${token}` }
         });
         if (!res.ok) throw new Error('Invalid token');
         const data = await res.json();
         username = data.login || data.skyid || 'Игрок';
-        userInfo.textContent = `👤 ${username}`;
+        userInfoEl.textContent = `👤 ${username}`;
         localStorage.setItem('skyid_login', username);
         return true;
       } catch (e) {
-        userInfo.textContent = '❌ Ошибка авторизации';
+        userInfoEl.textContent = '❌ Ошибка авторизации';
         return false;
       }
     }
@@ -355,283 +226,181 @@
     function connectWS() {
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        console.log('✅ WebSocket подключён');
-        ws.send(JSON.stringify({ type: 'games_auth', token, username }));
-        ws.send(JSON.stringify({ type: 'games_list_rooms' }));
+        console.log('✅ WS подключён');
+        if (token && username) {
+          ws.send(JSON.stringify({ type: 'games_auth', token: token, username: username }));
+        }
       };
       ws.onmessage = (event) => {
-        try { handleWSMessage(JSON.parse(event.data)); } catch (e) { console.error('Ошибка парсинга:', e); }
+        try {
+          const msg = JSON.parse(event.data);
+          handleWSMessage(msg);
+        } catch (e) { console.error('Ошибка парсинга:', e); }
       };
       ws.onclose = () => setTimeout(connectWS, 3000);
-      ws.onerror = (err) => console.error('❌ WebSocket ошибка:', err);
+      ws.onerror = (err) => console.error('WS ошибка:', err);
     }
 
     function sendWS(type, data = {}) {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...data }));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type, ...data }));
+      }
     }
 
-    // ====== ОБРАБОТКА СООБЩЕНИЙ ======
     function handleWSMessage(msg) {
+      console.log('📨 WS:', msg);
       switch (msg.type) {
-        case 'games_auth_ok': console.log('✅ Авторизован в играх'); break;
+        case 'games_auth_ok':
+          console.log('✅ Авторизован в играх');
+          updateRooms();
+          break;
         case 'games_room_list':
-          rooms = msg.rooms || [];
-          renderRooms();
+          renderRooms(msg.rooms);
           break;
         case 'games_room_created':
-          currentRoom = msg.roomId;
-          currentGame = msg.gameType;
-          gameState = {};
-          renderGame();
+          if (msg.waiting) {
+            gameStatus.textContent = '⏳ Ожидание соперника...';
+            isSearching = true;
+            findGameBtn.disabled = true;
+            cancelGameBtn.style.display = 'inline-block';
+          } else {
+            currentRoomId = msg.roomId;
+            gameStatus.textContent = `Игра началась! Вы играете за ${msg.turn === username ? 'первого' : 'второго'}`;
+            renderBoard(msg.gameType, msg.state);
+            isSearching = false;
+            findGameBtn.disabled = false;
+            cancelGameBtn.style.display = 'none';
+            updateMyTurn(msg.turn === username);
+          }
           break;
         case 'games_room_joined':
-          currentRoom = msg.roomId;
-          currentGame = msg.gameType;
-          gameState = msg.state || {};
-          myTurn = msg.turn === username;
-          renderGame();
-          chatArea.style.display = 'block';
+          currentRoomId = msg.roomId;
+          gameStatus.textContent = `Игра началась! Вы играете за ${msg.turn === username ? 'первого' : 'второго'}`;
+          renderBoard(msg.gameType, msg.state);
+          updateMyTurn(msg.turn === username);
           break;
         case 'games_state_update':
-          gameState = msg.state;
-          myTurn = msg.turn === username;
-          renderGame();
+          renderBoard(currentGame, msg.state);
+          updateMyTurn(msg.turn === username);
+          if (msg.gameOver) {
+            gameStatus.textContent = msg.winner ? `🏁 Победил ${msg.winner}` : '🏁 Игра окончена';
+          }
           break;
         case 'games_chat':
-          addChatMessage(msg.from, msg.text);
-          break;
-        case 'games_game_over':
-          gameState.gameOver = true;
-          gameState.winner = msg.winner;
-          renderGame();
+          // Пока игнорируем, но можно добавить чат
           break;
         case 'games_error':
-          alert('❌ ' + msg.message);
+          gameStatus.textContent = `❌ ${msg.message}`;
           break;
-        default: console.log('📨 Неизвестное сообщение:', msg);
+        default:
+          console.log('Неизвестное сообщение:', msg);
       }
     }
 
-    // ====== РЕНДЕР КОМНАТ ======
-    function renderRooms() {
-      roomList.innerHTML = '';
-      if (rooms.length === 0) {
-        roomList.innerHTML = '<div style="color:#8899cc;text-align:center;padding:1rem;">Комнат нет</div>';
+    // ====== ИГРЫ ======
+    function renderBoard(gameType, state) {
+      if (gameType !== 'tictac') {
+        gameBoard.innerHTML = `<div style="color:#8899cc;">Игра ${gameType} в разработке...</div>`;
         return;
       }
-      rooms.forEach(r => {
+      // Крестики-нолики
+      const board = state.board || Array(9).fill(null);
+      let html = `<div class="board">`;
+      board.forEach((cell, i) => {
+        html += `<div class="cell" data-index="${i}" onclick="makeMove(${i})">${cell || ''}</div>`;
+      });
+      html += `</div>`;
+      gameBoard.innerHTML = html;
+    }
+
+    function makeMove(index) {
+      if (!currentRoomId || !isMyTurn) return;
+      sendWS('games_move', { roomId: currentRoomId, move: { index } });
+    }
+
+    function updateMyTurn(turn) {
+      isMyTurn = turn;
+      if (currentRoomId) {
+        gameStatus.textContent = isMyTurn ? 'Ваш ход' : 'Ход соперника';
+      }
+    }
+
+    function renderRooms(rooms) {
+      roomListEl.innerHTML = '';
+      if (!rooms || rooms.length === 0) {
+        roomListEl.innerHTML = '<div style="color:#8899cc;padding:0.5rem;">Нет активных комнат</div>';
+        return;
+      }
+      rooms.forEach(room => {
         const div = document.createElement('div');
         div.className = 'room-item';
-        const gameNames = { tictac: '❌⭕', hangman: '🪢', battleship: '⚓', guess: '🎯' };
+        const players = room.players.join(', ');
         div.innerHTML = `
-          <span class="name">${gameNames[r.gameType] || '🎮'} ${r.gameType}</span>
-          <span class="players">${r.players ? r.players.length : 0}/2</span>
-          <button class="join-btn" data-room="${r.roomId}">Присоединиться</button>
+          <span>${room.gameType} (${players || 'ожидание'})</span>
+          <button onclick="joinRoom('${room.roomId}')">Присоединиться</button>
         `;
-        div.querySelector('.join-btn').addEventListener('click', () => {
-          sendWS('games_join_room', { roomId: r.roomId });
-        });
-        roomList.appendChild(div);
+        roomListEl.appendChild(div);
       });
     }
 
-    // ====== РЕНДЕР ИГРЫ ======
-    function renderGame() {
-      if (!currentGame || !currentRoom) {
-        gameBoard.innerHTML = '';
-        gameControls.innerHTML = '';
-        gameTitle.textContent = '🎮 Выберите игру';
-        gameStatus.textContent = 'Создайте или присоединитесь к комнате';
-        return;
-      }
-      gameTitle.textContent = `🎮 ${currentGame.toUpperCase()}`;
-      const gameNames = { tictac: 'Крестики-нолики', hangman: 'Виселица', battleship: 'Морской бой', guess: 'Угадай число' };
-      gameTitle.textContent = `🎮 ${gameNames[currentGame] || currentGame}`;
-      const isOver = gameState.gameOver || false;
-      if (isOver) {
-        gameStatus.textContent = gameState.winner ? `🏆 Победил ${gameState.winner}` : '🤝 Ничья';
-      } else {
-        const turnName = gameState.turn === username ? 'Ваш ход' : 'Ход соперника';
-        gameStatus.textContent = turnName;
-      }
-      gameControls.innerHTML = '';
-      if (isOver) {
-        const btn = document.createElement('button');
-        btn.className = 'btn btn-secondary';
-        btn.textContent = '🔄 Новая игра';
-        btn.onclick = () => sendWS('games_new_round', { roomId: currentRoom });
-        gameControls.appendChild(btn);
-        const leaveBtn = document.createElement('button');
-        leaveBtn.className = 'btn btn-danger';
-        leaveBtn.textContent = '🚪 Выйти';
-        leaveBtn.onclick = () => sendWS('games_leave_room', { roomId: currentRoom });
-        gameControls.appendChild(leaveBtn);
-      } else {
-        // Кнопка сдаться
-        const resignBtn = document.createElement('button');
-        resignBtn.className = 'btn btn-danger';
-        resignBtn.textContent = '🏳️ Сдаться';
-        resignBtn.onclick = () => sendWS('games_resign', { roomId: currentRoom });
-        gameControls.appendChild(resignBtn);
-      }
-
-      // Рендер доски в зависимости от игры
-      switch (currentGame) {
-        case 'tictac': renderTicTac(); break;
-        case 'hangman': renderHangman(); break;
-        case 'battleship': renderBattleship(); break;
-        case 'guess': renderGuess(); break;
-        default: gameBoard.innerHTML = '<p style="color:#8899cc;">Игра не поддерживается</p>';
-      }
+    function updateRooms() {
+      sendWS('games_list_rooms');
     }
 
-    // ====== TIC-TAC-TOE ======
-    function renderTicTac() {
-      const board = gameState.board || Array(9).fill(null);
-      const turn = gameState.turn;
-      const isOver = gameState.gameOver;
-      const mySymbol = gameState.players && gameState.players[username] || 'X';
-      const html = `
-        <div class="tictac-grid">
-          ${board.map((cell, i) => `
-            <div class="tictac-cell ${cell === 'X' ? 'x' : cell === 'O' ? 'o' : ''}" 
-                 data-index="${i}"
-                 style="${cell ? '' : 'cursor:pointer;'}"
-            >${cell || ''}</div>
-          `).join('')}
-        </div>
-      `;
-      gameBoard.innerHTML = html;
-      gameBoard.querySelectorAll('.tictac-cell').forEach(el => {
-        const i = parseInt(el.dataset.index);
-        el.addEventListener('click', () => {
-          if (isOver) return;
-          if (turn !== username) return;
-          if (board[i]) return;
-          sendWS('games_move', { roomId: currentRoom, move: { index: i } });
-        });
+    function findGame() {
+      if (isSearching) return;
+      sendWS('games_create_room', { gameType: currentGame });
+    }
+
+    function cancelSearch() {
+      if (!isSearching) return;
+      isSearching = false;
+      findGameBtn.disabled = false;
+      cancelGameBtn.style.display = 'none';
+      gameStatus.textContent = 'Поиск отменён';
+      // Отправляем leave, чтобы выйти из очереди
+      sendWS('games_leave_room', { roomId: 'waiting' });
+    }
+
+    function joinRoom(roomId) {
+      sendWS('games_join_room', { roomId });
+    }
+
+    // ====== СОБЫТИЯ ======
+    document.querySelectorAll('.game-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.game-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        currentGame = btn.dataset.game;
+        // Если есть комната, покидаем
+        if (currentRoomId) {
+          sendWS('games_leave_room', { roomId: currentRoomId });
+          currentRoomId = null;
+        }
+        gameBoard.innerHTML = `<div style="color:#8899cc;">Выберите игру и найдите соперника</div>`;
+        gameStatus.textContent = `Выбрана игра: ${btn.textContent}`;
+        updateRooms();
       });
-    }
-
-    // ====== HANGMAN ======
-    function renderHangman() {
-      const word = gameState.word || '';
-      const guessed = gameState.guessed || [];
-      const wrong = gameState.wrong || 0;
-      const maxWrong = 6;
-      const displayWord = word.split('').map(ch => guessed.includes(ch) ? ch : '_').join(' ');
-      const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
-      const isOver = gameState.gameOver;
-      const turn = gameState.turn;
-      const html = `
-        <div class="hangman-word">${displayWord}</div>
-        <div style="color:#8899cc;font-size:0.9rem;">Ошибки: ${wrong}/${maxWrong}</div>
-        <div class="hangman-letters">
-          ${letters.map(l => `
-            <div class="hangman-letter ${guessed.includes(l) ? (word.includes(l) ? 'correct' : 'wrong') : ''}"
-                 data-letter="${l}"
-            >${l}</div>
-          `).join('')}
-        </div>
-      `;
-      gameBoard.innerHTML = html;
-      if (!isOver && turn === username) {
-        gameBoard.querySelectorAll('.hangman-letter:not(.used)').forEach(el => {
-          el.addEventListener('click', () => {
-            const letter = el.dataset.letter;
-            sendWS('games_move', { roomId: currentRoom, move: { letter } });
-          });
-        });
-      }
-    }
-
-    // ====== BATTLESHIP ======
-    function renderBattleship() {
-      const board = gameState.board || Array(100).fill(null);
-      const hits = gameState.hits || [];
-      const turn = gameState.turn;
-      const isOver = gameState.gameOver;
-      const html = `
-        <div class="battleship-grid">
-          ${board.map((cell, i) => `
-            <div class="bs-cell ${cell === 'ship' ? 'ship' : ''} ${hits.includes(i) ? (cell === 'ship' ? 'hit' : 'miss') : ''}"
-                 data-index="${i}"
-            ></div>
-          `).join('')}
-        </div>
-      `;
-      gameBoard.innerHTML = html;
-      if (!isOver && turn === username) {
-        gameBoard.querySelectorAll('.bs-cell:not(.hit):not(.miss)').forEach(el => {
-          el.addEventListener('click', () => {
-            const i = parseInt(el.dataset.index);
-            sendWS('games_move', { roomId: currentRoom, move: { index: i } });
-          });
-        });
-      }
-    }
-
-    // ====== GUESS NUMBER ======
-    function renderGuess() {
-      const secret = gameState.secret || null;
-      const lastGuess = gameState.lastGuess || null;
-      const hint = gameState.hint || '';
-      const attempts = gameState.attempts || 0;
-      const isOver = gameState.gameOver;
-      const turn = gameState.turn;
-      const html = `
-        <div style="font-size:1.2rem;margin:0.5rem 0;">
-          ${secret !== null ? '🔢 Число загадано!' : '⏳ Ожидание соперника...'}
-        </div>
-        <div style="color:#8899cc;font-size:0.9rem;">
-          ${lastGuess !== null ? `Последняя догадка: ${lastGuess}` : ''}
-        </div>
-        <div style="color:#f48024;font-size:1rem;margin:0.3rem 0;">${hint}</div>
-        <div style="color:#8899cc;font-size:0.9rem;">Попыток: ${attempts}</div>
-        ${!isOver && turn === username && secret === null ? `
-          <div class="guess-input">
-            <input type="number" id="guessNumberInput" min="1" max="100" placeholder="1-100">
-            <button class="btn" id="guessSubmit">Угадать</button>
-          </div>
-        ` : ''}
-      `;
-      gameBoard.innerHTML = html;
-      const input = document.getElementById('guessNumberInput');
-      const submit = document.getElementById('guessSubmit');
-      if (input && submit) {
-        submit.addEventListener('click', () => {
-          const val = parseInt(input.value);
-          if (isNaN(val) || val < 1 || val > 100) return alert('Введите число от 1 до 100');
-          sendWS('games_move', { roomId: currentRoom, move: { guess: val } });
-          input.value = '';
-        });
-        input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit.click(); });
-      }
-    }
-
-    // ====== ЧАТ ======
-    function addChatMessage(from, text) {
-      const el = document.createElement('div');
-      el.innerHTML = `<strong>${from}</strong>: ${text}`;
-      gameChatMessages.appendChild(el);
-      gameChatMessages.scrollTop = gameChatMessages.scrollHeight;
-    }
-    gameChatSend.addEventListener('click', () => {
-      const text = gameChatInput.value.trim();
-      if (!text) return;
-      sendWS('games_chat', { roomId: currentRoom, text });
-      addChatMessage('Вы', text);
-      gameChatInput.value = '';
-    });
-    gameChatInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') gameChatSend.click(); });
-
-    // ====== СОЗДАНИЕ КОМНАТЫ ======
-    createRoomBtn.addEventListener('click', () => {
-      const gameType = gameTypeSelect.value;
-      sendWS('games_create_room', { gameType });
     });
 
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ШИФРОВАНИЯ ======
+    findGameBtn.addEventListener('click', findGame);
+    cancelGameBtn.addEventListener('click', cancelSearch);
+
+    // Обновляем список комнат каждые 5 секунд
+    setInterval(() => {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        sendWS('games_list_rooms');
+      }
+    }, 5000);
+
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
+    (async function init() {
+      const authOk = await initAuth();
+      if (!authOk) return;
+      connectWS();
+    })();
+
+    // ====== ШИФРОВАНИЕ ======
     const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
     async function getKey() {
       const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
@@ -655,19 +424,6 @@
       const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
       return JSON.parse(new TextDecoder().decode(dec));
     }
-
-    // ====== ИНИЦИАЛИЗАЦИЯ ======
-    (async function init() {
-      const authOk = await initAuth();
-      if (!authOk) return;
-      connectWS();
-      // Периодическое обновление списка комнат
-      setInterval(() => {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-          sendWS('games_list_rooms');
-        }
-      }, 5000);
-    })();
   </script>
 </body>
 </html>
