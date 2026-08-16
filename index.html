@@ -488,8 +488,11 @@
   <!-- Наш основной скрипт оборачиваем в DOMContentLoaded -->
   <script>
 	// Если пользователь ещё не видел приветствие — редирект на welcome.html
-	if (!localStorage.getItem('skycitadel_welcome_dismissed')) {
-  		window.location.href = '/welcome.html';
+	// Проверяем, запущено ли приложение в Electron
+	const isElectron = navigator.userAgent.includes('Electron');
+	// Если не Electron и приветствие не было отклонено — показываем welcome.html
+	if (!isElectron && !localStorage.getItem('skycitadel_welcome_dismissed')) {
+    	window.location.href = '/welcome.html';
 	}
     document.addEventListener('DOMContentLoaded', function() {
       // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
