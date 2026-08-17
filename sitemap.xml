@@ -1,31 +1,113 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-    <url>
-        <loc>https://skycitadel.onrender.com/</loc>
-        <priority>1.0</priority>
-    </url>
-    <url>
-        <loc>https://skycitadel.onrender.com/index.html</loc>
-        <priority>0.9</priority>
-    </url>
-    <url>
-        <loc>https://skycitadel.onrender.com/skyvideo.html</loc>
-        <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>https://skycitadel.onrender.com/skymessage.html</loc>
-        <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>https://skycitadel.onrender.com/socnet.html</loc>
-        <priority>0.8</priority>
-    </url>
-    <url>
-        <loc>https://skycitadel.onrender.com/gazeta.html</loc>
-        <priority>0.7</priority>
-    </url>
-    <url>
-        <loc>https://skycitadel.onrender.com/callback.html</loc>
-        <priority>0.3</priority>
-    </url>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
+  
+  <!-- Главная -->
+  <url>
+    <loc>https://skycitadel.cc.cd/</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+  <!-- SkyVideo -->
+  <url>
+    <loc>https://skycitadel.cc.cd/skyvideo.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- SkyTV -->
+  <url>
+    <loc>https://skycitadel.cc.cd/tv.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Газета -->
+  <url>
+    <loc>https://skycitadel.cc.cd/gazeta.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>hourly</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- SkyAI -->
+  <url>
+    <loc>https://skycitadel.cc.cd/skyai.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- SkySearch -->
+  <url>
+    <loc>https://skycitadel.cc.cd/search.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Мессенджер -->
+  <url>
+    <loc>https://skycitadel.cc.cd/skymessage.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- Соцсеть -->
+  <url>
+    <loc>https://skycitadel.cc.cd/socnet.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- Карты -->
+  <url>
+    <loc>https://skycitadel.cc.cd/</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Радио -->
+  <url>
+    <loc>https://skycitadel.cc.cd/radio.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
+  <!-- Музыка -->
+  <url>
+    <loc>https://skycitadel.cc.cd/music.html</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+
+  <!-- Видео (динамические страницы) -->
+  <!-- 
+    Здесь должны быть ссылки на все видео в SkyVideo.
+    Если у вас есть список видео, его можно сгенерировать динамически.
+    Пример:
+  -->
+  <!-- <url>
+    <loc>https://skycitadel.cc.cd/skyvideo.html?v=vid_123456</loc>
+    <lastmod>2026-08-16</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.5</priority>
+    <video:video>
+      <video:thumbnail_loc>https://skycitadel.cc.cd/thumbnails/thumb_123456.jpg</video:thumbnail_loc>
+      <video:title>Название видео</video:title>
+      <video:description>Описание видео</video:description>
+      <video:player_loc>https://skycitadel.cc.cd/skyvideo.html?v=vid_123456</video:player_loc>
+      <video:duration>120</video:duration>
+      <video:publication_date>2026-08-16T12:00:00+00:00</video:publication_date>
+    </video:video>
+  </url> -->
 </urlset>
