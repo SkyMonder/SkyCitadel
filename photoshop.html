@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkyPhotoshop • Фоторедактор</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 1rem;
+    }
+    .container {
+      max-width: 1300px;
+      width: 100%;
+      background: #1a233a;
+      border-radius: 20px;
+      border: 1px solid #2a3450;
+      padding: 1.5rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.7);
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+    .header h1 {
+      font-size: 1.6rem;
+      font-weight: 300;
+      color: #b7ceff;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .header a {
+      color: #5f7ecf;
+      text-decoration: none;
+    }
+    .header a:hover { text-decoration: underline; }
+    .tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1rem;
+      align-items: center;
+      background: #0d1425;
+      padding: 0.8rem;
+      border-radius: 12px;
+      border: 1px solid #2a3450;
+    }
+    .tools .group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.4rem;
+      align-items: center;
+      padding: 0 0.5rem;
+      border-right: 1px solid #2a3450;
+    }
+    .tools .group:last-child { border-right: none; }
+    .tools .group label {
+      font-size: 0.7rem;
+      color: #8899cc;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .tools input[type="file"] { display: none; }
+    .btn {
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      padding: 0.4rem 0.9rem;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .btn:hover { background: #4a6bb0; }
+    .btn-success { background: #2f7a4a; }
+    .btn-success:hover { background: #4a9a6a; }
+    .btn-danger { background: #8c2f2f; }
+    .btn-danger:hover { background: #b04a4a; }
+    .btn-sm { padding: 0.2rem 0.6rem; font-size: 0.7rem; }
+    .btn-outline { background: transparent; border: 1px solid #5f7ecf; color: #b7ceff; }
+    .btn-outline:hover { background: #2f4b8c; border-color: #5f7ecf; }
+    .editor {
+      display: flex;
+      flex-direction: row;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+    .canvas-wrapper {
+      flex: 2;
+      min-width: 300px;
+      background: #0d1225;
+      border-radius: 12px;
+      border: 1px solid #2a3450;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .canvas-wrapper canvas {
+      max-width: 100%;
+      max-height: 70vh;
+      display: block;
+      image-rendering: auto;
+      cursor: crosshair;
+    }
+    .side-panel {
+      flex: 1;
+      min-width: 220px;
+      display: flex;
+      flex-direction: column;
+      gap: 0.8rem;
+    }
+    .side-panel .section {
+      background: #0d1425;
+      border-radius: 12px;
+      padding: 0.8rem;
+      border: 1px solid #2a3450;
+    }
+    .side-panel .section h3 {
+      font-size: 0.9rem;
+      color: #b7ceff;
+      font-weight: 400;
+      margin-bottom: 0.5rem;
+      border-bottom: 1px solid #2a3450;
+      padding-bottom: 0.3rem;
+    }
+    .side-panel .section .slider-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 0.4rem;
+    }
+    .side-panel .section .slider-group label {
+      font-size: 0.7rem;
+      color: #8899cc;
+      display: flex;
+      justify-content: space-between;
+    }
+    .side-panel .section input[type="range"] {
+      width: 100%;
+      background: #1a233a;
+      height: 4px;
+      border-radius: 2px;
+      -webkit-appearance: none;
+      appearance: none;
+      outline: none;
+    }
+    .side-panel .section input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #5f7ecf;
+      cursor: pointer;
+    }
+    .side-panel .section .color-picker {
+      display: flex;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .side-panel .section .color-picker input[type="color"] {
+      width: 30px;
+      height: 30px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: transparent;
+    }
+    .side-panel .section .color-picker input[type="text"] {
+      flex: 1;
+      padding: 0.3rem 0.5rem;
+      background: #0d1225;
+      border: 1px solid #2a3450;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .filter-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 0.3rem;
+    }
+    .filter-grid .btn {
+      font-size: 0.65rem;
+      padding: 0.2rem 0;
+    }
+    .text-input {
+      display: flex;
+      gap: 0.3rem;
+      margin-top: 0.3rem;
+    }
+    .text-input input {
+      flex: 1;
+      padding: 0.3rem 0.5rem;
+      background: #0d1225;
+      border: 1px solid #2a3450;
+      color: white;
+      border-radius: 6px;
+      font-size: 0.8rem;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #c44;
+      color: white;
+      padding: 0.6rem 1.5rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      z-index: 100;
+      display: none;
+      max-width: 90%;
+      text-align: center;
+    }
+    .toast.success { background: #2f7a4a; }
+    .mobile-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.3rem;
+      margin-top: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      .container { padding: 1rem; }
+      .editor { flex-direction: column; }
+      .side-panel { flex-direction: row; flex-wrap: wrap; }
+      .side-panel .section { flex: 1; min-width: 180px; }
+      .filter-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="container">
+    <div class="header">
+      <h1>🎨 SkyPhotoshop</h1>
+      <div>
+        <a href="/">🏰 Вернуться в крепость</a>
+      </div>
+    </div>
+
+    <!-- Панель инструментов -->
+    <div class="tools">
+      <div class="group">
+        <label>Файл</label>
+        <button class="btn" id="loadBtn">📂 Открыть</button>
+        <input type="file" id="fileInput" accept="image/*">
+        <button class="btn btn-success" id="saveBtn">💾 Сохранить</button>
+        <button class="btn btn-danger" id="resetBtn">⟳ Сброс</button>
+      </div>
+      <div class="group">
+        <label>Инструмент</label>
+        <button class="btn btn-outline btn-sm" data-tool="move">✋ Перемещение</button>
+        <button class="btn btn-outline btn-sm" data-tool="draw">✏️ Рисование</button>
+        <button class="btn btn-outline btn-sm" data-tool="text">📝 Текст</button>
+        <button class="btn btn-outline btn-sm" data-tool="crop">✂️ Обрезка</button>
+      </div>
+      <div class="group">
+        <label>Размер</label>
+        <button class="btn btn-sm" id="rotateLeft">↺ -90°</button>
+        <button class="btn btn-sm" id="rotateRight">↻ +90°</button>
+        <button class="btn btn-sm" id="flipH">⇔ Зеркало</button>
+      </div>
+    </div>
+
+    <!-- Редактор -->
+    <div class="editor">
+      <div class="canvas-wrapper" id="canvasWrapper">
+        <canvas id="canvas"></canvas>
+      </div>
+      <div class="side-panel">
+        <!-- Регулировки -->
+        <div class="section">
+          <h3>🔆 Регулировки</h3>
+          <div class="slider-group">
+            <label>Яркость <span id="brightnessVal">0</span></label>
+            <input type="range" id="brightness" min="-100" max="100" value="0">
+          </div>
+          <div class="slider-group">
+            <label>Контрастность <span id="contrastVal">0</span></label>
+            <input type="range" id="contrast" min="-100" max="100" value="0">
+          </div>
+          <div class="slider-group">
+            <label>Насыщенность <span id="saturationVal">0</span></label>
+            <input type="range" id="saturation" min="-100" max="100" value="0">
+          </div>
+          <div class="slider-group">
+            <label>Размытие <span id="blurVal">0</span></label>
+            <input type="range" id="blur" min="0" max="20" value="0">
+          </div>
+        </div>
+
+        <!-- Фильтры -->
+        <div class="section">
+          <h3>🎭 Фильтры</h3>
+          <div class="filter-grid">
+            <button class="btn btn-sm" data-filter="none">Нет</button>
+            <button class="btn btn-sm" data-filter="grayscale">Ч/Б</button>
+            <button class="btn btn-sm" data-filter="sepia">Сепия</button>
+            <button class="btn btn-sm" data-filter="invert">Инверсия</button>
+            <button class="btn btn-sm" data-filter="vintage">Винтаж</button>
+            <button class="btn btn-sm" data-filter="vivid">Яркий</button>
+          </div>
+        </div>
+
+        <!-- Текст и цвет -->
+        <div class="section">
+          <h3>📝 Текст / Цвет</h3>
+          <div class="text-input">
+            <input type="text" id="textInput" placeholder="Текст...">
+            <button class="btn btn-sm" id="addTextBtn">➕</button>
+          </div>
+          <div class="color-picker">
+            <input type="color" id="colorPicker" value="#ffffff">
+            <input type="text" id="colorHex" value="#ffffff" readonly>
+          </div>
+          <div class="mobile-buttons">
+            <button class="btn btn-sm btn-outline" id="undoBtn">↩ Отменить</button>
+            <button class="btn btn-sm btn-danger" id="clearDrawBtn">🧹 Очистить рисунок</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const wrapper = document.getElementById('canvasWrapper');
+
+    let img = new Image();
+    let originalImageData = null; // для сброса
+    let currentTool = 'move';
+    let isDrawing = false;
+    let isDragging = false;
+    let dragStart = { x: 0, y: 0 };
+    let drawColor = '#ffffff';
+    let lastX = 0, lastY = 0;
+    let history = [];
+
+    // Установка размера холста
+    function resizeCanvas(width, height) {
+      canvas.width = width || 800;
+      canvas.height = height || 600;
+      canvas.style.width = '100%';
+      canvas.style.height = 'auto';
+    }
+    resizeCanvas();
+
+    // ====== ЗАГРУЗКА ИЗОБРАЖЕНИЯ ======
+    function loadImage(file) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        img.onload = function() {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          ctx.drawImage(img, 0, 0);
+          originalImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          history = [];
+          showToast('Изображение загружено', '#2f7a4a');
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    document.getElementById('loadBtn').addEventListener('click', () => {
+      document.getElementById('fileInput').click();
+    });
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      if (this.files && this.files[0]) loadImage(this.files[0]);
+    });
+
+    // ====== СОХРАНЕНИЕ ======
+    document.getElementById('saveBtn').addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'edited_image.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+      showToast('Изображение сохранено', '#2f7a4a');
+    });
+
+    // ====== СБРОС ======
+    document.getElementById('resetBtn').addEventListener('click', () => {
+      if (!originalImageData) return;
+      ctx.putImageData(originalImageData, 0, 0);
+      resetSliders();
+      showToast('Сброшено', '#f48024');
+    });
+
+    function resetSliders() {
+      document.getElementById('brightness').value = 0;
+      document.getElementById('contrast').value = 0;
+      document.getElementById('saturation').value = 0;
+      document.getElementById('blur').value = 0;
+      document.getElementById('brightnessVal').textContent = '0';
+      document.getElementById('contrastVal').textContent = '0';
+      document.getElementById('saturationVal').textContent = '0';
+      document.getElementById('blurVal').textContent = '0';
+      applyFilters();
+    }
+
+    // ====== ПРИМЕНЕНИЕ ФИЛЬТРОВ И РЕГУЛИРОВОК ======
+    function applyFilters() {
+      if (!originalImageData) return;
+      // Копируем оригинал
+      const imageData = new ImageData(
+        new Uint8ClampedArray(originalImageData.data),
+        originalImageData.width,
+        originalImageData.height
+      );
+      const data = imageData.data;
+      const w = imageData.width;
+      const h = imageData.height;
+
+      const brightness = parseInt(document.getElementById('brightness').value) / 100;
+      const contrast = parseInt(document.getElementById('contrast').value) / 100;
+      const saturation = parseInt(document.getElementById('saturation').value) / 100;
+      const blur = parseInt(document.getElementById('blur').value);
+
+      // Яркость
+      if (brightness !== 0) {
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, Math.max(0, data[i] + brightness * 255));
+          data[i+1] = Math.min(255, Math.max(0, data[i+1] + brightness * 255));
+          data[i+2] = Math.min(255, Math.max(0, data[i+2] + brightness * 255));
+        }
+      }
+
+      // Контрастность
+      if (contrast !== 0) {
+        const factor = (259 * (contrast * 100 + 255)) / (255 * (259 - contrast * 100));
+        for (let i = 0; i < data.length; i += 4) {
+          data[i] = Math.min(255, Math.max(0, factor * (data[i] - 128) + 128));
+          data[i+1] = Math.min(255, Math.max(0, factor * (data[i+1] - 128) + 128));
+          data[i+2] = Math.min(255, Math.max(0, factor * (data[i+2] - 128) + 128));
+        }
+      }
+
+      // Насыщенность
+      if (saturation !== 0) {
+        const factor = 1 + saturation;
+        for (let i = 0; i < data.length; i += 4) {
+          const gray = 0.299 * data[i] + 0.587 * data[i+1] + 0.114 * data[i+2];
+          data[i] = Math.min(255, Math.max(0, gray + factor * (data[i] - gray)));
+          data[i+1] = Math.min(255, Math.max(0, gray + factor * (data[i+1] - gray)));
+          data[i+2] = Math.min(255, Math.max(0, gray + factor * (data[i+2] - gray)));
+        }
+      }
+
+      // Применяем размытие (простым усреднением, для скорости — только если нужно)
+      if (blur > 0 && blur <= 20) {
+        // Используем canvas для размытия
+        // Просто применяем filter
+        ctx.putImageData(imageData, 0, 0);
+        ctx.filter = `blur(${blur}px)`;
+        ctx.drawImage(canvas, 0, 0);
+        ctx.filter = 'none';
+        return; // уже нарисовали
+      }
+
+      ctx.putImageData(imageData, 0, 0);
+    }
+
+    // Слайдеры
+    document.querySelectorAll('#brightness, #contrast, #saturation, #blur').forEach(slider => {
+      slider.addEventListener('input', function() {
+        const val = this.value;
+        const label = document.getElementById(this.id + 'Val');
+        if (label) label.textContent = val;
+        applyFilters();
+      });
+    });
+
+    // Фильтры (применяем CSS-фильтры поверх canvas)
+    document.querySelectorAll('[data-filter]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const filter = this.dataset.filter;
+        if (filter === 'none') {
+          canvas.style.filter = 'none';
+          showToast('Фильтр снят', '#8899cc');
+          return;
+        }
+        let filterStyle = '';
+        switch(filter) {
+          case 'grayscale': filterStyle = 'grayscale(100%)'; break;
+          case 'sepia': filterStyle = 'sepia(100%)'; break;
+          case 'invert': filterStyle = 'invert(100%)'; break;
+          case 'vintage': filterStyle = 'sepia(50%) contrast(1.2) brightness(0.9)'; break;
+          case 'vivid': filterStyle = 'saturate(2) contrast(1.1)'; break;
+          default: filterStyle = 'none';
+        }
+        canvas.style.filter = filterStyle;
+        showToast(`Фильтр: ${filter}`, '#5f7ecf');
+      });
+    });
+
+    // ====== ИНСТРУМЕНТЫ ======
+    document.querySelectorAll('[data-tool]').forEach(btn => {
+      btn.addEventListener('click', function() {
+        document.querySelectorAll('[data-tool]').forEach(b => b.classList.remove('btn-success'));
+        this.classList.add('btn-success');
+        currentTool = this.dataset.tool;
+        canvas.style.cursor = currentTool === 'move' ? 'grab' : 'crosshair';
+        showToast(`Инструмент: ${currentTool}`, '#5f7ecf');
+      });
+    });
+    // По умолчанию 'move'
+    document.querySelector('[data-tool="move"]').classList.add('btn-success');
+
+    // ====== РИСОВАНИЕ ======
+    function getCanvasCoords(e) {
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+      return { x, y };
+    }
+
+    canvas.addEventListener('mousedown', function(e) {
+      if (currentTool === 'move') {
+        isDragging = true;
+        dragStart = getCanvasCoords(e);
+        return;
+      }
+      if (currentTool === 'draw') {
+        isDrawing = true;
+        const pos = getCanvasCoords(e);
+        lastX = pos.x; lastY = pos.y;
+        return;
+      }
+      if (currentTool === 'text') {
+        // Текст добавляется по кнопке, а не по клику
+        return;
+      }
+    });
+
+    canvas.addEventListener('mousemove', function(e) {
+      if (currentTool === 'move' && isDragging) {
+        const pos = getCanvasCoords(e);
+        const dx = pos.x - dragStart.x;
+        const dy = pos.y - dragStart.y;
+        // Перемещаем canvas через transform
+        const currentTransform = canvas.style.transform || 'translate(0px, 0px)';
+        const match = currentTransform.match(/translate\(([^,]+),\s*([^)]+)\)/);
+        const tx = match ? parseFloat(match[1]) : 0;
+        const ty = match ? parseFloat(match[2]) : 0;
+        canvas.style.transform = `translate(${tx + dx}px, ${ty + dy}px)`;
+        dragStart = pos;
+        return;
+      }
+      if (currentTool === 'draw' && isDrawing) {
+        const pos = getCanvasCoords(e);
+        ctx.beginPath();
+        ctx.moveTo(lastX, lastY);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.strokeStyle = drawColor;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+        lastX = pos.x; lastY = pos.y;
+      }
+    });
+
+    canvas.addEventListener('mouseup', function(e) {
+      if (currentTool === 'move') {
+        isDragging = false;
+        return;
+      }
+      if (currentTool === 'draw' && isDrawing) {
+        isDrawing = false;
+        history.push(canvas.toDataURL());
+      }
+    });
+
+    canvas.addEventListener('mouseleave', function() {
+      isDragging = false;
+      isDrawing = false;
+    });
+
+    // ====== ЦВЕТ ======
+    document.getElementById('colorPicker').addEventListener('input', function() {
+      drawColor = this.value;
+      document.getElementById('colorHex').value = drawColor;
+    });
+
+    // ====== ТЕКСТ ======
+    document.getElementById('addTextBtn').addEventListener('click', function() {
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) { showToast('Введите текст', '#f48024'); return; }
+      const x = canvas.width / 2;
+      const y = canvas.height / 2;
+      ctx.font = '40px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = drawColor;
+      ctx.shadowColor = 'rgba(0,0,0,0.7)';
+      ctx.shadowBlur = 8;
+      ctx.fillText(text, x, y);
+      ctx.shadowBlur = 0;
+      history.push(canvas.toDataURL());
+      showToast('Текст добавлен', '#2f7a4a');
+      document.getElementById('textInput').value = '';
+    });
+
+    // ====== ВРАЩЕНИЕ И ЗЕРКАЛО ======
+    function rotate(deg) {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width;
+      tempCanvas.height = canvas.height;
+      const tempCtx = tempCanvas.getContext('2d');
+      tempCtx.translate(canvas.width/2, canvas.height/2);
+      tempCtx.rotate(deg * Math.PI / 180);
+      tempCtx.drawImage(canvas, -canvas.width/2, -canvas.height/2);
+      // Меняем размер холста
+      canvas.width = tempCanvas.width;
+      canvas.height = tempCanvas.height;
+      ctx.drawImage(tempCanvas, 0, 0);
+      history.push(canvas.toDataURL());
+    }
+
+    document.getElementById('rotateLeft').addEventListener('click', () => rotate(-90));
+    document.getElementById('rotateRight').addEventListener('click', () => rotate(90));
+
+    document.getElementById('flipH').addEventListener('click', function() {
+      ctx.translate(canvas.width, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(canvas, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      history.push(canvas.toDataURL());
+      showToast('Зеркально отражено', '#2f7a4a');
+    });
+
+    // ====== ОТМЕНА ======
+    document.getElementById('undoBtn').addEventListener('click', function() {
+      if (history.length === 0) { showToast('Нет действий для отмены', '#f48024'); return; }
+      const last = history.pop();
+      const img = new Image();
+      img.onload = function() {
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0);
+      };
+      img.src = last;
+      showToast('Отменено', '#8899cc');
+    });
+
+    // ====== ОЧИСТКА РИСУНКА ======
+    document.getElementById('clearDrawBtn').addEventListener('click', function() {
+      if (!originalImageData) { showToast('Сначала загрузите изображение', '#f48024'); return; }
+      ctx.putImageData(originalImageData, 0, 0);
+      canvas.style.filter = 'none';
+      resetSliders();
+      showToast('Рисунок очищен', '#2f7a4a');
+    });
+
+    // ====== TOAST ======
+    function showToast(message, bg = '#c44') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.background = bg;
+      toast.style.display = 'block';
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 2500);
+    }
+
+    // ====== ИНИЦИАЛИЗАЦИЯ (заглушка) ======
+    // Создаём пустое изображение для демонстрации
+    ctx.fillStyle = '#1a233a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#5f7ecf';
+    ctx.font = '24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Загрузите изображение для редактирования', canvas.width/2, canvas.height/2);
+
+    console.log('🎨 SkyPhotoshop загружен');
+  </script>
+</body>
+</html>
