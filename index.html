@@ -551,7 +551,7 @@ function escapeHtml(text) {
 async function loadData(url, fallback = null) {
   try {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15 секунд
     const res = await fetch(url, {
       signal: controller.signal,
       headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
@@ -560,7 +560,11 @@ async function loadData(url, fallback = null) {
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (e) {
-    console.warn('⚠️ Ошибка загрузки', url, e.message);
+    if (e.name === 'AbortError') {
+      console.warn('⚠️ Запрос прерван по таймауту:', url);
+    } else {
+      console.warn('⚠️ Ошибка загрузки', url, e.message);
+    }
     return fallback;
   }
 }
