@@ -1121,7 +1121,9 @@
       setTimeout(() => {
         safeExecute(loadAnnouncementsAsync);
       }, 2000);
-
+	  // Загружаем обновления на главную
+	  loadUpdates();
+		
       setTimeout(() => {
         if (document.getElementById('maps').classList.contains('active')) {
           safeExecute(() => {
@@ -1526,6 +1528,33 @@
         }).catch(() => {});
       });
   })();
+// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
+async function loadUpdates() {
+  const container = document.getElementById('home-updates');
+  if (!container) return;
+  try {
+    const response = await fetch('/updates.json');
+    if (!response.ok) throw new Error('Не удалось загрузить обновления');
+    const updates = await response.json();
+    if (!Array.isArray(updates) || updates.length === 0) {
+      container.innerHTML = '<p style="color:#8899cc;">Пока нет обновлений</p>';
+      return;
+    }
+    // Сортируем по дате (свежие сверху)
+    updates.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Показываем последние 5
+    const recent = updates.slice(0, 5);
+    container.innerHTML = recent.map(item => `
+      <div style="padding:0.6rem 0; border-bottom:1px solid #2a3450;">
+        <div style="font-size:0.75rem; color:#8899cc;">${item.date}</div>
+        <div>${escapeHtml(item.text)}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.warn('Ошибка загрузки обновлений:', e);
+    container.innerHTML = '<p style="color:#f48024;">Не удалось загрузить обновления</p>';
+  }
+}
 </script>
 </body>
 </html>
