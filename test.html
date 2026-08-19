@@ -1,21 +1,139 @@
 <!DOCTYPE html>
-<html>
-<head><title>Test</title></head>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест эндпоинтов SkyMessage</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0a0f1e;
+            color: #e0e8ff;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1 { color: #b7ceff; }
+        button {
+            background: #5f7ecf;
+            border: none;
+            color: white;
+            padding: 0.8rem 1.5rem;
+            margin: 0.5rem 0.5rem 0.5rem 0;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:hover { background: #7a9aef; }
+        .log {
+            background: #111827;
+            border: 1px solid #2a3450;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            font-family: monospace;
+            min-height: 100px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .ok { color: #7ebc6f; }
+        .err { color: #f48024; }
+        .info { color: #8899cc; }
+    </style>
+</head>
 <body>
-  <button onclick="test()">Test</button>
-  <pre id="log"></pre>
-  <script>
-    async function test() {
-      const log = document.getElementById('log');
-      log.textContent = '⏳ Запрос...';
-      try {
-        const res = await fetch('https://skymutant.cc.cd/chat/login_salt?login=testuser');
-        const data = await res.json();
-        log.textContent = '✅ ' + JSON.stringify(data, null, 2);
-      } catch (e) {
-        log.textContent = '❌ ' + e.message;
-      }
-    }
-  </script>
+    <h1>🧪 Тест эндпоинтов SkyMessage</h1>
+    <p>Проверка доступности <strong>/smreg</strong> (POST) и <strong>/smlog</strong> (GET)</p>
+
+    <div>
+        <button onclick="testRegister()">📝 Тест регистрации (/smreg)</button>
+        <button onclick="testLogin()">🔑 Тест получения соли (/smlog)</button>
+        <button onclick="testDirect()">🌐 Прямой GET к /smlog</button>
+        <button onclick="clearLog()">🧹 Очистить</button>
+    </div>
+
+    <div class="log" id="log">⏳ Нажмите кнопку для теста...</div>
+
+    <script>
+        const logDiv = document.getElementById('log');
+
+        function log(message, type = 'info') {
+            const colors = { ok: '#7ebc6f', err: '#f48024', info: '#8899cc' };
+            logDiv.innerHTML += `<div style="color: ${colors[type] || '#e0e8ff'}">${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            logDiv.innerHTML = '';
+        }
+
+        // Генерация случайного логина для теста
+        function generateLogin() {
+            return 'test_' + Date.now();
+        }
+
+        // 1. Тест регистрации (/smreg)
+        async function testRegister() {
+            const login = generateLogin();
+            const salt = btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(16))));
+            log(`📤 POST /smreg с login: ${login}`, 'info');
+
+            try {
+                const res = await fetch('https://skymutant.cc.cd/smreg', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login, salt })
+                });
+
+                const data = await res.json();
+                if (res.ok) {
+                    log(`✅ Успех! Статус: ${res.status}`, 'ok');
+                    log(`📦 Ответ: ${JSON.stringify(data, null, 2)}`, 'ok');
+                } else {
+                    log(`❌ Ошибка! Статус: ${res.status}`, 'err');
+                    log(`📦 Ответ: ${JSON.stringify(data, null, 2)}`, 'err');
+                }
+            } catch (e) {
+                log(`❌ ИСКЛЮЧЕНИЕ: ${e.message}`, 'err');
+            }
+        }
+
+        // 2. Тест получения соли (/smlog)
+        async function testLogin() {
+            const login = 'testuser'; // существующий пользователь
+            log(`📤 GET /smlog?login=${login}`, 'info');
+
+            try {
+                const res = await fetch(`https://skymutant.cc.cd/smlog?login=${login}`);
+                const data = await res.json();
+                if (res.ok) {
+                    log(`✅ Успех! Статус: ${res.status}`, 'ok');
+                    log(`📦 Ответ: ${JSON.stringify(data, null, 2)}`, 'ok');
+                } else {
+                    log(`❌ Ошибка! Статус: ${res.status}`, 'err');
+                    log(`📦 Ответ: ${JSON.stringify(data, null, 2)}`, 'err');
+                }
+            } catch (e) {
+                log(`❌ ИСКЛЮЧЕНИЕ: ${e.message}`, 'err');
+            }
+        }
+
+        // 3. Прямой GET (для проверки CORS и доступности)
+        async function testDirect() {
+            const login = 'testuser';
+            log(`🌐 Прямой GET в браузере: /smlog?login=${login}`, 'info');
+            try {
+                const res = await fetch(`https://skymutant.cc.cd/smlog?login=${login}`);
+                const data = await res.json();
+                log(`✅ Ответ: ${JSON.stringify(data, null, 2)}`, 'ok');
+            } catch (e) {
+                log(`❌ Ошибка: ${e.message}`, 'err');
+            }
+        }
+
+        // Логируем старт
+        log('🟢 Тест загружен. Нажмите кнопку.', 'info');
+    </script>
 </body>
 </html>
