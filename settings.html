@@ -57,7 +57,6 @@
       border-bottom: 1px solid #2a3450;
     }
     body.light .setting-group { border-bottom-color: #d0d0d0; }
-
     .setting-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
 
     .setting-group h2 {
@@ -179,6 +178,7 @@
       max-width: 90%;
       text-align: center;
     }
+    .toast.error { background: #c44; }
     @media (max-width: 600px) {
       .container { padding: 1rem; }
     }
@@ -237,9 +237,8 @@
       t._timeout = setTimeout(() => { t.style.display = 'none'; }, 2500);
     }
 
-    // ====== ТЕМА ======
+    // ====== ПРИМЕНЕНИЕ ТЕМЫ ======
     function setTheme(theme) {
-      // dark, light, system
       if (theme === 'system') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.body.classList.toggle('light', !prefersDark);
@@ -257,11 +256,41 @@
       });
     }
 
-    // Загрузка сохранённой темы
-    const savedTheme = localStorage.getItem('skycitadel_theme') || 'dark';
-    setTheme(savedTheme);
+    // ====== ПРИМЕНЕНИЕ ФОНА ======
+    function applyBackground(url) {
+      if (!url) {
+        document.body.style.backgroundImage = '';
+        document.body.style.backgroundSize = '';
+        document.body.style.backgroundPosition = '';
+        document.body.style.backgroundRepeat = '';
+        document.body.style.backgroundAttachment = '';
+        localStorage.removeItem('skycitadel_bg');
+        document.getElementById('bgPreview').innerHTML = '<span class="empty">Фон не установлен</span>';
+        showToast('Фон убран', '#f48024');
+        return;
+      }
+      document.body.style.backgroundImage = `url(${url})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundAttachment = 'fixed';
+      localStorage.setItem('skycitadel_bg', url);
+      document.getElementById('bgPreview').innerHTML = `<img src="${url}" alt="Фон">`;
+      showToast('Фон применён!', '#2f7a4a');
+    }
 
-    // Клики по кнопкам тем
+    // ====== ЗАГРУЗКА СОХРАНЁННЫХ НАСТРОЕК ======
+    (function loadSettings() {
+      const savedTheme = localStorage.getItem('skycitadel_theme') || 'dark';
+      setTheme(savedTheme);
+
+      const savedBg = localStorage.getItem('skycitadel_bg');
+      if (savedBg) {
+        applyBackground(savedBg);
+      }
+    })();
+
+    // ====== КЛИКИ ПО ТЕМАМ ======
     document.querySelectorAll('.theme-btn').forEach(btn => {
       btn.addEventListener('click', function() {
         setTheme(this.dataset.theme);
@@ -269,47 +298,14 @@
       });
     });
 
-    // Следим за системной темой
+    // ====== СЛЕДИМ ЗА СИСТЕМНОЙ ТЕМОЙ ======
     window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
       if (localStorage.getItem('skycitadel_theme') === 'system') {
         document.body.classList.toggle('light', !e.matches);
       }
     });
 
-    // ====== ФОН ======
-    function applyBackground(url) {
-      if (!url) {
-        document.body.style.backgroundImage = '';
-        document.body.style.backgroundSize = '';
-        document.body.style.backgroundPosition = '';
-        document.body.style.backgroundRepeat = '';
-        localStorage.removeItem('skycitadel_bg');
-        document.getElementById('bgPreview').innerHTML = '<span class="empty">Фон не установлен</span>';
-        showToast('Фон убран', '#f48024');
-        return;
-      }
-      // Проверяем, что URL валидный (хоть как-то)
-      document.body.style.backgroundImage = `url(${url})`;
-      document.body.style.backgroundSize = 'cover';
-      document.body.style.backgroundPosition = 'center center';
-      document.body.style.backgroundRepeat = 'no-repeat';
-      document.body.style.backgroundAttachment = 'fixed';
-      localStorage.setItem('skycitadel_bg', url);
-      // Превью
-      document.getElementById('bgPreview').innerHTML = `<img src="${url}" alt="Фон">`;
-      showToast('Фон применён!', '#2f7a4a');
-    }
-
-    // Восстанавливаем фон
-    const savedBg = localStorage.getItem('skycitadel_bg');
-    if (savedBg) {
-      applyBackground(savedBg);
-    }
-
-    // Загрузка файла
-    document.getElementById('uploadBgBtn').addEventListener('click', () => {
-      document.getElementById('bgFileInput').click();
-    });
+    // ====== ЗАГРУЗКА ФАЙЛА — ПРИМЕНЯЕТСЯ СРАЗУ ======
     document.getElementById('bgFileInput').addEventListener('change', function(e) {
       if (this.files && this.files[0]) {
         const reader = new FileReader();
@@ -322,7 +318,7 @@
       }
     });
 
-    // URL
+    // ====== КНОПКА "ПРИМЕНИТЬ" — ТОЛЬКО ДЛЯ URL ======
     document.getElementById('applyBgBtn').addEventListener('click', function() {
       const url = document.getElementById('bgUrlInput').value.trim();
       if (!url) {
@@ -330,9 +326,10 @@
         return;
       }
       applyBackground(url);
+      document.getElementById('bgFileInput').value = '';
     });
 
-    // Убрать фон
+    // ====== УБРАТЬ ФОН ======
     document.getElementById('removeBgBtn').addEventListener('click', function() {
       applyBackground(null);
       document.getElementById('bgUrlInput').value = '';
@@ -348,12 +345,6 @@
       document.getElementById('bgUrlInput').value = '';
       showToast('Настройки сброшены', '#f48024');
     });
-
-    // ====== ПРИМЕНЯЕМ НАСТРОЙКИ КО ВСЕМ СТРАНИЦАМ ======
-    // Фон и тема применяются глобально через body
-    // При загрузке любой страницы нужно вызывать applySettings()
-    // Но мы уже сделали это выше.
-    console.log('⚙️ Настройки загружены');
   </script>
 </body>
 </html>
