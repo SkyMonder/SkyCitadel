@@ -243,7 +243,7 @@
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
-    // ====== АВТОРИЗАЦИЯ (через /smreg и /smlog) ======
+    // ====== АВТОРИЗАЦИЯ ======
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -260,7 +260,7 @@
           const salt = window.crypto.getRandomValues(new Uint8Array(16));
           const saltB64 = btoa(String.fromCharCode(...salt));
           cryptoKey = await deriveKey(password, saltB64);
-          const res = await fetch(`${SERVER_URL}/smreg`, {
+          const res = await fetch(`${SERVER_URL}/chat/register`, {
             method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
           });
           if (!res.ok) { alert(res.status === 409 ? 'Логин занят' : 'Ошибка регистрации'); return; }
@@ -269,7 +269,7 @@
           document.getElementById('authBtn').textContent='Войти';
           document.getElementById('switchAuth').textContent='Нет аккаунта? Зарегистрироваться';
         } else {
-          const res = await fetch(`${SERVER_URL}/smlog?login=${encodeURIComponent(login)}`);
+          const res = await fetch(`${SERVER_URL}/chat/login_salt?login=${encodeURIComponent(login)}`);
           if (!res.ok) { alert('Пользователь не найден'); return; }
           const { salt: saltB64 } = await res.json();
           cryptoKey = await deriveKey(password, saltB64);
