@@ -80,7 +80,7 @@
             log(`📤 POST /smreg с login: ${login}`, 'info');
 
             try {
-                const res = await fetch('https://skymutant.cc.cd/smreg', {
+                const res = await fetch('https://skymutant-prox.rilloperdagelo.workers.dev/smreg', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ login, salt })
@@ -105,7 +105,7 @@
             log(`📤 GET /smlog?login=${login}`, 'info');
 
             try {
-                const res = await fetch(`https://skymutant.cc.cd/smlog?login=${login}`);
+                const res = await fetch(`https://skymutant-prox.rilloperdagelo.workers.dev/smlog?login=${login}`);
                 const data = await res.json();
                 if (res.ok) {
                     log(`✅ Успех! Статус: ${res.status}`, 'ok');
@@ -124,7 +124,7 @@
             const login = 'testuser';
             log(`🌐 Прямой GET в браузере: /smlog?login=${login}`, 'info');
             try {
-                const res = await fetch(`https://skymutant.cc.cd/smlog?login=${login}`);
+                const res = await fetch(`https://skymutant-prox.rilloperdagelo.workers.dev/smlog?login=${login}`);
                 const data = await res.json();
                 log(`✅ Ответ: ${JSON.stringify(data, null, 2)}`, 'ok');
             } catch (e) {
