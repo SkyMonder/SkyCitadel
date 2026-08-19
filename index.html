@@ -1496,27 +1496,6 @@
   loadStats();
   setInterval(loadStats, 300000);
 })();
-	  
-async function loadData(url, fallback = null) {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 10000);
-    const res = await fetch(url, {
-      signal: controller.signal,
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-    });
-    clearTimeout(timeout);
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
-  } catch (e) {
-    console.warn('⚠️ Ошибка загрузки', url, e.message);
-    return fallback;
-  }
-}
-
-  loadData();
-  setInterval(loadData, 300000);
-})();
 </script>
 <script>
   (function trackVisit() {
@@ -1547,61 +1526,7 @@ async function loadData(url, fallback = null) {
         }).catch(() => {});
       });
   })();
-// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
-// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
-// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
-async function loadUpdates() {
-  const container = document.getElementById('home-updates');
-  if (!container) return;
 
-  const updates = await loadData('/updates.json', []);
-  if (updates && Array.isArray(updates) && updates.length > 0) {
-    updates.sort((a, b) => new Date(b.date) - new Date(a.date));
-    const recent = updates.slice(0, 5);
-    container.innerHTML = recent.map(item => `
-      <div style="padding:0.6rem 0; border-bottom:1px solid #2a3450;">
-        <div style="font-size:0.75rem; color:#8899cc;">${escapeHtml(item.date)}</div>
-        <div>${escapeHtml(item.text)}</div>
-      </div>
-    `).join('');
-  } else {
-    container.innerHTML = '<p style="color:#8899cc;">Пока нет обновлений</p>';
-  }
-}
-// Обработка навигации по хешу (например, #messenger)
-// ===== Обработка хешей =====
-window.addEventListener('hashchange', function() {
-  const hash = location.hash.replace('#', '');
-  
-  // Хеши, которые должны вести на отдельные страницы (редирект)
-  const externalPages = {
-    'video': 'skyvideo.html',
-    'music': 'music.html'
-  };
-  
-  if (externalPages[hash]) {
-    window.location.href = externalPages[hash];
-    return;
-  }
-  
-  // Для остальных хешей — переключение секций внутри index.html
-  if (hash) {
-    const targetSection = document.getElementById(hash);
-    if (targetSection) {
-      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      targetSection.classList.add('active');
-      document.querySelectorAll('.nav-btn').forEach(btn => {
-        btn.classList.remove('active');
-        if (btn.dataset.section === hash) btn.classList.add('active');
-      });
-    }
-  }
-});
-
-// При загрузке страницы обрабатываем хеш, если он есть
-if (window.location.hash) {
-  window.dispatchEvent(new Event('hashchange'));
-}
 </script>
 </body>
 </html>
