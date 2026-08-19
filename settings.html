@@ -250,7 +250,6 @@
         document.body.classList.remove('light');
         localStorage.setItem('skycitadel_theme', 'dark');
       }
-      // Обновляем активную кнопку
       document.querySelectorAll('.theme-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.theme === theme);
       });
@@ -259,21 +258,23 @@
     // ====== ПРИМЕНЕНИЕ ФОНА ======
     function applyBackground(url) {
       if (!url) {
-        document.body.style.backgroundImage = '';
-        document.body.style.backgroundSize = '';
-        document.body.style.backgroundPosition = '';
-        document.body.style.backgroundRepeat = '';
-        document.body.style.backgroundAttachment = '';
+        // Убираем фон
+        document.body.style.removeProperty('background-image');
+        document.body.style.removeProperty('background-size');
+        document.body.style.removeProperty('background-position');
+        document.body.style.removeProperty('background-attachment');
+        document.body.style.removeProperty('background-repeat');
         localStorage.removeItem('skycitadel_bg');
         document.getElementById('bgPreview').innerHTML = '<span class="empty">Фон не установлен</span>';
         showToast('Фон убран', '#f48024');
         return;
       }
-      document.body.style.backgroundImage = `url(${url})`;
-      document.body.style.backgroundSize = 'cover';
-      document.body.style.backgroundPosition = 'center center';
-      document.body.style.backgroundRepeat = 'no-repeat';
-      document.body.style.backgroundAttachment = 'fixed';
+      // Устанавливаем фон через setProperty с !important
+      document.body.style.setProperty('background-image', `url(${url})`, 'important');
+      document.body.style.setProperty('background-size', 'cover', 'important');
+      document.body.style.setProperty('background-position', 'center center', 'important');
+      document.body.style.setProperty('background-attachment', 'fixed', 'important');
+      document.body.style.setProperty('background-repeat', 'no-repeat', 'important');
       localStorage.setItem('skycitadel_bg', url);
       document.getElementById('bgPreview').innerHTML = `<img src="${url}" alt="Фон">`;
       showToast('Фон применён!', '#2f7a4a');
