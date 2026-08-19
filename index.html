@@ -1529,7 +1529,21 @@
       });
   })();
 // ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
+// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
 async function loadUpdates() {
+  // Локальная функция экранирования (на случай, если глобальная недоступна)
+  function escapeHtml(text) {
+    if (!text) return '';
+    return String(text).replace(/[&<>"']/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      if (m === '"') return '&quot;';
+      if (m === "'") return '&#39;';
+      return m;
+    });
+  }
+
   const container = document.getElementById('home-updates');
   if (!container) return;
   try {
@@ -1540,13 +1554,11 @@ async function loadUpdates() {
       container.innerHTML = '<p style="color:#8899cc;">Пока нет обновлений</p>';
       return;
     }
-    // Сортируем по дате (свежие сверху)
     updates.sort((a, b) => new Date(b.date) - new Date(a.date));
-    // Показываем последние 5
     const recent = updates.slice(0, 5);
     container.innerHTML = recent.map(item => `
       <div style="padding:0.6rem 0; border-bottom:1px solid #2a3450;">
-        <div style="font-size:0.75rem; color:#8899cc;">${item.date}</div>
+        <div style="font-size:0.75rem; color:#8899cc;">${escapeHtml(item.date)}</div>
         <div>${escapeHtml(item.text)}</div>
       </div>
     `).join('');
