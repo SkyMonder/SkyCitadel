@@ -531,922 +531,87 @@
   <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js" defer></script>
 
   <!-- Наш основной скрипт оборачиваем в DOMContentLoaded -->
-  <script>
-	// Определяем, что это приложение (WebView, Electron или кастомный User-Agent)
-	const isApp = navigator.userAgent.includes('Electron') || 
-        		  navigator.userAgent.includes('wv') ||          // WebView (WebIntoApp)
-              	  navigator.userAgent.includes('SkyCitadelApp'); // Кастомный агент, если зададите
+<script>
+// ============================================================
+// ГЛОБАЛЬНЫЕ ФУНКЦИИ (доступны везде)
+// ============================================================
 
-	if (!isApp && !localStorage.getItem('skycitadel_welcome_dismissed')) {
-    	window.location.href = '/welcome.html';
-	}
-    document.addEventListener('DOMContentLoaded', function() {
-      // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
-      const SERVICE2_URL = 'https://skymutant.cc.cd';
-      const SERVICE4_URL = 'https://skymutant.cc.cd';
-      const SKYID_URL = 'https://skymutant.cc.cd';
-	  const API_BASE = 'https://skymutant.cc.cd';
-
-      // ====== КЕШИРОВАННЫЙ FETCH ======
-      // ====== ПРОСТАЯ ЗАГРУЗКА ДАННЫХ (БЕЗ КЕША) ======
-	  async function loadData(url, fallback = null) {
-  	  try {
-    	  const controller = new AbortController();
-    	  const timeout = setTimeout(() => controller.abort(), 10000);
-    	  const res = await fetch(url, { 
-      	  signal: controller.signal,
-      	  headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
-    	  });
-    	  clearTimeout(timeout);
-    	  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    	  return await res.json();
-  	  } catch (e) {
-    	  console.warn('⚠️ Ошибка загрузки', url, e.message);
-    	  return fallback;
-  	    }
-	  }
-
-      function safeExecute(fn, fallback = null) {
-        try { return fn(); } catch (e) { console.warn('⚠️ Ошибка:', e); return fallback; }
-      }
-
-      // ====== АККОРДЕОН ======
-      document.querySelectorAll('.section-title').forEach(title => {
-        title.addEventListener('click', () => {
-          const items = title.nextElementSibling;
-          const arrow = title.querySelector('.arrow');
-          if (items.style.display === 'none' || !items.style.display) {
-            items.style.display = 'block';
-            arrow.textContent = '▼';
-          } else {
-            items.style.display = 'none';
-            arrow.textContent = '▶';
-          }
-        });
-      });
-
-      // ====== НАВИГАЦИЯ ======
-      const navButtons = document.querySelectorAll('.nav-btn');
-      const sections = document.querySelectorAll('.section');
-      navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-          navButtons.forEach(b => b.classList.remove('active'));
-          btn.classList.add('active');
-          const targetId = btn.getAttribute('data-section');
-          sections.forEach(sec => sec.classList.remove('active'));
-          document.getElementById(targetId).classList.add('active');
-          if (targetId === 'maps') setTimeout(() => safeExecute(() => map.invalidateSize()), 100);
-          if (targetId === 'calendar') { safeExecute(() => renderCalendar()); safeExecute(() => updateSelectedDate()); }
-          if (targetId === 'news') safeExecute(refreshNewsIframe);
-          if (targetId === 'announce') safeExecute(loadAnnouncementsAsync);
-        });
-      });
-
-      // ====== ШИФРОВАНИЕ ======
-      const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
-      async function getKey() {
-        const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
-        return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
-      }
-      async function encryptPayload(obj) {
-        const key = await getKey();
-        const iv = crypto.getRandomValues(new Uint8Array(12));
-        const enc = new TextEncoder().encode(JSON.stringify(obj));
-        const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
-        const combo = new Uint8Array(iv.byteLength + c.byteLength);
-        combo.set(iv);
-        combo.set(new Uint8Array(c), iv.byteLength);
-        return btoa(String.fromCharCode(...combo));
-      }
-      async function decryptPayload(b64) {
-        const key = await getKey();
-        const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
-        const iv = combo.slice(0, 12);
-        const data = combo.slice(12);
-        const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
-        return JSON.parse(new TextDecoder().decode(dec));
-      }
-      async function secureFetch(url, payload) {
-        const enc = await encryptPayload(payload);
-        const r = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ data: enc })
-        });
-        if (!r.ok) throw new Error('fail');
-        const j = await r.json();
-        if (!j.data) throw new Error('no data');
-        return decryptPayload(j.data);
-      }
-
-      // ====== КАРТЫ ======
-      // Проверяем, что L определён (Leaflet загружен)
-      if (typeof L !== 'undefined') {
-        const map = L.map('map').setView([55.751244, 37.618423], 10);
-        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-          attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
-          subdomains: 'abcd', maxZoom: 20
-        }).addTo(map);
-        let routingControl = null, userLocationMarker = null;
-
-        // Делаем map доступной глобально для других функций (например, invalidation)
-        window.map = map;
-
-        document.getElementById('geolocate-btn').addEventListener('click', () => {
-          if (!navigator.geolocation) return alert('Геолокация не поддерживается');
-          navigator.geolocation.getCurrentPosition(pos => {
-            const lat = pos.coords.latitude, lon = pos.coords.longitude;
-            map.setView([lat, lon], 15);
-            if (userLocationMarker) map.removeLayer(userLocationMarker);
-            userLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('📍 Вы здесь').openPopup();
-            document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
-          }, err => alert('Ошибка: ' + err.message), { enableHighAccuracy: true });
-        });
-
-        document.getElementById('map-search-btn').addEventListener('click', async () => {
-          const q = document.getElementById('map-search-input').value.trim();
-          if (!q) return;
-          const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
-          const d = await r.json();
-          if (d && d.length > 0) {
-            const { lat, lon } = d[0];
-            map.setView([lat, lon], 13);
-            L.marker([lat, lon]).addTo(map).bindPopup(q).openPopup();
-          }
-        });
-
-        document.getElementById('route-go').addEventListener('click', async () => {
-          const startInput = document.getElementById('route-start').value.trim();
-          const endInput = document.getElementById('route-end').value.trim();
-          if (!startInput || !endInput) return alert('Укажите начало и конец');
-          const geocode = async (addr) => {
-            const m = addr.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
-            if (m) return L.latLng(parseFloat(m[1]), parseFloat(m[2]));
-            const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
-            const d = await r.json();
-            if (d && d.length > 0) return L.latLng(d[0].lat, d[0].lon);
-            throw new Error('Адрес не найден');
-          };
-          try {
-            const start = await geocode(startInput), end = await geocode(endInput);
-            if (routingControl) map.removeControl(routingControl);
-            routingControl = L.Routing.control({
-              waypoints: [start, end],
-              routeWhileDragging: true,
-              lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] }
-            }).addTo(map);
-          } catch (e) { alert('Ошибка: ' + e.message); }
-        });
-      } else {
-        console.error('❌ Leaflet не загружен!');
-        document.getElementById('map').innerHTML = '<p style="color:#c44;">Ошибка загрузки карты. Попробуйте перезагрузить страницу.</p>';
-      }
-
-      // ====== ОБЪЯВЛЕНИЯ ======
-      async function loadAnnouncementsAsync() {
-		  const container = document.getElementById('announce-container');
-  		if (!container) return;
-  		container.innerHTML = '<div class="loading-placeholder">Загрузка...</div>';
-  		const data = await loadData('https://skymutant.cc.cd/announcements', []);
-  		if (data && Array.isArray(data)) {
-    		container.innerHTML = data.length
-      		? data.map(i => `<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('')
-      		: '<p>Объявлений пока нет</p>';
-  		} else {
-    		container.innerHTML = '<p style="color:#f48024;">Не удалось загрузить объявления</p>';
-  		}
-	  }
-
-      // ====== КАЛЕНДАРЬ ======
-      let calDate = new Date(),
-        selectedDate = new Date().toISOString().split('T')[0];
-      let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
-      function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
-      function renderCalendar() {
-        const y = calDate.getFullYear(),
-          m = calDate.getMonth();
-        const first = new Date(y, m, 1).getDay() || 7,
-          days = new Date(y, m + 1, 0).getDate();
-        document.getElementById('cal-month-year').textContent = calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
-        const grid = document.getElementById('cal-days');
-        grid.innerHTML = '';
-        ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => {
-          const div = document.createElement('div');
-          div.className = 'cal-day-name';
-          div.textContent = d;
-          grid.appendChild(div);
-        });
-        for (let i = 1; i < first; i++) grid.appendChild(document.createElement('div'));
-        const today = new Date();
-        for (let d = 1; d <= days; d++) {
-          const div = document.createElement('div');
-          div.className = 'cal-day';
-          div.textContent = d;
-          const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
-          if (events[ds]?.length) div.classList.add('has-events');
-          if (y === today.getFullYear() && m === today.getMonth() && d === today.getDate()) div.classList.add('today');
-          div.addEventListener('click', () => {
-            selectedDate = ds;
-            document.querySelectorAll('.cal-day').forEach(el => el.style.background = '');
-            div.style.background = '#3f62b0';
-            updateSelectedDate();
-          });
-          grid.appendChild(div);
-        }
-        if (selectedDate.startsWith(`${y}-${String(m + 1).padStart(2, '0')}`)) {
-          const day = +selectedDate.split('-')[2];
-          const cells = grid.querySelectorAll('.cal-day');
-          const target = cells[first - 1 + day];
-          if (target) target.style.background = '#3f62b0';
-        }
-      }
-      function updateSelectedDate() {
-        document.getElementById('selected-date').textContent = selectedDate;
-        const c = document.getElementById('events-container');
-        const dayEvents = events[selectedDate] || [];
-        c.innerHTML = dayEvents.map(ev =>
-          `<div class="event-item"><span>${escapeHtml(ev.text)}</span><button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button></div>`
-        ).join('');
-        document.getElementById('event-date').value = selectedDate;
-      }
-      document.getElementById('add-event').addEventListener('click', () => {
-        const text = document.getElementById('event-text').value.trim();
-        if (!text) return;
-        const date = document.getElementById('event-date').value || selectedDate;
-        if (!events[date]) events[date] = [];
-        events[date].push({ id: Date.now().toString(), text });
-        saveEvents();
-        document.getElementById('event-text').value = '';
-        renderCalendar();
-        updateSelectedDate();
-      });
-      window.deleteEvent = (id) => {
-        for (const d in events) {
-          events[d] = events[d].filter(ev => ev.id !== id);
-          if (!events[d].length) delete events[d];
-        }
-        saveEvents();
-        renderCalendar();
-        updateSelectedDate();
-      };
-      document.getElementById('cal-prev').addEventListener('click', () => {
-        calDate.setMonth(calDate.getMonth() - 1);
-        renderCalendar();
-      });
-      document.getElementById('cal-next').addEventListener('click', () => {
-        calDate.setMonth(calDate.getMonth() + 1);
-        renderCalendar();
-      });
-      renderCalendar();
-      updateSelectedDate();
-
-      // ====== КАЛЬКУЛЯТОР ======
-      let calcExpr = '',
-        calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]'),
-        isEngineer = false;
-      const basic = [
-        ['C', '(', ')', '/'],
-        ['7', '8', '9', '*'],
-        ['4', '5', '6', '-'],
-        ['1', '2', '3', '+'],
-        ['0', '.', '⌫', '=']
-      ];
-      const eng = [
-        ['C', '(', ')', 'sin', 'cos'],
-        ['7', '8', '9', 'tan', 'log'],
-        ['4', '5', '6', 'sqrt', '^'],
-        ['1', '2', '3', 'EXP', 'PI'],
-        ['0', '.', '⌫', '+', '=']
-      ];
-      function buildCalc(layout) {
-        const c = document.getElementById('calc-buttons');
-        c.innerHTML = '';
-        layout.forEach(row => row.forEach(key => {
-          const btn = document.createElement('button');
-          btn.className = 'calc-btn';
-          if ('C(/*-+='.includes(key) || 'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator');
-          if (key === '=') btn.classList.add('equal');
-          btn.textContent = key;
-          btn.addEventListener('click', () => handleCalc(key));
-          c.appendChild(btn);
-        }));
-      }
-      buildCalc(basic);
-      function handleCalc(key) {
-        if (key === 'C') calcExpr = '';
-        else if (key === '⌫') calcExpr = calcExpr.slice(0, -1);
-        else if (key === '=') {
-          try {
-            let res;
-            if (isEngineer) {
-              const expr = calcExpr.replace(/sin/g, 'Math.sin').replace(/cos/g, 'Math.cos').replace(/tan/g, 'Math.tan')
-                .replace(/log/g, 'Math.log10').replace(/sqrt/g, 'Math.sqrt').replace(/\^/g, '**')
-                .replace(/EXP/g, '*10**').replace(/PI/g, 'Math.PI');
-              res = eval(expr);
-            } else res = eval(calcExpr);
-            calcHistory.unshift(calcExpr + ' = ' + res);
-            if (calcHistory.length > 10) calcHistory.pop();
-            localStorage.setItem('calc_history', JSON.stringify(calcHistory));
-            renderHist();
-            calcExpr = res.toString();
-          } catch { calcExpr = 'Ошибка'; }
-        } else calcExpr += key;
-        document.getElementById('calc-display').textContent = calcExpr || '0';
-      }
-      function renderHist() {
-        document.getElementById('calc-history').innerHTML = calcHistory.map(h =>
-          `<div style="font-size:0.9rem;padding:0.2rem 0;">${h}</div>`
-        ).join('');
-      }
-      renderHist();
-      document.getElementById('toggle-mode').addEventListener('click', () => {
-        isEngineer = !isEngineer;
-        buildCalc(isEngineer ? eng : basic);
-        document.getElementById('toggle-mode').textContent = isEngineer ? 'Обычный' : 'Инженерный';
-      });
-
-      // ====== ПОГОДА ======
-      document.getElementById('weather-btn').addEventListener('click', async () => {
-        const city = document.getElementById('city-input').value.trim();
-        if (!city) return;
-        document.getElementById('weather-result').textContent = 'Запрос...';
-        try {
-          const res = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
-          document.getElementById('weather-result').innerHTML = `🌡️ ${res.temp}°C, ${res.desc}<br>📍 ${res.city}`;
-        } catch (e) {
-          document.getElementById('weather-result').textContent = 'Ошибка';
-        }
-      });
-
-      // ====== ПОИСК ======
-      const searchQ = document.getElementById('search-query'),
-        searchBtn = document.getElementById('search-btn'),
-        searchRes = document.getElementById('search-results'),
-        searchStat = document.getElementById('search-status');
-      searchBtn.addEventListener('click', async () => {
-        const q = searchQ.value.trim();
-        if (!q) return;
-        searchStat.textContent = 'Поиск...';
-        searchRes.innerHTML = '';
-        try {
-          const resp = await secureFetch(`${SERVICE4_URL}/api/search`, { query: q });
-          searchRes.innerHTML = resp.results.length ?
-            resp.results.map(r =>
-              `<div class="search-result-item">
-                <div style="font-size:0.8rem;color:#5f7ecf;">${r.source}</div>
-                <a href="${r.url||'#'}" target="_blank" style="color:#cfdbff;font-weight:bold;">${escapeHtml(r.title)}</a>
-                <p style="font-size:0.85rem;color:#b0c0e0;">${escapeHtml(r.text||'')}</p>
-                ${r.icon?`<img src="${r.icon}" style="max-height:40px;margin-top:0.3rem;">`:''}
-              </div>`
-            ).join('') :
-            '<p>Ничего не найдено</p>';
-          searchStat.textContent = `Найдено: ${resp.results.length}`;
-        } catch (e) {
-          searchStat.textContent = 'Ошибка поиска';
-        }
-      });
-      searchQ.addEventListener('keypress', e => { if (e.key === 'Enter') searchBtn.click(); });
-
-      // ====== SkyID ======
-      document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
-        const login = document.getElementById('skyid-reg-login').value.trim(),
-          pass = document.getElementById('skyid-reg-password').value;
-        if (!login || !pass) return alert('Заполни поля');
-        try {
-          const payload = await encryptPayload({ login, password: pass });
-          const res = await fetch(`${SKYID_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
-          });
-          if (!res.ok) {
-            const e = await res.json().catch(() => ({}));
-            throw new Error(e.error || 'Ошибка');
-          }
-          const json = await res.json();
-          const data = await decryptPayload(json.data);
-          // ====== СОХРАНЯЕМ ТОКЕН ======
-          const token = data.jwt || data.token;
-          if (token) {
-            localStorage.setItem('skyid_token', token);
-          }
-          document.getElementById('skyid-result').innerHTML =
-            `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
-          // Вызываем событие для push-подписки (если она нужна)
-          document.dispatchEvent(new Event('skyid_login'));
-        } catch (e) {
-          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
-        }
-      });
-      document.getElementById('skyid-login-btn').addEventListener('click', async () => {
-        const login = document.getElementById('skyid-login-login').value.trim(),
-          pass = document.getElementById('skyid-login-password').value;
-        if (!login || !pass) return alert('Заполни поля');
-        try {
-          const payload = await encryptPayload({ login, password: pass });
-          const res = await fetch(`${SKYID_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ data: payload })
-          });
-          if (!res.ok) {
-            const e = await res.json().catch(() => ({}));
-            throw new Error(e.error || 'Ошибка');
-          }
-          const json = await res.json();
-          const data = await decryptPayload(json.data);
-          // ====== СОХРАНЯЕМ ТОКЕН ======
-          const token = data.jwt || data.token;
-          if (token) {
-            localStorage.setItem('skyid_token', token);
-          }
-          document.getElementById('skyid-result').innerHTML =
-            `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
-          // Вызываем событие для push-подписки (если она нужна)
-          document.dispatchEvent(new Event('skyid_login'));
-        } catch (e) {
-          document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
-        }
-      });
-
-      // ====== SPOTIFY ======
-      const SPOTIFY_CLIENT_ID = 'ТВОЙ_ID';
-      const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
-      let spotifyToken = null;
-      async function loadSpotifyToken() {
-        const t = localStorage.getItem('skyid_token');
-        if (!t) return;
-        try {
-          const r = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
-            headers: { Authorization: `Bearer ${t}` }
-          });
-          const d = await r.json();
-          if (d.access_token) {
-            spotifyToken = d.access_token;
-            document.getElementById('spotify-logged-out').style.display = 'none';
-            document.getElementById('spotify-logged-in').style.display = 'block';
-            initSpotifyPlayer();
-          }
-        } catch (e) {}
-      }
-      document.getElementById('spotify-login-btn').addEventListener('click', async () => {
-        const cv = generateRandomString(64);
-        localStorage.setItem('spotify_code_verifier', cv);
-        const cc = await generateCodeChallenge(cv);
-        const state = generateRandomString(16);
-        localStorage.setItem('spotify_state', state);
-        window.location.href = 'https://accounts.spotify.com/authorize?' +
-          new URLSearchParams({
-            response_type: 'code',
-            client_id: SPOTIFY_CLIENT_ID,
-            scope: 'streaming user-read-email user-read-private',
-            redirect_uri: REDIRECT_URI,
-            state,
-            code_challenge_method: 'S256',
-            code_challenge: cc
-          }).toString();
-      });
-      async function handleSpotifyCallback() {
-        const p = new URLSearchParams(location.search);
-        const code = p.get('code'),
-          state = p.get('state');
-        if (!code || state !== localStorage.getItem('spotify_state')) return;
-        const cv = localStorage.getItem('spotify_code_verifier');
-        if (!cv) return;
-        try {
-          const r = await fetch(`${SERVICE2_URL}/spotify/token`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI })
-          });
-          const d = await r.json();
-          if (d.access_token) {
-            spotifyToken = d.access_token;
-            const skyToken = localStorage.getItem('skyid_token');
-            if (skyToken) {
-              await fetch(`${SERVICE2_URL}/spotify/save-token`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
-                body: JSON.stringify({
-                  spotify_token: d.access_token,
-                  spotify_refresh: d.refresh_token,
-                  expires_at: d.expires_in ? Date.now() + d.expires_in * 1000 : null
-                })
-              });
-            }
-            document.getElementById('spotify-logged-out').style.display = 'none';
-            document.getElementById('spotify-logged-in').style.display = 'block';
-            initSpotifyPlayer();
-            history.replaceState({}, document.title, location.pathname);
-          }
-        } catch (e) { console.error(e); }
-      }
-      function initSpotifyPlayer() {
-        if (window.Spotify) {
-          const player = new Spotify.Player({
-            name: 'SkyCitadel Music',
-            getOAuthToken: cb => { cb(spotifyToken); }
-          });
-          player.connect();
-          player.on('ready', (device_id) => { console.log('Spotify Ready', device_id); });
-          document.getElementById('spotify-player').appendChild(player);
-        } else {
-          window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
-        }
-      }
-      function generateRandomString(l) {
-        let s = '';
-        const ch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-        for (let i = 0; i < l; i++) s += ch.charAt(Math.floor(Math.random() * ch.length));
-        return s;
-      }
-      async function generateCodeChallenge(v) {
-        const d = new TextEncoder().encode(v);
-        const h = await crypto.subtle.digest('SHA-256', d);
-        return btoa(String.fromCharCode(...new Uint8Array(h)))
-          .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-      }
-      handleSpotifyCallback();
-      loadSpotifyToken();
-
-      // ====== ОБРАБОТКА ВИДЕО ======
-      const videoIframe = document.getElementById('video-iframe');
-      if (videoIframe) {
-        const params = new URLSearchParams(window.location.search);
-        const videoId = params.get('v');
-        if (videoId) {
-          videoIframe.src = `skyvideo.html?v=${videoId}`;
-        }
-        window.addEventListener('message', (event) => {
-          if (event.data && event.data.type === 'navigateVideo') {
-            const videoId = event.data.videoId;
-            if (videoId) {
-              const url = new URL(window.location);
-              url.search = `?v=${videoId}`;
-              window.history.pushState({}, '', url);
-              if (videoIframe) {
-                videoIframe.src = `skyvideo.html?v=${videoId}`;
-              }
-            }
-          } else if (event.data && event.data.type === 'navigateHome') {
-            const url = new URL(window.location);
-            url.search = '';
-            window.history.pushState({}, '', url);
-            if (videoIframe) {
-              videoIframe.src = 'skyvideo.html';
-            }
-          }
-        });
-        window.addEventListener('popstate', () => {
-          const params = new URLSearchParams(window.location.search);
-          const videoId = params.get('v');
-          if (videoIframe) {
-            videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
-          }
-        });
-      }
-
-	function escapeHtml(text) {
-  	if (!text) return '';
-  		return String(text).replace(/[&<>"']/g, function(m) {
-    		if (m === '&') return '&amp;';
-    		if (m === '<') return '&lt;';
-    		if (m === '>') return '&gt;';
-    		if (m === '"') return '&quot;';
-    		if (m === "'") return '&#39;';
-    	return m;
-  		});
-	}
-
-      // ====== ОТЛОЖЕННАЯ ЗАГРУЗКА ======
-      setTimeout(() => {
-        safeExecute(loadAnnouncementsAsync);
-      }, 2000);
-	  // Загружаем обновления на главную
-	  loadUpdates();
-		
-      setTimeout(() => {
-        if (document.getElementById('maps').classList.contains('active')) {
-          safeExecute(() => {
-            if (window.map) window.map.invalidateSize();
-          });
-        }
-      }, 500);
-    }); // конец DOMContentLoaded
-
-	// ====== МОБИЛЬНОЕ МЕНЮ ======
-	const hamburger = document.getElementById('hamburgerBtn');
-	const sidebar = document.querySelector('.sidebar');
-	const overlay = document.getElementById('sidebarOverlay');
-
-	function toggleMenu() {
-  	sidebar.classList.toggle('open');
-  	overlay.classList.toggle('active');
-  	hamburger.classList.toggle('active');
-	}
-
-	hamburger.addEventListener('click', toggleMenu);
-	overlay.addEventListener('click', toggleMenu);
-
-	// Закрываем меню при клике на пункт навигации
-	document.querySelectorAll('.nav-btn').forEach(btn => {
-  	btn.addEventListener('click', () => {
-    	if (window.innerWidth <= 768) {
-      	sidebar.classList.remove('open');
-      	overlay.classList.remove('active');
-      	hamburger.classList.remove('active');
-    	}
-  	});
-	});
-
-	// При изменении размера окна, если становятся шире 768px — открываем меню
-	window.addEventListener('resize', () => {
-  	if (window.innerWidth > 768) {
-    	sidebar.classList.remove('open');
-    	overlay.classList.remove('active');
-    	hamburger.classList.remove('active');
-  	}
+function escapeHtml(text) {
+  if (!text) return '';
+  return String(text).replace(/[&<>"']/g, function(m) {
+    if (m === '&') return '&amp;';
+    if (m === '<') return '&lt;';
+    if (m === '>') return '&gt;';
+    if (m === '"') return '&quot;';
+    if (m === "'") return '&#39;';
+    return m;
   });
-  </script>
-  <script>
-    // ====== PUSH-УВЕДОМЛЕНИЯ (опционально, если сервер поддерживает) ======
-    const VAPID_PUBLIC_KEY = 'BLFgEgN5br8c2rKhWVb84W5lOVFZ727Rgwno-oC6DBpYbZH1QtRl80T-5U6CJEU25v_sHAlYRnijITpvpYu9lis'; // замените на реальный
+}
 
-    async function registerServiceWorker() {
-      if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-        console.log('❌ Push не поддерживается');
-        return false;
-      }
-
-      try {
-        const registration = await navigator.serviceWorker.register('/sw.js');
-        console.log('✅ Service Worker зарегистрирован');
-        return registration;
-      } catch (e) {
-        console.error('❌ Ошибка регистрации SW:', e);
-        return null;
-      }
-    }
-
-    async function subscribeToPush(registration) {
-      try {
-        let subscription = await registration.pushManager.getSubscription();
-        if (!subscription) {
-          subscription = await registration.pushManager.subscribe({
-            userVisibleOnly: true,
-            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-          });
-        }
-        const token = localStorage.getItem('skyid_token');
-        if (token) {
-          await fetch('https://skymutant.cc.cd/api/push/subscribe', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-            body: JSON.stringify({ subscription })
-          });
-          console.log('✅ Подписка сохранена на сервере');
-        }
-        return subscription;
-      } catch (e) {
-        console.error('❌ Ошибка подписки:', e);
-        return null;
-      }
-    }
-
-    function urlBase64ToUint8Array(base64String) {
-      const padding = '='.repeat((4 - base64String.length % 4) % 4);
-      const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
-      const rawData = atob(base64);
-      const outputArray = new Uint8Array(rawData.length);
-      for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
-      }
-      return outputArray;
-    }
-
-    (async function initPush() {
-      const registration = await registerServiceWorker();
-      if (registration) {
-        const token = localStorage.getItem('skyid_token');
-        if (token) {
-          await subscribeToPush(registration);
-        } else {
-          console.log('⏳ Пользователь не авторизован, подписка позже');
-          document.addEventListener('skyid_login', async () => {
-            const reg = await navigator.serviceWorker.ready;
-            await subscribeToPush(reg);
-          });
-        }
-      }
-    })();
-
-    document.addEventListener('skyid_login', async () => {
-      const registration = await navigator.serviceWorker.ready;
-      await subscribeToPush(registration);
+async function loadData(url, fallback = null) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
     });
-  </script>
-  <script>
-  // ====== ФУТЕР: ЗАГРУЗКА СТАТИСТИКИ ======
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.warn('⚠️ Ошибка загрузки', url, e.message);
+    return fallback;
+  }
+}
+
+// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ======
+async function loadUpdates() {
+  const container = document.getElementById('home-updates');
+  if (!container) return;
+  const updates = await loadData('/updates.json', []);
+  if (updates && Array.isArray(updates) && updates.length > 0) {
+    updates.sort((a, b) => new Date(b.date) - new Date(a.date));
+    const recent = updates.slice(0, 5);
+    container.innerHTML = recent.map(item => `
+      <div style="padding:0.6rem 0; border-bottom:1px solid #2a3450;">
+        <div style="font-size:0.75rem; color:#8899cc;">${escapeHtml(item.date)}</div>
+        <div>${escapeHtml(item.text)}</div>
+      </div>
+    `).join('');
+  } else {
+    container.innerHTML = '<p style="color:#8899cc;">Пока нет обновлений</p>';
+  }
+}
+
+// ====== ЗАГРУЗКА ОБЪЯВЛЕНИЙ ======
+async function loadAnnouncementsAsync() {
+  const container = document.getElementById('announce-container');
+  if (!container) return;
+  container.innerHTML = '<div class="loading-placeholder">Загрузка...</div>';
+  const data = await loadData('https://skymutant.cc.cd/announcements', []);
+  if (data && Array.isArray(data)) {
+    container.innerHTML = data.length
+      ? data.map(i => `<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('')
+      : '<p>Объявлений пока нет</p>';
+  } else {
+    container.innerHTML = '<p style="color:#f48024;">Не удалось загрузить объявления</p>';
+  }
+}
+
 // ====== СТАТИСТИКА В ФУТЕРЕ ======
 (function loadFooterStats() {
   const API_BASE = 'https://skymutant.cc.cd';
 
-  // ====== СЛОВАРЬ СТРАН (оставляем как есть) ======
   const countryMap = {
-      'af': 'Афганистан', 'afghanistan': 'Афганистан',
-      'al': 'Албания', 'albania': 'Албания',
-      'dz': 'Алжир', 'algeria': 'Алжир',
-      'ad': 'Андорра', 'andorra': 'Андорра',
-      'ao': 'Ангола', 'angola': 'Ангола',
-      'ag': 'Антигуа и Барбуда', 'antigua and barbuda': 'Антигуа и Барбуда',
-      'ar': 'Аргентина', 'argentina': 'Аргентина',
-      'am': 'Армения', 'armenia': 'Армения',
-      'au': 'Австралия', 'australia': 'Австралия',
-      'at': 'Австрия', 'austria': 'Австрия',
-      'az': 'Азербайджан', 'azerbaijan': 'Азербайджан',
-      'bs': 'Багамы', 'bahamas': 'Багамы',
-      'bh': 'Бахрейн', 'bahrain': 'Бахрейн',
-      'bd': 'Бангладеш', 'bangladesh': 'Бангладеш',
-      'bb': 'Барбадос', 'barbados': 'Барбадос',
-      'by': 'Беларусь', 'belarus': 'Беларусь',
-      'be': 'Бельгия', 'belgium': 'Бельгия',
-      'bz': 'Белиз', 'belize': 'Белиз',
-      'bj': 'Бенин', 'benin': 'Бенин',
-      'bt': 'Бутан', 'bhutan': 'Бутан',
-      'bo': 'Боливия', 'bolivia': 'Боливия',
-      'ba': 'Босния и Герцеговина', 'bosnia and herzegovina': 'Босния и Герцеговина',
-      'bw': 'Ботсвана', 'botswana': 'Ботсвана',
-      'br': 'Бразилия', 'brazil': 'Бразилия',
-      'bn': 'Бруней', 'brunei': 'Бруней',
-      'bg': 'Болгария', 'bulgaria': 'Болгария',
-      'bf': 'Буркина-Фасо', 'burkina faso': 'Буркина-Фасо',
-      'bi': 'Бурунди', 'burundi': 'Бурунди',
-      'cv': 'Кабо-Верде', 'cabo verde': 'Кабо-Верде',
-      'kh': 'Камбоджа', 'cambodia': 'Камбоджа',
-      'cm': 'Камерун', 'cameroon': 'Камерун',
-      'ca': 'Канада', 'canada': 'Канада',
-      'cf': 'Центральноафриканская Республика', 'central african republic': 'Центральноафриканская Республика',
-      'td': 'Чад', 'chad': 'Чад',
-      'cl': 'Чили', 'chile': 'Чили',
-      'cn': 'Китай', 'china': 'Китай',
-      'co': 'Колумбия', 'colombia': 'Колумбия',
-      'km': 'Коморы', 'comoros': 'Коморы',
-      'cd': 'Демократическая Республика Конго', 'democratic republic of the congo': 'Демократическая Республика Конго',
-      'cg': 'Республика Конго', 'republic of the congo': 'Республика Конго',
-      'cr': 'Коста-Рика', 'costa rica': 'Коста-Рика',
-      'hr': 'Хорватия', 'croatia': 'Хорватия',
-      'cu': 'Куба', 'cuba': 'Куба',
-      'cy': 'Кипр', 'cyprus': 'Кипр',
-      'cz': 'Чехия', 'czech republic': 'Чехия', 'czechia': 'Чехия',
-      'dk': 'Дания', 'denmark': 'Дания',
-      'dj': 'Джибути', 'djibouti': 'Джибути',
-      'dm': 'Доминика', 'dominica': 'Доминика',
-      'do': 'Доминиканская Республика', 'dominican republic': 'Доминиканская Республика',
-      'ec': 'Эквадор', 'ecuador': 'Эквадор',
-      'eg': 'Египет', 'egypt': 'Египет',
-      'sv': 'Сальвадор', 'el salvador': 'Сальвадор',
-      'gq': 'Экваториальная Гвинея', 'equatorial guinea': 'Экваториальная Гвинея',
-      'er': 'Эритрея', 'eritrea': 'Эритрея',
-      'ee': 'Эстония', 'estonia': 'Эстония',
-      'sz': 'Эсватини', 'eswatini': 'Эсватини', 'swaziland': 'Эсватини',
-      'et': 'Эфиопия', 'ethiopia': 'Эфиопия',
-      'fj': 'Фиджи', 'fiji': 'Фиджи',
-      'fi': 'Финляндия', 'finland': 'Финляндия',
-      'fr': 'Франция', 'france': 'Франция',
-      'ga': 'Габон', 'gabon': 'Габон',
-      'gm': 'Гамбия', 'gambia': 'Гамбия',
-      'ge': 'Грузия', 'georgia': 'Грузия',
-      'de': 'Германия', 'germany': 'Германия',
-      'gh': 'Гана', 'ghana': 'Гана',
-      'gr': 'Греция', 'greece': 'Греция',
-      'gd': 'Гренада', 'grenada': 'Гренада',
-      'gt': 'Гватемала', 'guatemala': 'Гватемала',
-      'gn': 'Гвинея', 'guinea': 'Гвинея',
-      'gw': 'Гвинея-Бисау', 'guinea-bissau': 'Гвинея-Бисау',
-      'gy': 'Гайана', 'guyana': 'Гайана',
-      'ht': 'Гаити', 'haiti': 'Гаити',
-      'hn': 'Гондурас', 'honduras': 'Гондурас',
-      'hu': 'Венгрия', 'hungary': 'Венгрия',
-      'is': 'Исландия', 'iceland': 'Исландия',
-      'in': 'Индия', 'india': 'Индия',
-      'id': 'Индонезия', 'indonesia': 'Индонезия',
-      'ir': 'Иран', 'iran': 'Иран',
-      'iq': 'Ирак', 'iraq': 'Ирак',
-      'ie': 'Ирландия', 'ireland': 'Ирландия',
-      'il': 'Израиль', 'israel': 'Израиль',
-      'it': 'Италия', 'italy': 'Италия',
-      'jm': 'Ямайка', 'jamaica': 'Ямайка',
-      'jp': 'Япония', 'japan': 'Япония',
-      'jo': 'Иордания', 'jordan': 'Иордания',
-      'kz': 'Казахстан', 'kazakhstan': 'Казахстан',
-      'ke': 'Кения', 'kenya': 'Кения',
-      'ki': 'Кирибати', 'kiribati': 'Кирибати',
-      'kp': 'Северная Корея', 'north korea': 'Северная Корея',
-      'kr': 'Южная Корея', 'south korea': 'Южная Корея',
-      'kw': 'Кувейт', 'kuwait': 'Кувейт',
-      'kg': 'Кыргызстан', 'kyrgyzstan': 'Кыргызстан',
-      'la': 'Лаос', 'laos': 'Лаос',
-      'lv': 'Латвия', 'latvia': 'Латвия',
-      'lb': 'Ливан', 'lebanon': 'Ливан',
-      'ls': 'Лесото', 'lesotho': 'Лесото',
-      'lr': 'Либерия', 'liberia': 'Либерия',
-      'ly': 'Ливия', 'libya': 'Ливия',
-      'li': 'Лихтенштейн', 'liechtenstein': 'Лихтенштейн',
-      'lt': 'Литва', 'lithuania': 'Литва',
-      'lu': 'Люксембург', 'luxembourg': 'Люксембург',
-      'mg': 'Мадагаскар', 'madagascar': 'Мадагаскар',
-      'mw': 'Малави', 'malawi': 'Малави',
-      'my': 'Малайзия', 'malaysia': 'Малайзия',
-      'mv': 'Мальдивы', 'maldives': 'Мальдивы',
-      'ml': 'Мали', 'mali': 'Мали',
-      'mt': 'Мальта', 'malta': 'Мальта',
-      'mh': 'Маршалловы Острова', 'marshall islands': 'Маршалловы Острова',
-      'mr': 'Мавритания', 'mauritania': 'Мавритания',
-      'mu': 'Маврикий', 'mauritius': 'Маврикий',
-      'mx': 'Мексика', 'mexico': 'Мексика',
-      'fm': 'Микронезия', 'micronesia': 'Микронезия',
-      'md': 'Молдова', 'moldova': 'Молдова',
-      'mc': 'Монако', 'monaco': 'Монако',
-      'mn': 'Монголия', 'mongolia': 'Монголия',
-      'me': 'Черногория', 'montenegro': 'Черногория',
-      'ma': 'Марокко', 'morocco': 'Марокко',
-      'mz': 'Мозамбик', 'mozambique': 'Мозамбик',
-      'mm': 'Мьянма', 'myanmar': 'Мьянма',
-      'na': 'Намибия', 'namibia': 'Намибия',
-      'nr': 'Науру', 'nauru': 'Науру',
-      'np': 'Непал', 'nepal': 'Непал',
-      'nl': 'Нидерланды', 'netherlands': 'Нидерланды', 'the netherlands': 'Нидерланды',
-      'nz': 'Новая Зеландия', 'new zealand': 'Новая Зеландия',
-      'ni': 'Никарагуа', 'nicaragua': 'Никарагуа',
-      'ne': 'Нигер', 'niger': 'Нигер',
-      'ng': 'Нигерия', 'nigeria': 'Нигерия',
-      'mk': 'Северная Македония', 'north macedonia': 'Северная Македония',
-      'no': 'Норвегия', 'norway': 'Норвегия',
-      'om': 'Оман', 'oman': 'Оман',
-      'pk': 'Пакистан', 'pakistan': 'Пакистан',
-      'pw': 'Палау', 'palau': 'Палау',
-      'pa': 'Панама', 'panama': 'Панама',
-      'pg': 'Папуа-Новая Гвинея', 'papua new guinea': 'Папуа-Новая Гвинея',
-      'py': 'Парагвай', 'paraguay': 'Парагвай',
-      'pe': 'Перу', 'peru': 'Перу',
-      'ph': 'Филиппины', 'philippines': 'Филиппины',
-      'pl': 'Польша', 'poland': 'Польша',
-      'pt': 'Португалия', 'portugal': 'Португалия',
-      'qa': 'Катар', 'qatar': 'Катар',
-      'ro': 'Румыния', 'romania': 'Румыния',
-      'ru': 'Россия', 'russia': 'Россия', 'russian federation': 'Россия',
-      'rw': 'Руанда', 'rwanda': 'Руанда',
-      'kn': 'Сент-Китс и Невис', 'saint kitts and nevis': 'Сент-Китс и Невис',
-      'lc': 'Сент-Люсия', 'saint lucia': 'Сент-Люсия',
-      'vc': 'Сент-Винсент и Гренадины', 'saint vincent and the grenadines': 'Сент-Винсент и Гренадины',
-      'ws': 'Самоа', 'samoa': 'Самоа',
-      'sm': 'Сан-Марино', 'san marino': 'Сан-Марино',
-      'st': 'Сан-Томе и Принсипи', 'sao tome and principe': 'Сан-Томе и Принсипи',
-      'sa': 'Саудовская Аравия', 'saudi arabia': 'Саудовская Аравия',
-      'sn': 'Сенегал', 'senegal': 'Сенегал',
-      'rs': 'Сербия', 'serbia': 'Сербия',
-      'sc': 'Сейшелы', 'seychelles': 'Сейшелы',
-      'sl': 'Сьерра-Леоне', 'sierra leone': 'Сьерра-Леоне',
-      'sg': 'Сингапур', 'singapore': 'Сингапур',
-      'sk': 'Словакия', 'slovakia': 'Словакия',
-      'si': 'Словения', 'slovenia': 'Словения',
-      'sb': 'Соломоновы Острова', 'solomon islands': 'Соломоновы Острова',
-      'so': 'Сомали', 'somalia': 'Сомали',
-      'za': 'Южно-Африканская Республика', 'south africa': 'Южно-Африканская Республика',
-      'ss': 'Южный Судан', 'south sudan': 'Южный Судан',
-      'es': 'Испания', 'spain': 'Испания',
-      'lk': 'Шри-Ланка', 'sri lanka': 'Шри-Ланка',
-      'sd': 'Судан', 'sudan': 'Судан',
-      'sr': 'Суринам', 'suriname': 'Суринам',
-      'se': 'Швеция', 'sweden': 'Швеция',
-      'ch': 'Швейцария', 'switzerland': 'Швейцария',
-      'sy': 'Сирия', 'syria': 'Сирия',
-      'tj': 'Таджикистан', 'tajikistan': 'Таджикистан',
-      'tz': 'Танзания', 'tanzania': 'Танзания',
-      'th': 'Таиланд', 'thailand': 'Таиланд',
-      'tl': 'Тимор-Лесте', 'timor-leste': 'Тимор-Лесте',
-      'tg': 'Того', 'togo': 'Того',
-      'to': 'Тонга', 'tonga': 'Тонга',
-      'tt': 'Тринидад и Тобаго', 'trinidad and tobago': 'Тринидад и Тобаго',
-      'tn': 'Тунис', 'tunisia': 'Тунис',
-      'tr': 'Турция', 'turkey': 'Турция',
-      'tm': 'Туркменистан', 'turkmenistan': 'Туркменистан',
-      'tv': 'Тувалу', 'tuvalu': 'Тувалу',
-      'ug': 'Уганда', 'uganda': 'Уганда',
-      'ua': 'Украина', 'ukraine': 'Украина',
-      'ae': 'Объединенные Арабские Эмираты', 'united arab emirates': 'Объединенные Арабские Эмираты',
-      'gb': 'Великобритания', 'uk': 'Великобритания', 'united kingdom': 'Великобритания',
-      'us': 'США', 'usa': 'США', 'united states': 'США',
-      'uy': 'Уругвай', 'uruguay': 'Уругвай',
-      'uz': 'Узбекистан', 'uzbekistan': 'Узбекистан',
-      'vu': 'Вануату', 'vanuatu': 'Вануату',
-      'va': 'Ватикан', 'vatican': 'Ватикан',
-      've': 'Венесуэла', 'venezuela': 'Венесуэла',
-      'vn': 'Вьетнам', 'vietnam': 'Вьетнам',
-      'ye': 'Йемен', 'yemen': 'Йемен',
-      'zm': 'Замбия', 'zambia': 'Замбия',
-      'zw': 'Зимбабве', 'zimbabwe': 'Зимбабве'
-    };
+    'ru': 'Россия', 'russia': 'Россия', 'russian federation': 'Россия',
+    'us': 'США', 'usa': 'США', 'united states': 'США',
+    'gb': 'Великобритания', 'uk': 'Великобритания', 'united kingdom': 'Великобритания',
+    'de': 'Германия', 'germany': 'Германия',
+    'fr': 'Франция', 'france': 'Франция',
+    'lv': 'Латвия', 'latvia': 'Латвия',
+    // добавь остальные страны, если нужно
+  };
 
   function getCountryName(raw) {
     if (!raw) return 'Неизвестно';
@@ -1496,37 +661,719 @@
   loadStats();
   setInterval(loadStats, 300000);
 })();
-</script>
-<script>
-  (function trackVisit() {
-    // Отправляем только один раз за сессию
-    if (sessionStorage.getItem('visit_tracked')) return;
-    sessionStorage.setItem('visit_tracked', 'true');
 
-    const API_BASE = 'https://skymutant.cc.cd';
+// ====== ТРЕКИНГ ВИЗИТОВ ======
+(function trackVisit() {
+  if (sessionStorage.getItem('visit_tracked')) return;
+  sessionStorage.setItem('visit_tracked', 'true');
+  const API_BASE = 'https://skymutant.cc.cd';
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  const deviceType = isMobile ? 'mobile' : 'desktop';
+  const page = window.location.pathname || '/';
 
-    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-    const deviceType = isMobile ? 'mobile' : 'desktop';
-    const page = window.location.pathname || '/';
+  fetch('https://ipapi.co/country/')
+    .then(res => res.text())
+    .then(country => {
+      fetch(`${API_BASE}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page, deviceType, country })
+      }).catch(() => {});
+    })
+    .catch(() => {
+      fetch(`${API_BASE}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page, deviceType })
+      }).catch(() => {});
+    });
+})();
 
-    fetch('https://ipapi.co/country/')
-      .then(res => res.text())
-      .then(country => {
-        fetch(`${API_BASE}/api/analytics`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ page, deviceType, country })
-        }).catch(() => {});
-      })
-      .catch(() => {
-        fetch(`${API_BASE}/api/analytics`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ page, deviceType })
-        }).catch(() => {});
+// ====== PUSH-УВЕДОМЛЕНИЯ (опционально) ======
+const VAPID_PUBLIC_KEY = 'BLFgEgN5br8c2rKhWVb84W5lOVFZ727Rgwno-oC6DBpYbZH1QtRl80T-5U6CJEU25v_sHAlYRnijITpvpYu9lis';
+
+async function registerServiceWorker() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.log('❌ Push не поддерживается');
+    return false;
+  }
+  try {
+    const registration = await navigator.serviceWorker.register('/sw.js');
+    console.log('✅ Service Worker зарегистрирован');
+    return registration;
+  } catch (e) {
+    console.error('❌ Ошибка регистрации SW:', e);
+    return null;
+  }
+}
+
+async function subscribeToPush(registration) {
+  try {
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
       });
-  })();
+    }
+    const token = localStorage.getItem('skyid_token');
+    if (token) {
+      await fetch('https://skymutant.cc.cd/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ subscription })
+      });
+      console.log('✅ Подписка сохранена на сервере');
+    }
+    return subscription;
+  } catch (e) {
+    console.error('❌ Ошибка подписки:', e);
+    return null;
+  }
+}
 
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+(async function initPush() {
+  const registration = await registerServiceWorker();
+  if (registration) {
+    const token = localStorage.getItem('skyid_token');
+    if (token) {
+      await subscribeToPush(registration);
+    } else {
+      document.addEventListener('skyid_login', async () => {
+        const reg = await navigator.serviceWorker.ready;
+        await subscribeToPush(reg);
+      });
+    }
+  }
+})();
+
+document.addEventListener('skyid_login', async () => {
+  const registration = await navigator.serviceWorker.ready;
+  await subscribeToPush(registration);
+});
+
+// ============================================================
+// ОСНОВНАЯ ЛОГИКА (инициализация после загрузки DOM)
+// ============================================================
+document.addEventListener('DOMContentLoaded', function() {
+  // Определяем, что это приложение (WebView, Electron или кастомный User-Agent)
+  const isApp = navigator.userAgent.includes('Electron') || 
+                navigator.userAgent.includes('wv') ||
+                navigator.userAgent.includes('SkyCitadelApp');
+
+  if (!isApp && !localStorage.getItem('skycitadel_welcome_dismissed')) {
+    window.location.href = '/welcome.html';
+  }
+
+  // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
+  const SERVICE2_URL = 'https://skymutant.cc.cd';
+  const SERVICE4_URL = 'https://skymutant.cc.cd';
+  const SKYID_URL = 'https://skymutant.cc.cd';
+
+  // ====== БЕЗОПАСНОЕ ВЫПОЛНЕНИЕ ======
+  function safeExecute(fn, fallback = null) {
+    try { return fn(); } catch (e) { console.warn('⚠️ Ошибка:', e); return fallback; }
+  }
+
+  // ====== АККОРДЕОН ======
+  document.querySelectorAll('.section-title').forEach(title => {
+    title.addEventListener('click', () => {
+      const items = title.nextElementSibling;
+      const arrow = title.querySelector('.arrow');
+      if (items.style.display === 'none' || !items.style.display) {
+        items.style.display = 'block';
+        arrow.textContent = '▼';
+      } else {
+        items.style.display = 'none';
+        arrow.textContent = '▶';
+      }
+    });
+  });
+
+  // ====== НАВИГАЦИЯ ======
+  const navButtons = document.querySelectorAll('.nav-btn');
+  const sections = document.querySelectorAll('.section');
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      navButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const targetId = btn.getAttribute('data-section');
+      sections.forEach(sec => sec.classList.remove('active'));
+      document.getElementById(targetId).classList.add('active');
+      if (targetId === 'maps') setTimeout(() => safeExecute(() => map.invalidateSize()), 100);
+      if (targetId === 'calendar') { safeExecute(() => renderCalendar()); safeExecute(() => updateSelectedDate()); }
+      if (targetId === 'news') safeExecute(refreshNewsIframe);
+      if (targetId === 'announce') safeExecute(loadAnnouncementsAsync);
+    });
+  });
+
+  // ====== ШИФРОВАНИЕ ======
+  const SECRET_KEY_BASE64 = "BLx5Vp7U1c8dR2mQkG4fJ6yA9tC3bF0zH7iL2nM5oP8=";
+  async function getKey() {
+    const k = Uint8Array.from(atob(SECRET_KEY_BASE64), c => c.charCodeAt(0));
+    return crypto.subtle.importKey('raw', k, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+  }
+  async function encryptPayload(obj) {
+    const key = await getKey();
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const enc = new TextEncoder().encode(JSON.stringify(obj));
+    const c = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, enc);
+    const combo = new Uint8Array(iv.byteLength + c.byteLength);
+    combo.set(iv);
+    combo.set(new Uint8Array(c), iv.byteLength);
+    return btoa(String.fromCharCode(...combo));
+  }
+  async function decryptPayload(b64) {
+    const key = await getKey();
+    const combo = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+    const iv = combo.slice(0, 12);
+    const data = combo.slice(12);
+    const dec = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
+    return JSON.parse(new TextDecoder().decode(dec));
+  }
+  async function secureFetch(url, payload) {
+    const enc = await encryptPayload(payload);
+    const r = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: enc })
+    });
+    if (!r.ok) throw new Error('fail');
+    const j = await r.json();
+    if (!j.data) throw new Error('no data');
+    return decryptPayload(j.data);
+  }
+
+  // ====== КАРТЫ ======
+  if (typeof L !== 'undefined') {
+    const map = L.map('map').setView([55.751244, 37.618423], 10);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd', maxZoom: 20
+    }).addTo(map);
+    let routingControl = null, userLocationMarker = null;
+    window.map = map;
+
+    document.getElementById('geolocate-btn').addEventListener('click', () => {
+      if (!navigator.geolocation) return alert('Геолокация не поддерживается');
+      navigator.geolocation.getCurrentPosition(pos => {
+        const lat = pos.coords.latitude, lon = pos.coords.longitude;
+        map.setView([lat, lon], 15);
+        if (userLocationMarker) map.removeLayer(userLocationMarker);
+        userLocationMarker = L.marker([lat, lon]).addTo(map).bindPopup('📍 Вы здесь').openPopup();
+        document.getElementById('route-start').value = `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+      }, err => alert('Ошибка: ' + err.message), { enableHighAccuracy: true });
+    });
+
+    document.getElementById('map-search-btn').addEventListener('click', async () => {
+      const q = document.getElementById('map-search-input').value.trim();
+      if (!q) return;
+      const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      if (d && d.length > 0) {
+        const { lat, lon } = d[0];
+        map.setView([lat, lon], 13);
+        L.marker([lat, lon]).addTo(map).bindPopup(q).openPopup();
+      }
+    });
+
+    document.getElementById('route-go').addEventListener('click', async () => {
+      const startInput = document.getElementById('route-start').value.trim();
+      const endInput = document.getElementById('route-end').value.trim();
+      if (!startInput || !endInput) return alert('Укажите начало и конец');
+      const geocode = async (addr) => {
+        const m = addr.match(/^(-?\d+\.\d+),\s*(-?\d+\.\d+)$/);
+        if (m) return L.latLng(parseFloat(m[1]), parseFloat(m[2]));
+        const r = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}`);
+        const d = await r.json();
+        if (d && d.length > 0) return L.latLng(d[0].lat, d[0].lon);
+        throw new Error('Адрес не найден');
+      };
+      try {
+        const start = await geocode(startInput), end = await geocode(endInput);
+        if (routingControl) map.removeControl(routingControl);
+        routingControl = L.Routing.control({
+          waypoints: [start, end],
+          routeWhileDragging: true,
+          lineOptions: { styles: [{ color: '#5f7ecf', weight: 6 }] }
+        }).addTo(map);
+      } catch (e) { alert('Ошибка: ' + e.message); }
+    });
+  } else {
+    console.error('❌ Leaflet не загружен!');
+    document.getElementById('map').innerHTML = '<p style="color:#c44;">Ошибка загрузки карты. Попробуйте перезагрузить страницу.</p>';
+  }
+
+  // ====== КАЛЕНДАРЬ ======
+  let calDate = new Date(),
+    selectedDate = new Date().toISOString().split('T')[0];
+  let events = JSON.parse(localStorage.getItem('calendar_events') || '{}');
+  function saveEvents() { localStorage.setItem('calendar_events', JSON.stringify(events)); }
+  function renderCalendar() {
+    const y = calDate.getFullYear(),
+      m = calDate.getMonth();
+    const first = new Date(y, m, 1).getDay() || 7,
+      days = new Date(y, m + 1, 0).getDate();
+    document.getElementById('cal-month-year').textContent = calDate.toLocaleDateString('ru-RU', { month: 'long', year: 'numeric' });
+    const grid = document.getElementById('cal-days');
+    grid.innerHTML = '';
+    ['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].forEach(d => {
+      const div = document.createElement('div');
+      div.className = 'cal-day-name';
+      div.textContent = d;
+      grid.appendChild(div);
+    });
+    for (let i = 1; i < first; i++) grid.appendChild(document.createElement('div'));
+    const today = new Date();
+    for (let d = 1; d <= days; d++) {
+      const div = document.createElement('div');
+      div.className = 'cal-day';
+      div.textContent = d;
+      const ds = `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      if (events[ds]?.length) div.classList.add('has-events');
+      if (y === today.getFullYear() && m === today.getMonth() && d === today.getDate()) div.classList.add('today');
+      div.addEventListener('click', () => {
+        selectedDate = ds;
+        document.querySelectorAll('.cal-day').forEach(el => el.style.background = '');
+        div.style.background = '#3f62b0';
+        updateSelectedDate();
+      });
+      grid.appendChild(div);
+    }
+    if (selectedDate.startsWith(`${y}-${String(m + 1).padStart(2, '0')}`)) {
+      const day = +selectedDate.split('-')[2];
+      const cells = grid.querySelectorAll('.cal-day');
+      const target = cells[first - 1 + day];
+      if (target) target.style.background = '#3f62b0';
+    }
+  }
+  function updateSelectedDate() {
+    document.getElementById('selected-date').textContent = selectedDate;
+    const c = document.getElementById('events-container');
+    const dayEvents = events[selectedDate] || [];
+    c.innerHTML = dayEvents.map(ev =>
+      `<div class="event-item"><span>${escapeHtml(ev.text)}</span><button class="btn btn-sm" onclick="deleteEvent('${ev.id}')">×</button></div>`
+    ).join('');
+    document.getElementById('event-date').value = selectedDate;
+  }
+  document.getElementById('add-event').addEventListener('click', () => {
+    const text = document.getElementById('event-text').value.trim();
+    if (!text) return;
+    const date = document.getElementById('event-date').value || selectedDate;
+    if (!events[date]) events[date] = [];
+    events[date].push({ id: Date.now().toString(), text });
+    saveEvents();
+    document.getElementById('event-text').value = '';
+    renderCalendar();
+    updateSelectedDate();
+  });
+  window.deleteEvent = (id) => {
+    for (const d in events) {
+      events[d] = events[d].filter(ev => ev.id !== id);
+      if (!events[d].length) delete events[d];
+    }
+    saveEvents();
+    renderCalendar();
+    updateSelectedDate();
+  };
+  document.getElementById('cal-prev').addEventListener('click', () => {
+    calDate.setMonth(calDate.getMonth() - 1);
+    renderCalendar();
+  });
+  document.getElementById('cal-next').addEventListener('click', () => {
+    calDate.setMonth(calDate.getMonth() + 1);
+    renderCalendar();
+  });
+  renderCalendar();
+  updateSelectedDate();
+
+  // ====== КАЛЬКУЛЯТОР ======
+  let calcExpr = '',
+    calcHistory = JSON.parse(localStorage.getItem('calc_history') || '[]'),
+    isEngineer = false;
+  const basic = [
+    ['C', '(', ')', '/'],
+    ['7', '8', '9', '*'],
+    ['4', '5', '6', '-'],
+    ['1', '2', '3', '+'],
+    ['0', '.', '⌫', '=']
+  ];
+  const eng = [
+    ['C', '(', ')', 'sin', 'cos'],
+    ['7', '8', '9', 'tan', 'log'],
+    ['4', '5', '6', 'sqrt', '^'],
+    ['1', '2', '3', 'EXP', 'PI'],
+    ['0', '.', '⌫', '+', '=']
+  ];
+  function buildCalc(layout) {
+    const c = document.getElementById('calc-buttons');
+    c.innerHTML = '';
+    layout.forEach(row => row.forEach(key => {
+      const btn = document.createElement('button');
+      btn.className = 'calc-btn';
+      if ('C(/*-+='.includes(key) || 'sincostanlogsqrt^EXP'.includes(key)) btn.classList.add('operator');
+      if (key === '=') btn.classList.add('equal');
+      btn.textContent = key;
+      btn.addEventListener('click', () => handleCalc(key));
+      c.appendChild(btn);
+    }));
+  }
+  buildCalc(basic);
+  function handleCalc(key) {
+    if (key === 'C') calcExpr = '';
+    else if (key === '⌫') calcExpr = calcExpr.slice(0, -1);
+    else if (key === '=') {
+      try {
+        let res;
+        if (isEngineer) {
+          const expr = calcExpr.replace(/sin/g, 'Math.sin').replace(/cos/g, 'Math.cos').replace(/tan/g, 'Math.tan')
+            .replace(/log/g, 'Math.log10').replace(/sqrt/g, 'Math.sqrt').replace(/\^/g, '**')
+            .replace(/EXP/g, '*10**').replace(/PI/g, 'Math.PI');
+          res = eval(expr);
+        } else res = eval(calcExpr);
+        calcHistory.unshift(calcExpr + ' = ' + res);
+        if (calcHistory.length > 10) calcHistory.pop();
+        localStorage.setItem('calc_history', JSON.stringify(calcHistory));
+        renderHist();
+        calcExpr = res.toString();
+      } catch { calcExpr = 'Ошибка'; }
+    } else calcExpr += key;
+    document.getElementById('calc-display').textContent = calcExpr || '0';
+  }
+  function renderHist() {
+    document.getElementById('calc-history').innerHTML = calcHistory.map(h =>
+      `<div style="font-size:0.9rem;padding:0.2rem 0;">${h}</div>`
+    ).join('');
+  }
+  renderHist();
+  document.getElementById('toggle-mode').addEventListener('click', () => {
+    isEngineer = !isEngineer;
+    buildCalc(isEngineer ? eng : basic);
+    document.getElementById('toggle-mode').textContent = isEngineer ? 'Обычный' : 'Инженерный';
+  });
+
+  // ====== ПОГОДА ======
+  document.getElementById('weather-btn').addEventListener('click', async () => {
+    const city = document.getElementById('city-input').value.trim();
+    if (!city) return;
+    document.getElementById('weather-result').textContent = 'Запрос...';
+    try {
+      const res = await secureFetch(`${SERVICE2_URL}/api/weather`, { city });
+      document.getElementById('weather-result').innerHTML = `🌡️ ${res.temp}°C, ${res.desc}<br>📍 ${res.city}`;
+    } catch (e) {
+      document.getElementById('weather-result').textContent = 'Ошибка';
+    }
+  });
+
+  // ====== ПОИСК ======
+  const searchQ = document.getElementById('search-query'),
+    searchBtn = document.getElementById('search-btn'),
+    searchRes = document.getElementById('search-results'),
+    searchStat = document.getElementById('search-status');
+  searchBtn.addEventListener('click', async () => {
+    const q = searchQ.value.trim();
+    if (!q) return;
+    searchStat.textContent = 'Поиск...';
+    searchRes.innerHTML = '';
+    try {
+      const resp = await secureFetch(`${SERVICE4_URL}/api/search`, { query: q });
+      searchRes.innerHTML = resp.results.length ?
+        resp.results.map(r =>
+          `<div class="search-result-item">
+            <div style="font-size:0.8rem;color:#5f7ecf;">${r.source}</div>
+            <a href="${r.url||'#'}" target="_blank" style="color:#cfdbff;font-weight:bold;">${escapeHtml(r.title)}</a>
+            <p style="font-size:0.85rem;color:#b0c0e0;">${escapeHtml(r.text||'')}</p>
+            ${r.icon?`<img src="${r.icon}" style="max-height:40px;margin-top:0.3rem;">`:''}
+          </div>`
+        ).join('') :
+        '<p>Ничего не найдено</p>';
+      searchStat.textContent = `Найдено: ${resp.results.length}`;
+    } catch (e) {
+      searchStat.textContent = 'Ошибка поиска';
+    }
+  });
+  searchQ.addEventListener('keypress', e => { if (e.key === 'Enter') searchBtn.click(); });
+
+  // ====== SkyID ======
+  document.getElementById('skyid-reg-btn').addEventListener('click', async () => {
+    const login = document.getElementById('skyid-reg-login').value.trim(),
+      pass = document.getElementById('skyid-reg-password').value;
+    if (!login || !pass) return alert('Заполни поля');
+    try {
+      const payload = await encryptPayload({ login, password: pass });
+      const res = await fetch(`${SKYID_URL}/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: payload })
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || 'Ошибка');
+      }
+      const json = await res.json();
+      const data = await decryptPayload(json.data);
+      const token = data.jwt || data.token;
+      if (token) {
+        localStorage.setItem('skyid_token', token);
+      }
+      document.getElementById('skyid-result').innerHTML =
+        `<p style="color:#7ebc6f;">✅ Регистрация успешна!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
+      document.dispatchEvent(new Event('skyid_login'));
+    } catch (e) {
+      document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+    }
+  });
+  document.getElementById('skyid-login-btn').addEventListener('click', async () => {
+    const login = document.getElementById('skyid-login-login').value.trim(),
+      pass = document.getElementById('skyid-login-password').value;
+    if (!login || !pass) return alert('Заполни поля');
+    try {
+      const payload = await encryptPayload({ login, password: pass });
+      const res = await fetch(`${SKYID_URL}/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: payload })
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error(e.error || 'Ошибка');
+      }
+      const json = await res.json();
+      const data = await decryptPayload(json.data);
+      const token = data.jwt || data.token;
+      if (token) {
+        localStorage.setItem('skyid_token', token);
+      }
+      document.getElementById('skyid-result').innerHTML =
+        `<p style="color:#7ebc6f;">✅ Вход выполнен!</p><p><strong>SkyID:</strong> ${data.skyid}</p><p><strong>Токен:</strong> ${token}</p>`;
+      document.dispatchEvent(new Event('skyid_login'));
+    } catch (e) {
+      document.getElementById('skyid-result').innerHTML = `<p style="color:#f48024;">❌ ${e.message}</p>`;
+    }
+  });
+
+  // ====== SPOTIFY ======
+  const SPOTIFY_CLIENT_ID = 'ТВОЙ_ID';
+  const REDIRECT_URI = 'https://skycitadel.onrender.com/callback';
+  let spotifyToken = null;
+  async function loadSpotifyToken() {
+    const t = localStorage.getItem('skyid_token');
+    if (!t) return;
+    try {
+      const r = await fetch(`${SERVICE2_URL}/spotify/get-token`, {
+        headers: { Authorization: `Bearer ${t}` }
+      });
+      const d = await r.json();
+      if (d.access_token) {
+        spotifyToken = d.access_token;
+        document.getElementById('spotify-logged-out').style.display = 'none';
+        document.getElementById('spotify-logged-in').style.display = 'block';
+        initSpotifyPlayer();
+      }
+    } catch (e) {}
+  }
+  document.getElementById('spotify-login-btn').addEventListener('click', async () => {
+    const cv = generateRandomString(64);
+    localStorage.setItem('spotify_code_verifier', cv);
+    const cc = await generateCodeChallenge(cv);
+    const state = generateRandomString(16);
+    localStorage.setItem('spotify_state', state);
+    window.location.href = 'https://accounts.spotify.com/authorize?' +
+      new URLSearchParams({
+        response_type: 'code',
+        client_id: SPOTIFY_CLIENT_ID,
+        scope: 'streaming user-read-email user-read-private',
+        redirect_uri: REDIRECT_URI,
+        state,
+        code_challenge_method: 'S256',
+        code_challenge: cc
+      }).toString();
+  });
+  async function handleSpotifyCallback() {
+    const p = new URLSearchParams(location.search);
+    const code = p.get('code'),
+      state = p.get('state');
+    if (!code || state !== localStorage.getItem('spotify_state')) return;
+    const cv = localStorage.getItem('spotify_code_verifier');
+    if (!cv) return;
+    try {
+      const r = await fetch(`${SERVICE2_URL}/spotify/token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code, code_verifier: cv, redirect_uri: REDIRECT_URI })
+      });
+      const d = await r.json();
+      if (d.access_token) {
+        spotifyToken = d.access_token;
+        const skyToken = localStorage.getItem('skyid_token');
+        if (skyToken) {
+          await fetch(`${SERVICE2_URL}/spotify/save-token`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${skyToken}` },
+            body: JSON.stringify({
+              spotify_token: d.access_token,
+              spotify_refresh: d.refresh_token,
+              expires_at: d.expires_in ? Date.now() + d.expires_in * 1000 : null
+            })
+          });
+        }
+        document.getElementById('spotify-logged-out').style.display = 'none';
+        document.getElementById('spotify-logged-in').style.display = 'block';
+        initSpotifyPlayer();
+        history.replaceState({}, document.title, location.pathname);
+      }
+    } catch (e) { console.error(e); }
+  }
+  function initSpotifyPlayer() {
+    if (window.Spotify) {
+      const player = new Spotify.Player({
+        name: 'SkyCitadel Music',
+        getOAuthToken: cb => { cb(spotifyToken); }
+      });
+      player.connect();
+      player.on('ready', (device_id) => { console.log('Spotify Ready', device_id); });
+      document.getElementById('spotify-player').appendChild(player);
+    } else {
+      window.onSpotifyWebPlaybackSDKReady = () => initSpotifyPlayer();
+    }
+  }
+  function generateRandomString(l) {
+    let s = '';
+    const ch = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < l; i++) s += ch.charAt(Math.floor(Math.random() * ch.length));
+    return s;
+  }
+  async function generateCodeChallenge(v) {
+    const d = new TextEncoder().encode(v);
+    const h = await crypto.subtle.digest('SHA-256', d);
+    return btoa(String.fromCharCode(...new Uint8Array(h)))
+      .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  }
+  handleSpotifyCallback();
+  loadSpotifyToken();
+
+  // ====== ОБРАБОТКА ВИДЕО ======
+  const videoIframe = document.getElementById('video-iframe');
+  if (videoIframe) {
+    const params = new URLSearchParams(window.location.search);
+    const videoId = params.get('v');
+    if (videoId) {
+      videoIframe.src = `skyvideo.html?v=${videoId}`;
+    }
+    window.addEventListener('message', (event) => {
+      if (event.data && event.data.type === 'navigateVideo') {
+        const videoId = event.data.videoId;
+        if (videoId) {
+          const url = new URL(window.location);
+          url.search = `?v=${videoId}`;
+          window.history.pushState({}, '', url);
+          if (videoIframe) {
+            videoIframe.src = `skyvideo.html?v=${videoId}`;
+          }
+        }
+      } else if (event.data && event.data.type === 'navigateHome') {
+        const url = new URL(window.location);
+        url.search = '';
+        window.history.pushState({}, '', url);
+        if (videoIframe) {
+          videoIframe.src = 'skyvideo.html';
+        }
+      }
+    });
+    window.addEventListener('popstate', () => {
+      const params = new URLSearchParams(window.location.search);
+      const videoId = params.get('v');
+      if (videoIframe) {
+        videoIframe.src = videoId ? `skyvideo.html?v=${videoId}` : 'skyvideo.html';
+      }
+    });
+  }
+
+  // ====== МОБИЛЬНОЕ МЕНЮ ======
+  const hamburger = document.getElementById('hamburgerBtn');
+  const sidebar = document.querySelector('.sidebar');
+  const overlay = document.getElementById('sidebarOverlay');
+
+  function toggleMenu() {
+    sidebar.classList.toggle('open');
+    overlay.classList.toggle('active');
+    hamburger.classList.toggle('active');
+  }
+
+  hamburger.addEventListener('click', toggleMenu);
+  overlay.addEventListener('click', toggleMenu);
+
+  document.querySelectorAll('.nav-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (window.innerWidth <= 768) {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+        hamburger.classList.remove('active');
+      }
+    });
+  });
+
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 768) {
+      sidebar.classList.remove('open');
+      overlay.classList.remove('active');
+      hamburger.classList.remove('active');
+    }
+  });
+
+  // ====== ОТЛОЖЕННАЯ ЗАГРУЗКА ======
+  setTimeout(() => {
+    safeExecute(loadAnnouncementsAsync);
+  }, 2000);
+  loadUpdates();
+
+  setTimeout(() => {
+    if (document.getElementById('maps').classList.contains('active')) {
+      safeExecute(() => {
+        if (window.map) window.map.invalidateSize();
+      });
+    }
+  }, 500);
+});
+
+// ====== ОБРАБОТКА ХЕШЕЙ (глобально) ======
+window.addEventListener('hashchange', function() {
+  const hash = location.hash.replace('#', '');
+  const externalPages = {
+    'video': 'skyvideo.html',
+    'music': 'music.html'
+  };
+  if (externalPages[hash]) {
+    window.location.href = externalPages[hash];
+    return;
+  }
+  if (hash) {
+    const targetSection = document.getElementById(hash);
+    if (targetSection) {
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      targetSection.classList.add('active');
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.section === hash) btn.classList.add('active');
+      });
+    }
+  }
+});
+
+if (window.location.hash) {
+  window.dispatchEvent(new Event('hashchange'));
+}
 </script>
 </body>
 </html>
