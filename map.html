@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Навигатор • SkyCitadel</title>
+
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <!-- Leaflet Routing Machine CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    /* ===== Верхняя панель ===== */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.6rem 1rem;
+      background: #111827;
+      border-bottom: 1px solid #2a3450;
+      flex-shrink: 0;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+    .header .left {
+      display: flex;
+      align-items: center;
+      gap: 0.8rem;
+    }
+    .header .left a {
+      color: #5f7ecf;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+    .header .left a:hover { text-decoration: underline; }
+    .header h1 {
+      font-size: 1.3rem;
+      color: #b7ceff;
+      font-weight: 400;
+    }
+    .header .right {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+
+    /* ===== Панель управления (поиск, маршрут) ===== */
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: #0d1425;
+      border-bottom: 1px solid #1e2a40;
+      flex-shrink: 0;
+      align-items: center;
+    }
+    .controls input[type="text"] {
+      flex: 1;
+      min-width: 140px;
+      padding: 0.4rem 0.8rem;
+      background: #0d1225;
+      border: 1px solid #2a3450;
+      color: #cfdbff;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      outline: none;
+    }
+    .controls input:focus {
+      border-color: #5f7ecf;
+    }
+    .controls .btn {
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      padding: 0.4rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+      white-space: nowrap;
+    }
+    .controls .btn:hover { background: #4a6bb0; }
+    .controls .btn-danger { background: #8c2f2f; }
+    .controls .btn-danger:hover { background: #b04a4a; }
+    .controls .btn-success { background: #2f7a4a; }
+    .controls .btn-success:hover { background: #4a9a6a; }
+
+    /* ===== Контейнер карты ===== */
+    #map {
+      flex: 1;
+      width: 100%;
+      background: #0d1225;
+    }
+
+    /* ===== Нижняя панель (спидометр + данные) ===== */
+    .dashboard {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-around;
+      padding: 0.5rem 1rem;
+      background: #111827;
+      border-top: 1px solid #2a3450;
+      flex-shrink: 0;
+      gap: 0.8rem;
+      font-size: 0.9rem;
+    }
+    .dashboard .item {
+      display: flex;
+      align-items: baseline;
+      gap: 0.4rem;
+    }
+    .dashboard .item .label {
+      color: #8899cc;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .dashboard .item .value {
+      font-weight: bold;
+      color: #b7ceff;
+      font-size: 1.1rem;
+    }
+    .dashboard .item .value.speed {
+      color: #7ebc6f;
+      font-size: 1.4rem;
+    }
+    .dashboard .item .value.distance {
+      color: #f4c97e;
+    }
+    .dashboard .item .value.heading {
+      color: #7a9aef;
+    }
+
+    /* ===== Адаптив ===== */
+    @media (max-width: 768px) {
+      .header h1 { font-size: 1rem; }
+      .controls input[type="text"] { min-width: 100px; font-size: 0.8rem; }
+      .dashboard { font-size: 0.8rem; gap: 0.5rem; }
+      .dashboard .item .value { font-size: 1rem; }
+      .dashboard .item .value.speed { font-size: 1.2rem; }
+    }
+    @media (max-width: 480px) {
+      .header .left a { font-size: 0.7rem; }
+      .controls { flex-direction: column; align-items: stretch; }
+      .controls .btn { width: 100%; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <div class="header">
+    <div class="left">
+      <a href="/">🏰 Назад</a>
+      <h1>🗺️ Навигатор</h1>
+    </div>
+    <div class="right">
+      <button class="btn" id="btnCenter">📍 Центрировать</button>
+      <button class="btn btn-success" id="btnTrack">▶️ Трекинг</button>
+      <button class="btn btn-danger" id="btnClearRoute">✖️ Маршрут</button>
+    </div>
+  </div>
+
+  <!-- ===== CONTROLS ===== -->
+  <div class="controls">
+    <input type="text" id="searchInput" placeholder="Поиск места..." />
+    <button class="btn" id="btnSearch">🔍 Найти</button>
+    <input type="text" id="routeStart" placeholder="Откуда" />
+    <input type="text" id="routeEnd" placeholder="Куда" />
+    <button class="btn" id="btnRoute">🚗 Построить маршрут</button>
+  </div>
+
+  <!-- ===== MAP ===== -->
+  <div id="map"></div>
+
+  <!-- ===== DASHBOARD ===== -->
+  <div class="dashboard">
+    <div class="item">
+      <span class="label">Скорость</span>
+      <span class="value speed" id="speedDisplay">0.0</span>
+      <span style="font-size:0.7rem;color:#8899cc;">км/ч</span>
+    </div>
+    <div class="item">
+      <span class="label">Расстояние</span>
+      <span class="value distance" id="distDisplay">0.0</span>
+      <span style="font-size:0.7rem;color:#8899cc;">км</span>
+    </div>
+    <div class="item">
+      <span class="label">Направление</span>
+      <span class="value heading" id="headingDisplay">—</span>
+      <span style="font-size:0.7rem;color:#8899cc;">°</span>
+    </div>
+    <div class="item">
+      <span class="label">Точность</span>
+      <span class="value" id="accuracyDisplay" style="color:#8899cc;">—</span>
+      <span style="font-size:0.7rem;color:#8899cc;">м</span>
+    </div>
+    <div class="item">
+      <span class="label">Координаты</span>
+      <span class="value" id="coordsDisplay" style="font-size:0.8rem;color:#8899cc;">—</span>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPTS ===== -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.min.js"></script>
+
+  <script>
+    (function() {
+      'use strict';
+
+      // ===== ИНИЦИАЛИЗАЦИЯ КАРТЫ =====
+      const map = L.map('map', {
+        center: [55.7558, 37.6173],
+        zoom: 12,
+        zoomControl: true,
+        fadeAnimation: true,
+      });
+
+      // Слой карты (OpenStreetMap)
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
+        subdomains: 'abcd',
+        maxZoom: 20,
+      }).addTo(map);
+
+      // ===== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ =====
+      let routingControl = null;
+      let userMarker = null;
+      let userCircle = null;
+      let watchId = null;
+      let tracking = false;
+      let positionHistory = [];
+      let totalDistance = 0;
+      let lastLatLng = null;
+      let lastTimestamp = null;
+
+      // Элементы интерфейса
+      const speedDisplay = document.getElementById('speedDisplay');
+      const distDisplay = document.getElementById('distDisplay');
+      const headingDisplay = document.getElementById('headingDisplay');
+      const accuracyDisplay = document.getElementById('accuracyDisplay');
+      const coordsDisplay = document.getElementById('coordsDisplay');
+      const btnCenter = document.getElementById('btnCenter');
+      const btnTrack = document.getElementById('btnTrack');
+      const btnClearRoute = document.getElementById('btnClearRoute');
+      const btnSearch = document.getElementById('btnSearch');
+      const btnRoute = document.getElementById('btnRoute');
+      const searchInput = document.getElementById('searchInput');
+      const routeStart = document.getElementById('routeStart');
+      const routeEnd = document.getElementById('routeEnd');
+
+      // ===== ФУНКЦИИ =====
+
+      // Обновление панели
+      function updateDashboard(lat, lng, speed, heading, accuracy, distance) {
+        coordsDisplay.textContent = lat && lng ? `${lat.toFixed(6)}, ${lng.toFixed(6)}` : '—';
+        speedDisplay.textContent = speed !== undefined && speed !== null ? speed.toFixed(1) : '0.0';
+        headingDisplay.textContent = heading !== undefined && heading !== null ? Math.round(heading) : '—';
+        accuracyDisplay.textContent = accuracy !== undefined && accuracy !== null ? Math.round(accuracy) : '—';
+        distDisplay.textContent = distance !== undefined && distance !== null ? distance.toFixed(2) : '0.0';
+      }
+
+      // Центрирование на пользователе
+      function centerOnUser() {
+        if (!userMarker) {
+          // Если нет маркера, пробуем определить геолокацию
+          if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => {
+                const lat = pos.coords.latitude;
+                const lng = pos.coords.longitude;
+                map.setView([lat, lng], 16);
+              },
+              () => { alert('Не удалось определить местоположение'); },
+              { enableHighAccuracy: true }
+            );
+          } else {
+            alert('Геолокация не поддерживается');
+          }
+          return;
+        }
+        const latlng = userMarker.getLatLng();
+        map.setView(latlng, 16);
+      }
+
+      // Поиск места через Nominatim
+      async function searchPlace(query) {
+        if (!query.trim()) return;
+        try {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            const { lat, lon, display_name } = data[0];
+            const latlng = L.latLng(parseFloat(lat), parseFloat(lon));
+            map.setView(latlng, 14);
+            L.marker(latlng).addTo(map).bindPopup(display_name).openPopup();
+          } else {
+            alert('Ничего не найдено');
+          }
+        } catch (e) {
+          alert('Ошибка поиска');
+        }
+      }
+
+      // Построение маршрута
+      async function buildRoute(startText, endText) {
+        if (!startText.trim() || !endText.trim()) {
+          alert('Введите начальную и конечную точки');
+          return;
+        }
+
+        // Геокодирование
+        async function geocode(addr) {
+          const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(addr)}&limit=1`);
+          const data = await res.json();
+          if (data && data.length > 0) {
+            return L.latLng(parseFloat(data[0].lat), parseFloat(data[0].lon));
+          }
+          throw new Error('Адрес не найден');
+        }
+
+        try {
+          const start = await geocode(startText);
+          const end = await geocode(endText);
+          if (routingControl) {
+            map.removeControl(routingControl);
+            routingControl = null;
+          }
+          routingControl = L.Routing.control({
+            waypoints: [start, end],
+            routeWhileDragging: true,
+            lineOptions: {
+              styles: [{ color: '#5f7ecf', weight: 6 }],
+            },
+            show: true,
+            addWaypoints: false,
+            draggableWaypoints: false,
+            fitSelectedRoutes: true,
+            showAlternatives: false,
+          }).addTo(map);
+        } catch (e) {
+          alert('Ошибка построения маршрута: ' + e.message);
+        }
+      }
+
+      // ===== ОБРАБОТЧИК ГЕОЛОКАЦИИ =====
+      function startTracking() {
+        if (!navigator.geolocation) {
+          alert('Геолокация не поддерживается');
+          return;
+        }
+        if (tracking) {
+          stopTracking();
+          return;
+        }
+
+        tracking = true;
+        btnTrack.textContent = '⏹️ Остановить';
+        btnTrack.classList.remove('btn-success');
+        btnTrack.classList.add('btn-danger');
+
+        // Сброс данных
+        positionHistory = [];
+        totalDistance = 0;
+        lastLatLng = null;
+        lastTimestamp = null;
+        updateDashboard(null, null, 0, null, null, 0);
+
+        watchId = navigator.geolocation.watchPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            const accuracy = pos.coords.accuracy;
+            const speed = pos.coords.speed !== null ? pos.coords.speed * 3.6 : 0; // м/с -> км/ч
+            const heading = pos.coords.heading !== null ? pos.coords.heading : null;
+            const timestamp = pos.timestamp;
+
+            // Обновляем маркер и круг
+            const latlng = L.latLng(lat, lng);
+            if (userMarker) {
+              userMarker.setLatLng(latlng);
+            } else {
+              const icon = L.divIcon({
+                html: '📍',
+                iconSize: [30, 30],
+                className: 'custom-marker',
+              });
+              userMarker = L.marker(latlng, { icon }).addTo(map);
+            }
+            if (userCircle) {
+              userCircle.setLatLng(latlng);
+              userCircle.setRadius(accuracy);
+            } else {
+              userCircle = L.circle(latlng, {
+                radius: accuracy,
+                color: '#5f7ecf',
+                fillColor: '#5f7ecf',
+                fillOpacity: 0.15,
+                weight: 1,
+              }).addTo(map);
+            }
+
+            // Вычисляем пройденное расстояние
+            if (lastLatLng && lastTimestamp) {
+              const dist = latlng.distanceTo(lastLatLng);
+              if (dist > 1) { // игнорируем шум
+                totalDistance += dist;
+              }
+            }
+            lastLatLng = latlng;
+            lastTimestamp = timestamp;
+
+            // Обновляем панель
+            updateDashboard(lat, lng, speed, heading, accuracy, totalDistance / 1000);
+          },
+          (err) => {
+            alert('Ошибка геолокации: ' + err.message);
+            stopTracking();
+          },
+          {
+            enableHighAccuracy: true,
+            maximumAge: 1000,
+            timeout: 10000,
+          }
+        );
+      }
+
+      function stopTracking() {
+        if (watchId) {
+          navigator.geolocation.clearWatch(watchId);
+          watchId = null;
+        }
+        tracking = false;
+        btnTrack.textContent = '▶️ Трекинг';
+        btnTrack.classList.remove('btn-danger');
+        btnTrack.classList.add('btn-success');
+      }
+
+      // Очистка маршрута
+      function clearRoute() {
+        if (routingControl) {
+          map.removeControl(routingControl);
+          routingControl = null;
+        }
+      }
+
+      // ===== НАВИГАЦИЯ: КНОПКИ =====
+      btnCenter.addEventListener('click', centerOnUser);
+      btnTrack.addEventListener('click', startTracking);
+      btnClearRoute.addEventListener('click', clearRoute);
+      btnSearch.addEventListener('click', () => searchPlace(searchInput.value));
+      searchInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') searchPlace(searchInput.value); });
+      btnRoute.addEventListener('click', () => buildRoute(routeStart.value, routeEnd.value));
+
+      // ===== СТАРТОВАЯ ИНИЦИАЛИЗАЦИЯ =====
+      // Пытаемся определить местоположение при загрузке
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const lat = pos.coords.latitude;
+            const lng = pos.coords.longitude;
+            map.setView([lat, lng], 14);
+            // Создаём маркер без трекинга
+            const icon = L.divIcon({ html: '📍', iconSize: [30, 30], className: 'custom-marker' });
+            userMarker = L.marker([lat, lng], { icon }).addTo(map);
+            userCircle = L.circle([lat, lng], {
+              radius: pos.coords.accuracy,
+              color: '#5f7ecf',
+              fillColor: '#5f7ecf',
+              fillOpacity: 0.15,
+              weight: 1,
+            }).addTo(map);
+            updateDashboard(lat, lng, 0, null, pos.coords.accuracy, 0);
+          },
+          () => {
+            // Если не удалось, оставляем карту в центре Москвы
+            map.setView([55.7558, 37.6173], 12);
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+
+      // ===== ОБРАБОТКА ИЗМЕНЕНИЯ РАЗМЕРА =====
+      window.addEventListener('resize', () => {
+        map.invalidateSize();
+      });
+
+      console.log('🗺️ Навигатор SkyCitadel загружен');
+    })();
+  </script>
+</body>
+</html>
