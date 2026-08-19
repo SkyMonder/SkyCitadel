@@ -337,6 +337,55 @@
     		<div id="home-updates" style="margin-top:0.5rem;">
       		<div class="loading-placeholder">Загрузка обновлений...</div>
     		</div>
+			<!-- ===== МУЗЫКАЛЬНЫЙ ПЛЕЕР ===== -->
+			<div class="card" style="margin-top: 1.5rem;">
+  			<h3 style="display: flex; align-items: center; gap: 0.5rem; color: #b7ceff;">
+    			🎵 Музыкальный центр
+    			<span style="font-size: 0.7rem; color: #8899cc; font-weight: 400; margin-left: auto;">загрузи свой трек</span>
+ 			</h3>
+
+  			<div class="player-container" id="musicWidget">
+    			<!-- Загрузка -->
+    			<div class="player-upload">
+      			<input type="file" id="playerFileInput" accept="audio/mpeg" style="display: none;">
+      			<button class="btn" id="playerUploadBtn">📂 Загрузить MP3</button>
+      			<span style="color: #8899cc; font-size: 0.8rem; margin-left: 0.5rem;">или</span>
+      			<input type="text" id="playerUrlInput" placeholder="Вставьте ссылку на MP3..." style="flex:1; padding:0.4rem 0.8rem; background:#0d1225; border:1px solid #2a3450; color:white; border-radius:20px; font-size:0.8rem; outline:none; min-width:150px;">
+      			<button class="btn" id="playerUrlBtn">▶️</button>
+    			</div>
+
+    <!-- Плеер -->
+    			<div class="player-content" id="playerContent" style="display: none;">
+      			<div class="player-disc-wrapper">
+        			<div class="player-disc" id="playerDisc">
+          			<img id="playerCover" src="" alt="Обложка">
+          			<div class="player-center-hole"></div>
+        		</div>
+        		<div class="player-arm"></div>
+      		</div>
+
+      		<div class="player-info">
+      	  		<div class="player-track" id="playerTrack">Название трека</div>
+        		<div class="player-artist" id="playerArtist">Исполнитель</div>
+        		<div class="player-controls">
+          			<button class="btn btn-sm" id="playerPrevBtn">⏮</button>
+          			<button class="btn btn-sm" id="playerPlayBtn">▶️</button>
+          			<button class="btn btn-sm" id="playerNextBtn">⏭</button>
+          			<input type="range" id="playerProgress" min="0" max="100" value="0" style="flex:1; min-width:80px; background:#2a3450; height:4px; border-radius:2px; -webkit-appearance:none;">
+          			<span id="playerTime" style="font-size:0.7rem; color:#8899cc; min-width:70px;">0:00 / 0:00</span>
+          			<input type="range" id="playerVolume" min="0" max="100" value="80" style="width:60px; background:#2a3450; height:4px; border-radius:2px; -webkit-appearance:none;">
+          			<span style="font-size:0.7rem; color:#8899cc;">🔊</span>
+        			</div>
+      			</div>
+    		</div>
+
+    <!-- Пустое состояние -->
+    		<div class="player-empty" id="playerEmpty">
+      			<span style="font-size: 2rem;">🎶</span>
+      			<p style="color: #8899cc; margin-top: 0.3rem;">Загрузите MP3, чтобы начать</p>
+    			</div>
+  			  </div>
+			</div>
     		<div style="margin-top:1rem; font-size:0.8rem; color:#8899cc;">
       		🔒 Все данные шифруются на вашем устройстве • Открытый код на <a href="https://github.com/SkyMonder/SkyCitadel" target="_blank" style="color:#5f7ecf;">GitHub</a>
     		</div>
