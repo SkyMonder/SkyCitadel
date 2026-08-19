@@ -483,13 +483,13 @@
 
     <div id="notes" class="section">
   		<div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-    		<iframe src="https://skymutant.cc.cd/notes" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
+    		<iframe src="https://skymutant-prox.rilloperdagelo.workers.dev/notes" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
   		</div>
 	</div>
 
 	<div id="mail" class="section">
   		<div class="card" style="padding:0; height:calc(100vh - 150px); border-radius:20px; overflow:hidden;">
-    		<iframe src="https://skymutant.cc.cd/mail" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
+    		<iframe src="https://skymutant-prox.rilloperdagelo.workers.dev/mail" loading="lazy" style="width:100%; height:100%; border:none;"></iframe>
   		</div>
 	</div>
 	<footer style="text-align:center; padding:20px; color:#8899cc; font-size:0.8rem;">
@@ -593,7 +593,7 @@ async function loadAnnouncementsAsync() {
   const container = document.getElementById('announce-container');
   if (!container) return;
   container.innerHTML = '<div class="loading-placeholder">Загрузка...</div>';
-  const data = await loadData('https://skymutant.cc.cd/announcements', []);
+  const data = await loadData('https://skymutant-prox.rilloperdagelo.workers.dev/announcements', []);
   if (data && Array.isArray(data)) {
     container.innerHTML = data.length
       ? data.map(i => `<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('')
@@ -605,7 +605,7 @@ async function loadAnnouncementsAsync() {
 
 // ====== СТАТИСТИКА В ФУТЕРЕ ======
 (function loadFooterStats() {
-  const API_BASE = 'https://skymutant.cc.cd';
+  const API_BASE = 'https://skymutant-prox.rilloperdagelo.workers.dev';
 
   const countryMap = {
     'ru': 'Россия', 'russia': 'Россия', 'russian federation': 'Россия',
@@ -670,7 +670,7 @@ async function loadAnnouncementsAsync() {
 (function trackVisit() {
   if (sessionStorage.getItem('visit_tracked')) return;
   sessionStorage.setItem('visit_tracked', 'true');
-  const API_BASE = 'https://skymutant.cc.cd';
+  const API_BASE = 'https://skymutant-prox.rilloperdagelo.workers.dev';
   const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
   const deviceType = isMobile ? 'mobile' : 'desktop';
   const page = window.location.pathname || '/';
@@ -722,7 +722,7 @@ async function subscribeToPush(registration) {
     }
     const token = localStorage.getItem('skyid_token');
     if (token) {
-      await fetch('https://skymutant.cc.cd/api/push/subscribe', {
+      await fetch('https://skymutant-prox.rilloperdagelo.workers.dev/api/push/subscribe', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ subscription })
@@ -781,9 +781,9 @@ document.addEventListener('DOMContentLoaded', function() {
   }
 
   // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
-  const SERVICE2_URL = 'https://skymutant.cc.cd';
-  const SERVICE4_URL = 'https://skymutant.cc.cd';
-  const SKYID_URL = 'https://skymutant.cc.cd';
+  const SERVICE2_URL = 'https://skymutant-prox.rilloperdagelo.workers.dev';
+  const SERVICE4_URL = 'https://skymutant-prox.rilloperdagelo.workers.dev';
+  const SKYID_URL = 'https://skymutant-prox.rilloperdagelo.workers.dev';
 
   // ====== БЕЗОПАСНОЕ ВЫПОЛНЕНИЕ ======
   function safeExecute(fn, fallback = null) {
