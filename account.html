@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Управление аккаунтом • SkyCitadel</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem;
+    }
+    .container {
+      max-width: 700px;
+      width: 100%;
+      background: #1a233a;
+      border-radius: 24px;
+      border: 1px solid #2a3450;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+    }
+    h1 {
+      color: #b7ceff;
+      font-weight: 300;
+      border-left: 4px solid #5f7ecf;
+      padding-left: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .back-link {
+      display: inline-block;
+      color: #5f7ecf;
+      text-decoration: none;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+    .profile-field {
+      margin-bottom: 1.2rem;
+    }
+    .profile-field label {
+      display: block;
+      color: #8899cc;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 0.2rem;
+    }
+    .profile-field .value {
+      background: #0d1225;
+      padding: 0.6rem 1rem;
+      border-radius: 10px;
+      border: 1px solid #2a3450;
+      color: #cfdbff;
+      word-break: break-all;
+    }
+    .profile-field input {
+      width: 100%;
+      padding: 0.6rem 1rem;
+      background: #0d1225;
+      border: 1px solid #2a3450;
+      color: #cfdbff;
+      border-radius: 10px;
+      font-size: 1rem;
+    }
+    .profile-field input:focus {
+      border-color: #5f7ecf;
+      outline: none;
+    }
+    .btn {
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      padding: 0.6rem 1.5rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+      margin-right: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .btn:hover {
+      background: #4a6bb0;
+    }
+    .btn-danger {
+      background: #8c2f2f;
+    }
+    .btn-danger:hover {
+      background: #b04a4a;
+    }
+    .btn-success {
+      background: #2f7a4a;
+    }
+    .btn-success:hover {
+      background: #4a9a6a;
+    }
+    .section {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #2a3450;
+    }
+    .section h2 {
+      font-size: 1.2rem;
+      color: #b7ceff;
+      margin-bottom: 0.8rem;
+      font-weight: 400;
+    }
+    .session-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #0d1225;
+      padding: 0.6rem 1rem;
+      border-radius: 10px;
+      margin-bottom: 0.5rem;
+      border: 1px solid #1e2a40;
+    }
+    .session-item .info {
+      font-size: 0.9rem;
+      color: #cfdbff;
+    }
+    .session-item .info .device {
+      font-weight: bold;
+      color: #b7ceff;
+    }
+    .session-item .info .time {
+      font-size: 0.7rem;
+      color: #8899cc;
+    }
+    .session-item .btn-sm {
+      padding: 0.2rem 0.8rem;
+      font-size: 0.7rem;
+      background: #4a2a2a;
+      border: none;
+      color: #f48024;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .session-item .btn-sm:hover {
+      background: #5a3a3a;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #c44;
+      color: white;
+      padding: 0.6rem 1.5rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      z-index: 100;
+      display: none;
+      max-width: 90%;
+      text-align: center;
+    }
+    .toast.success { background: #2f7a4a; }
+    .loading {
+      color: #8899cc;
+      font-style: italic;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+      .session-item { flex-wrap: wrap; gap: 0.5rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="toast" class="toast"></div>
+
+  <div class="container">
+    <a href="/" class="back-link">🏰 Вернуться в крепость</a>
+    <h1>👤 Управление аккаунтом</h1>
+
+    <!-- Профиль -->
+    <div id="profileSection">
+      <div class="profile-field">
+        <label>SkyID</label>
+        <div class="value" id="displaySkyid">—</div>
+      </div>
+      <div class="profile-field">
+        <label>Логин</label>
+        <div class="value" id="displayLogin">—</div>
+      </div>
+      <div class="profile-field">
+        <label>Имя (отображаемое)</label>
+        <input type="text" id="inputName" placeholder="Ваше имя" />
+        <button class="btn btn-success" id="saveNameBtn">Сохранить имя</button>
+      </div>
+      <div class="profile-field">
+        <label>Дата регистрации</label>
+        <div class="value" id="displayCreated">—</div>
+      </div>
+    </div>
+
+    <!-- Смена пароля -->
+    <div class="section">
+      <h2>🔑 Смена пароля</h2>
+      <div class="profile-field">
+        <label>Новый пароль</label>
+        <input type="password" id="newPassword" placeholder="Введите новый пароль" />
+      </div>
+      <div class="profile-field">
+        <label>Подтверждение пароля</label>
+        <input type="password" id="confirmPassword" placeholder="Повторите пароль" />
+      </div>
+      <button class="btn" id="changePasswordBtn">Сменить пароль</button>
+    </div>
+
+    <!-- Сессии -->
+    <div class="section">
+      <h2>📱 Активные сессии</h2>
+      <div id="sessionsList">
+        <div class="loading">Загрузка...</div>
+      </div>
+      <button class="btn btn-danger" id="logoutAllBtn">Завершить все сессии</button>
+    </div>
+
+    <!-- Удаление аккаунта -->
+    <div class="section">
+      <h2>⚠️ Опасная зона</h2>
+      <button class="btn btn-danger" id="deleteAccountBtn">Удалить аккаунт</button>
+      <p style="font-size:0.7rem; color:#8899cc; margin-top:0.3rem;">Это действие необратимо. Все данные будут удалены.</p>
+    </div>
+  </div>
+
+  <script>
+    // ====== ГЛОБАЛЬНЫЕ КОНСТАНТЫ ======
+    const API_BASE = 'https://skymutant-prox.rilloperdagelo.workers.dev';
+    const token = localStorage.getItem('skyid_token');
+    let skyid = null;
+
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ======
+    function showToast(message, bg = '#c44') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.style.background = bg;
+      toast.style.display = 'block';
+      clearTimeout(toast._timeout);
+      toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
+    }
+
+    function getHeaders() {
+      return {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      };
+    }
+
+    // ====== ЗАГРУЗКА ПРОФИЛЯ ======
+    async function loadProfile() {
+      try {
+        const res = await fetch(`${API_BASE}/account/profile`, {
+          headers: getHeaders()
+        });
+        if (!res.ok) {
+          if (res.status === 401) {
+            showToast('Сессия истекла. Войдите снова.', '#c44');
+            window.location.href = '/';
+            return;
+          }
+          throw new Error('Ошибка загрузки профиля');
+        }
+        const data = await res.json();
+        skyid = data.skyid;
+        document.getElementById('displaySkyid').textContent = data.skyid;
+        document.getElementById('displayLogin').textContent = data.login;
+        document.getElementById('inputName').value = data.name || '';
+        document.getElementById('displayCreated').textContent = data.created ? new Date(data.created).toLocaleString() : '—';
+      } catch (e) {
+        showToast('Ошибка загрузки профиля: ' + e.message);
+      }
+    }
+
+    // ====== СОХРАНЕНИЕ ИМЕНИ ======
+    document.getElementById('saveNameBtn').addEventListener('click', async () => {
+      const name = document.getElementById('inputName').value.trim();
+      if (!name) {
+        showToast('Введите имя', '#f48024');
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/account/update`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ name })
+        });
+        if (!res.ok) throw new Error('Ошибка обновления');
+        showToast('Имя обновлено!', '#2f7a4a');
+        loadProfile(); // обновляем данные
+      } catch (e) {
+        showToast('Ошибка: ' + e.message);
+      }
+    });
+
+    // ====== СМЕНА ПАРОЛЯ ======
+    document.getElementById('changePasswordBtn').addEventListener('click', async () => {
+      const newPass = document.getElementById('newPassword').value;
+      const confirmPass = document.getElementById('confirmPassword').value;
+      if (!newPass || !confirmPass) {
+        showToast('Заполните оба поля', '#f48024');
+        return;
+      }
+      if (newPass.length < 6) {
+        showToast('Пароль должен быть не менее 6 символов', '#f48024');
+        return;
+      }
+      if (newPass !== confirmPass) {
+        showToast('Пароли не совпадают', '#f48024');
+        return;
+      }
+      try {
+        const res = await fetch(`${API_BASE}/account/change-password`, {
+          method: 'POST',
+          headers: getHeaders(),
+          body: JSON.stringify({ newPassword: newPass })
+        });
+        if (!res.ok) throw new Error('Ошибка смены пароля');
+        showToast('Пароль успешно изменён!', '#2f7a4a');
+        document.getElementById('newPassword').value = '';
+        document.getElementById('confirmPassword').value = '';
+      } catch (e) {
+        showToast('Ошибка: ' + e.message);
+      }
+    });
+
+    // ====== ЗАГРУЗКА СЕССИЙ ======
+    async function loadSessions() {
+      try {
+        const res = await fetch(`${API_BASE}/account/sessions`, {
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Ошибка загрузки сессий');
+        const sessions = await res.json();
+        const container = document.getElementById('sessionsList');
+        if (!sessions || sessions.length === 0) {
+          container.innerHTML = '<p style="color:#8899cc;">Активных сессий нет</p>';
+          return;
+        }
+        container.innerHTML = sessions.map(s => `
+          <div class="session-item">
+            <div class="info">
+              <div class="device">${s.device || 'Неизвестное устройство'}</div>
+              <div class="time">${s.lastActive ? new Date(s.lastActive).toLocaleString() : '—'}</div>
+            </div>
+            <button class="btn-sm" onclick="terminateSession('${s.id}')">Завершить</button>
+          </div>
+        `).join('');
+      } catch (e) {
+        document.getElementById('sessionsList').innerHTML = '<p style="color:#f48024;">Ошибка загрузки сессий</p>';
+      }
+    }
+
+    // ====== ЗАВЕРШИТЬ СЕССИЮ ======
+    window.terminateSession = async (sessionId) => {
+      if (!confirm('Завершить эту сессию?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/account/sessions/${sessionId}`, {
+          method: 'DELETE',
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Ошибка');
+        showToast('Сессия завершена', '#2f7a4a');
+        loadSessions();
+      } catch (e) {
+        showToast('Ошибка: ' + e.message);
+      }
+    };
+
+    // ====== ЗАВЕРШИТЬ ВСЕ СЕССИИ ======
+    document.getElementById('logoutAllBtn').addEventListener('click', async () => {
+      if (!confirm('Завершить все сессии, кроме текущей?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/account/sessions`, {
+          method: 'DELETE',
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Ошибка');
+        showToast('Все сессии завершены', '#2f7a4a');
+        loadSessions();
+      } catch (e) {
+        showToast('Ошибка: ' + e.message);
+      }
+    });
+
+    // ====== УДАЛЕНИЕ АККАУНТА ======
+    document.getElementById('deleteAccountBtn').addEventListener('click', async () => {
+      if (!confirm('ВЫ УВЕРЕНЫ? Это действие необратимо!')) return;
+      if (!confirm('Все ваши данные будут удалены. Продолжить?')) return;
+      try {
+        const res = await fetch(`${API_BASE}/account/delete`, {
+          method: 'DELETE',
+          headers: getHeaders()
+        });
+        if (!res.ok) throw new Error('Ошибка удаления');
+        showToast('Аккаунт удалён. Возврат на главную...', '#c44');
+        localStorage.removeItem('skyid_token');
+        setTimeout(() => { window.location.href = '/'; }, 2000);
+      } catch (e) {
+        showToast('Ошибка: ' + e.message);
+      }
+    });
+
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
+    if (!token) {
+      showToast('Вы не авторизованы. Перенаправление...', '#f48024');
+      setTimeout(() => { window.location.href = '/'; }, 2000);
+    } else {
+      loadProfile();
+      loadSessions();
+    }
+  </script>
+</body>
+</html>
