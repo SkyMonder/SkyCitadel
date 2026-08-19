@@ -95,7 +95,7 @@
         <input type="text" id="messageInput" placeholder="Сообщение...">
         <button class="btn" id="sendBtn">➤</button>
         <button class="btn" id="audioCallBtn" title="Аудиозвонок">📞</button>
-        <button class="btn" id="videoCallBtn" title="Видеозвонок">📹</button>
+        <button class="btn" id="videoCallBtn" title="Видеозввонок">📹</button>
       </div>
     </div>
   </div>
@@ -146,12 +146,8 @@
     </div>
   </div>
 
-  <!-- tweetnacl для E2EE (пока закомментирован) -->
-  <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
-
   <script>
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (в начале) ======
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
@@ -174,7 +170,7 @@
     };
 
     // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
-    let ws, currentUser = null, chats = {}, activeChatId = null;
+    let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
@@ -189,73 +185,25 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== АВТОРИЗАЦИЯ (НОВЫЕ ЭНДПОИНТЫ) ======
-    document.getElementById('switchAuth').addEventListener('click', function() {
-      const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
-      if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
-      else { t.textContent='Вход'; b.textContent='Войти'; this.textContent='Нет аккаунта? Зарегистрироваться'; }
-    });
-
-    document.getElementById('authBtn').addEventListener('click', async () => {
-      const login = document.getElementById('loginInput').value.trim();
-      const password = document.getElementById('passInput').value;
-      if (!login || !password) return alert('Заполни поля');
-
-      const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
-      const url = isReg ? `${SERVER_URL}/register` : `${SERVER_URL}/login`;
-      const body = JSON.stringify({ login, password });
-
-      try {
-        const res = await fetch(url, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: body
-        });
-
-        const data = await res.json();
-
-        if (!res.ok) {
-          alert(data.error || 'Ошибка');
-          return;
-        }
-
-        if (isReg) {
-          alert('Аккаунт создан! Теперь войдите.');
-          document.getElementById('authTitle').textContent = 'Вход';
-          document.getElementById('authBtn').textContent = 'Войти';
-          document.getElementById('switchAuth').textContent = 'Нет аккаунта? Зарегистрироваться';
-          return;
-        }
-
-        // Вход успешен
-        const token = data.jwt || data.token;
-        if (token) {
-          localStorage.setItem('skyid_token', token);
-        }
-
-        currentUser = { login };
-        document.getElementById('authScreen').style.display = 'none';
-        document.getElementById('app').style.display = 'flex';
-        connectWebSocket();
-      } catch (e) {
-        alert('Ошибка: ' + e.message);
-      }
-    });
+    // ====== ШИФРОВАНИЕ (для старой схемы) ======
+    const enc = new TextEncoder();
+    async function deriveKey(password, saltBase64) {
+      const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
+      const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
+      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+    }
 
     // ====== WEBSOCKET ======
     function connectWebSocket() {
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        const token = localStorage.getItem('skyid_token');
-        ws.send(JSON.stringify({ type: 'auth', token: token }));
+        ws.send(JSON.stringify({ type: 'auth', login: currentUser.login }));
+        sendServerMessage('get_chats', {});
       };
       ws.onmessage = (e) => {
         const msg = JSON.parse(e.data);
         switch (msg.type) {
-          case 'auth_ok':
-            currentUser = { ...currentUser, ...msg };
-            sendServerMessage('get_chats', {});
-            break;
+          case 'auth_ok': currentUser = { ...currentUser, ...msg }; break;
           case 'message': handleIncomingMessage(msg); break;
           case 'message_edited': handleMessageEdited(msg); break;
           case 'message_deleted': handleMessageDeleted(msg); break;
@@ -291,6 +239,45 @@
     function sendServerMessage(type, data = {}) {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...data }));
     }
+
+    function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
+    function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
+
+    // ====== АВТОРИЗАЦИЯ ======
+    document.getElementById('switchAuth').addEventListener('click', function() {
+      const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
+      if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
+      else { t.textContent='Вход'; b.textContent='Войти'; this.textContent='Нет аккаунта? Зарегистрироваться'; }
+    });
+
+    document.getElementById('authBtn').addEventListener('click', async () => {
+      const login = document.getElementById('loginInput').value.trim();
+      const password = document.getElementById('passInput').value;
+      if (!login || !password) return alert('Заполни поля');
+      const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
+      try {
+        if (isReg) {
+          const salt = window.crypto.getRandomValues(new Uint8Array(16));
+          const saltB64 = btoa(String.fromCharCode(...salt));
+          cryptoKey = await deriveKey(password, saltB64);
+          const res = await fetch(`${SERVER_URL}/chat/register`, {
+            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
+          });
+          if (!res.ok) { alert(res.status === 409 ? 'Логин занят' : 'Ошибка регистрации'); return; }
+          alert('Аккаунт создан! Войдите.');
+          document.getElementById('authTitle').textContent='Вход';
+          document.getElementById('authBtn').textContent='Войти';
+          document.getElementById('switchAuth').textContent='Нет аккаунта? Зарегистрироваться';
+        } else {
+          const res = await fetch(`${SERVER_URL}/chat/login_salt?login=${encodeURIComponent(login)}`);
+          if (!res.ok) { alert('Пользователь не найден'); return; }
+          const { salt: saltB64 } = await res.json();
+          cryptoKey = await deriveKey(password, saltB64);
+          currentUser = { login };
+          showAuth(false); showApp(true); connectWebSocket();
+        }
+      } catch(e) { alert('Ошибка: '+e.message); }
+    });
 
     // ====== UI ======
     function renderChatList() {
@@ -391,7 +378,7 @@
       }
     }
 
-    // ====== ОТПРАВКА СООБЩЕНИЙ ======
+    // ====== ОТПРАВКА ======
     document.getElementById('sendBtn').addEventListener('click', () => {
       const input = document.getElementById('messageInput');
       const text = input.value.trim();
@@ -403,7 +390,6 @@
         input.value = '';
         return;
       }
-      // Прямая отправка (без модерации для упрощения)
       const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
       if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
       if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
@@ -420,7 +406,6 @@
       }
     });
 
-    // ====== РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ ======
     window.editMessage = (id) => {
       const chat = chats[activeChatId];
       if (!chat || !chat.messages) return;
@@ -524,7 +509,7 @@
       });
     }
 
-    // ====== ЗВОНКИ (без изменений) ======
+    // ====== ЗВОНКИ ======
     const callModal = document.getElementById('callModal');
     function showCallModalWindow(title, name, showAccept) {
       document.getElementById('callModalTitle').textContent = title;
@@ -619,7 +604,6 @@
     // ====== ПРОФИЛЬ ======
     document.getElementById('profileBtn').addEventListener('click', () => alert('Профиль в разработке'));
 
-    // ====== ИНИЦИАЛИЗАЦИЯ ======
     console.log('SkyMessage загружен.');
   </script>
 </body>
