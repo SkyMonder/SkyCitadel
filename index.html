@@ -1567,6 +1567,29 @@ async function loadUpdates() {
     container.innerHTML = '<p style="color:#f48024;">Не удалось загрузить обновления</p>';
   }
 }
+// Обработка навигации по хешу (например, #messenger)
+window.addEventListener('hashchange', function() {
+  const hash = location.hash.replace('#', '');
+  if (hash) {
+    const targetSection = document.getElementById(hash);
+    if (targetSection) {
+      // Скрываем все секции
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      // Показываем нужную
+      targetSection.classList.add('active');
+      // Обновляем активную кнопку в меню
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.section === hash) btn.classList.add('active');
+      });
+    }
+  }
+});
+
+// При загрузке страницы активируем секцию по хешу, если он есть
+if (window.location.hash) {
+  window.dispatchEvent(new Event('hashchange'));
+}
 </script>
 </body>
 </html>
