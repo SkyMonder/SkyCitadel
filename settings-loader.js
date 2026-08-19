@@ -8,13 +8,20 @@
     const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
     if (prefersLight) document.body.classList.add('light');
   }
-  // Фон
+  // Фон — применяем через !important, чтобы перебить CSS
   const bg = localStorage.getItem('skycitadel_bg');
   if (bg) {
-    document.body.style.backgroundImage = `url(${bg})`;
-    document.body.style.backgroundSize = 'cover';
-    document.body.style.backgroundPosition = 'center center';
-    document.body.style.backgroundAttachment = 'fixed';
-    document.body.style.backgroundRepeat = 'no-repeat';
+    document.body.style.setProperty('background-image', `url(${bg})`, 'important');
+    document.body.style.setProperty('background-size', 'cover', 'important');
+    document.body.style.setProperty('background-position', 'center center', 'important');
+    document.body.style.setProperty('background-attachment', 'fixed', 'important');
+    document.body.style.setProperty('background-repeat', 'no-repeat', 'important');
+  } else {
+    // Если фона нет, сбрасываем
+    document.body.style.removeProperty('background-image');
+    document.body.style.removeProperty('background-size');
+    document.body.style.removeProperty('background-position');
+    document.body.style.removeProperty('background-attachment');
+    document.body.style.removeProperty('background-repeat');
   }
 })();
