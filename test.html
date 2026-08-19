@@ -1,28 +1,19 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <title>Диагностика регистрации</title>
-</head>
+<head><title>Test</title></head>
 <body>
-  <h1>Тест регистрации</h1>
-  <button onclick="testRegister()">Зарегистрировать тестового пользователя</button>
+  <button onclick="test()">Test</button>
   <pre id="log"></pre>
   <script>
-    async function testRegister() {
+    async function test() {
       const log = document.getElementById('log');
-      log.textContent = '⏳ Отправка запроса...';
-      const login = 'test' + Date.now();
-      const password = '123456';
+      log.textContent = '⏳ Запрос...';
       try {
-        const res = await fetch('https://skymutant.cc.cd/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ login, password })
-        });
+        const res = await fetch('https://skymutant.cc.cd/chat/login_salt?login=testuser');
         const data = await res.json();
-        log.textContent = '✅ Статус: ' + res.status + '\n' + JSON.stringify(data, null, 2);
+        log.textContent = '✅ ' + JSON.stringify(data, null, 2);
       } catch (e) {
-        log.textContent = '❌ Ошибка: ' + e.message;
+        log.textContent = '❌ ' + e.message;
       }
     }
   </script>
