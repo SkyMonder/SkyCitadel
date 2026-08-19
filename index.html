@@ -548,25 +548,23 @@
 	  const API_BASE = 'https://skymutant.cc.cd';
 
       // ====== КЕШИРОВАННЫЙ FETCH ======
-      async function cachedFetch(url, ttl = 60000) {
-        const key = `cache_${url}`;
-        const cached = localStorage.getItem(key);
-        if (cached) {
-          try {
-            const { data, timestamp } = JSON.parse(cached);
-            if (Date.now() - timestamp < ttl) {
-              console.log(`📦 Кеш для ${url}`);
-              return data;
-            }
-          } catch (e) {}
-        }
-        console.log(`🌐 Запрос к ${url}`);
-        const res = await fetch(url);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        localStorage.setItem(key, JSON.stringify({ data, timestamp: Date.now() }));
-        return data;
-      }
+      // ====== ПРОСТАЯ ЗАГРУЗКА ДАННЫХ (БЕЗ КЕША) ======
+	  async function loadData(url, fallback = null) {
+  	  try {
+    	  const controller = new AbortController();
+    	  const timeout = setTimeout(() => controller.abort(), 10000);
+    	  const res = await fetch(url, { 
+      	  signal: controller.signal,
+      	  headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    	  });
+    	  clearTimeout(timeout);
+    	  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    	  return await res.json();
+  	  } catch (e) {
+    	  console.warn('⚠️ Ошибка загрузки', url, e.message);
+    	  return fallback;
+  	    }
+	  }
 
       function safeExecute(fn, fallback = null) {
         try { return fn(); } catch (e) { console.warn('⚠️ Ошибка:', e); return fallback; }
@@ -706,17 +704,18 @@
 
       // ====== ОБЪЯВЛЕНИЯ ======
       async function loadAnnouncementsAsync() {
-        const container = document.getElementById('announce-container');
-        try {
-          const items = await cachedFetch(`${SERVICE2_URL}/announcements`, 120000);
-          container.innerHTML = items.length
-            ? items.map(i => `<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('')
-            : '<p>Объявлений пока нет</p>';
-        } catch (e) {
-          console.warn('⚠️ Ошибка объявлений:', e);
-          container.innerHTML = '<p>Ошибка загрузки объявлений</p>';
-        }
-      }
+		  const container = document.getElementById('announce-container');
+  		if (!container) return;
+  		container.innerHTML = '<div class="loading-placeholder">Загрузка...</div>';
+  		const data = await loadData('https://skymutant.cc.cd/announcements', []);
+  		if (data && Array.isArray(data)) {
+    		container.innerHTML = data.length
+      		? data.map(i => `<div class="announce-item">📌 ${escapeHtml(i.text)}</div>`).join('')
+      		: '<p>Объявлений пока нет</p>';
+  		} else {
+    		container.innerHTML = '<p style="color:#f48024;">Не удалось загрузить объявления</p>';
+  		}
+	  }
 
       // ====== КАЛЕНДАРЬ ======
       let calDate = new Date(),
@@ -1107,15 +1106,17 @@
         });
       }
 
-      function escapeHtml(t) {
-        return String(t).replace(/[&<>"']/g, m => ({
-          '&': '&amp;',
-          '<': '&lt;',
-          '>': '&gt;',
-          '"': '&quot;',
-          "'": '&#39;'
-        }));
-      }
+	function escapeHtml(text) {
+  	if (!text) return '';
+  		return String(text).replace(/[&<>"']/g, function(m) {
+    		if (m === '&') return '&amp;';
+    		if (m === '<') return '&lt;';
+    		if (m === '>') return '&gt;';
+    		if (m === '"') return '&quot;';
+    		if (m === "'") return '&#39;';
+    	return m;
+  		});
+	}
 
       // ====== ОТЛОЖЕННАЯ ЗАГРУЗКА ======
       setTimeout(() => {
@@ -1246,10 +1247,11 @@
   </script>
   <script>
   // ====== ФУТЕР: ЗАГРУЗКА СТАТИСТИКИ ======
+// ====== СТАТИСТИКА В ФУТЕРЕ ======
 (function loadFooterStats() {
   const API_BASE = 'https://skymutant.cc.cd';
 
-  // ====== СЛОВАРЬ СТРАН (используем тот же, что и в stats.html) ======
+  // ====== СЛОВАРЬ СТРАН (оставляем как есть) ======
   const countryMap = {
       'af': 'Афганистан', 'afghanistan': 'Афганистан',
       'al': 'Албания', 'albania': 'Албания',
@@ -1445,7 +1447,7 @@
       'zm': 'Замбия', 'zambia': 'Замбия',
       'zw': 'Зимбабве', 'zimbabwe': 'Зимбабве'
     };
-	
+
   function getCountryName(raw) {
     if (!raw) return 'Неизвестно';
     const lower = raw.toLowerCase().trim();
@@ -1453,47 +1455,64 @@
   }
 
   function updateStats(data) {
-  const visitsEl = document.getElementById('stat-visits');
-  const usersEl = document.getElementById('stat-users');
-  const messagesEl = document.getElementById('stat-messages');
-  const videosEl = document.getElementById('stat-videos');
-  const countriesEl = document.getElementById('stat-countries');
+    const visitsEl = document.getElementById('stat-visits');
+    const usersEl = document.getElementById('stat-users');
+    const messagesEl = document.getElementById('stat-messages');
+    const videosEl = document.getElementById('stat-videos');
+    const countriesEl = document.getElementById('stat-countries');
 
-  if (visitsEl) visitsEl.textContent = data.totalVisits || 0;
-  if (usersEl) usersEl.textContent = data.totalUsers || 0;
-  if (messagesEl) messagesEl.textContent = data.totalMessages || 0;
-  if (videosEl) videosEl.textContent = data.totalVideos || 0;
+    if (visitsEl) visitsEl.textContent = data.totalVisits || 0;
+    if (usersEl) usersEl.textContent = data.totalUsers || 0;
+    if (messagesEl) messagesEl.textContent = data.totalMessages || 0;
+    if (videosEl) videosEl.textContent = data.totalVideos || 0;
 
-  if (countriesEl) {
-    if (data.topCountries && data.topCountries.length) {
-      // ==== ОБЪЕДИНЯЕМ СТРАНЫ С ОДИНАКОВЫМ НАЗВАНИЕМ ====
-      const merged = {};
-      data.topCountries.forEach(item => {
-        const name = getCountryName(item.country);
-        merged[name] = (merged[name] || 0) + item.count;
-      });
-      // Сортируем по убыванию
-      const sorted = Object.entries(merged)
-        .sort((a, b) => b[1] - a[1])
-        .map(([name, count]) => `${name} (${count})`);
-      countriesEl.textContent = '🌍 ' + sorted.join(', ');
-    } else {
-      countriesEl.textContent = '🌍 Нет данных';
+    if (countriesEl) {
+      if (data.topCountries && data.topCountries.length) {
+        const merged = {};
+        data.topCountries.forEach(item => {
+          const name = getCountryName(item.country);
+          merged[name] = (merged[name] || 0) + item.count;
+        });
+        const sorted = Object.entries(merged)
+          .sort((a, b) => b[1] - a[1])
+          .map(([name, count]) => `${name} (${count})`);
+        countriesEl.textContent = '🌍 ' + sorted.join(', ');
+      } else {
+        countriesEl.textContent = '🌍 Нет данных';
+      }
     }
   }
-}
-  function loadData() {
-    fetch(`${API_BASE}/api/stats/public`)
-      .then(res => {
-        if (!res.ok) throw new Error('Ошибка загрузки');
-        return res.json();
-      })
-      .then(data => updateStats(data))
-      .catch(() => {
-        const countriesEl = document.getElementById('stat-countries');
-        if (countriesEl) countriesEl.textContent = '🌍 Ошибка загрузки';
-      });
+
+  async function loadStats() {
+    const data = await loadData(`${API_BASE}/api/stats/public`, null);
+    if (data) {
+      updateStats(data);
+    } else {
+      const countriesEl = document.getElementById('stat-countries');
+      if (countriesEl) countriesEl.textContent = '🌍 Ошибка загрузки';
+    }
   }
+
+  loadStats();
+  setInterval(loadStats, 300000);
+})();
+	  
+async function loadData(url, fallback = null) {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 10000);
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' }
+    });
+    clearTimeout(timeout);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.warn('⚠️ Ошибка загрузки', url, e.message);
+    return fallback;
+  }
+}
 
   loadData();
   setInterval(loadData, 300000);
@@ -1530,30 +1549,13 @@
   })();
 // ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
 // ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
+// ====== ЗАГРУЗКА ОБНОВЛЕНИЙ ИЗ СТАТИКИ ======
 async function loadUpdates() {
-  // Локальная функция экранирования (на случай, если глобальная недоступна)
-  function escapeHtml(text) {
-    if (!text) return '';
-    return String(text).replace(/[&<>"']/g, function(m) {
-      if (m === '&') return '&amp;';
-      if (m === '<') return '&lt;';
-      if (m === '>') return '&gt;';
-      if (m === '"') return '&quot;';
-      if (m === "'") return '&#39;';
-      return m;
-    });
-  }
-
   const container = document.getElementById('home-updates');
   if (!container) return;
-  try {
-    const response = await fetch('/updates.json');
-    if (!response.ok) throw new Error('Не удалось загрузить обновления');
-    const updates = await response.json();
-    if (!Array.isArray(updates) || updates.length === 0) {
-      container.innerHTML = '<p style="color:#8899cc;">Пока нет обновлений</p>';
-      return;
-    }
+
+  const updates = await loadData('/updates.json', []);
+  if (updates && Array.isArray(updates) && updates.length > 0) {
     updates.sort((a, b) => new Date(b.date) - new Date(a.date));
     const recent = updates.slice(0, 5);
     container.innerHTML = recent.map(item => `
@@ -1562,9 +1564,8 @@ async function loadUpdates() {
         <div>${escapeHtml(item.text)}</div>
       </div>
     `).join('');
-  } catch (e) {
-    console.warn('Ошибка загрузки обновлений:', e);
-    container.innerHTML = '<p style="color:#f48024;">Не удалось загрузить обновления</p>';
+  } else {
+    container.innerHTML = '<p style="color:#8899cc;">Пока нет обновлений</p>';
   }
 }
 // Обработка навигации по хешу (например, #messenger)
