@@ -1568,16 +1568,27 @@ async function loadUpdates() {
   }
 }
 // Обработка навигации по хешу (например, #messenger)
+// ===== Обработка хешей =====
 window.addEventListener('hashchange', function() {
   const hash = location.hash.replace('#', '');
+  
+  // Хеши, которые должны вести на отдельные страницы (редирект)
+  const externalPages = {
+    'video': 'skyvideo.html',
+    'music': 'music.html'
+  };
+  
+  if (externalPages[hash]) {
+    window.location.href = externalPages[hash];
+    return;
+  }
+  
+  // Для остальных хешей — переключение секций внутри index.html
   if (hash) {
     const targetSection = document.getElementById(hash);
     if (targetSection) {
-      // Скрываем все секции
       document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
-      // Показываем нужную
       targetSection.classList.add('active');
-      // Обновляем активную кнопку в меню
       document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.classList.remove('active');
         if (btn.dataset.section === hash) btn.classList.add('active');
@@ -1586,7 +1597,7 @@ window.addEventListener('hashchange', function() {
   }
 });
 
-// При загрузке страницы активируем секцию по хешу, если он есть
+// При загрузке страницы обрабатываем хеш, если он есть
 if (window.location.hash) {
   window.dispatchEvent(new Event('hashchange'));
 }
