@@ -156,9 +156,21 @@
   </script>
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl@1.0.3/nacl.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/tweetnacl-util@0.15.1/nacl-util.min.js"></script>
+
   <script type="module">
     // ====== ИМПОРТЫ ======
     import { pipeline } from '@xenova/transformers';
+
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (объявлены в самом начале, чтобы быть доступными везде) ======
+    function escapeHtml(text) {
+      return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+    }
+
+    function formatSize(bytes) {
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / 1048576).toFixed(1) + ' MB';
+    }
 
     // ====== КОНСТАНТЫ ======
     const SERVER_URL = 'https://skymutant.cc.cd';
@@ -341,7 +353,7 @@
       input.value = '';
     }
 
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ======
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (для шифрования) ======
     const enc = new TextEncoder(); const dec = new TextDecoder();
     async function deriveKey(password, saltBase64) {
       const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
@@ -349,6 +361,60 @@
       return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
     }
 
+    // ====== КРИПТОГРАФИЯ С ИСПОЛЬЗОВАНИЕМ tweetnacl (для будущего E2EE) ======
+    const KEY_STORAGE_KEY = 'sky_message_keypair';
+
+    function getOrCreateKeyPair() {
+      let keypair = localStorage.getItem(KEY_STORAGE_KEY);
+      if (keypair) {
+        return JSON.parse(keypair);
+      } else {
+        const pair = nacl.box.keyPair();
+        const keypairObj = {
+          publicKey: nacl.util.encodeBase64(pair.publicKey),
+          secretKey: nacl.util.encodeBase64(pair.secretKey)
+        };
+        localStorage.setItem(KEY_STORAGE_KEY, JSON.stringify(keypairObj));
+        return keypairObj;
+      }
+    }
+
+    const myKeyPair = getOrCreateKeyPair();
+
+    function getMyPublicKey() {
+      return myKeyPair.publicKey;
+    }
+
+    function getMySecretKey() {
+      return nacl.util.decodeBase64(myKeyPair.secretKey);
+    }
+
+    function encryptMessage(plaintext, recipientPublicKeyBase64) {
+      const recipientPublicKey = nacl.util.decodeBase64(recipientPublicKeyBase64);
+      const senderSecretKey = getMySecretKey();
+      const nonce = nacl.randomBytes(24);
+      const messageUint8 = nacl.util.decodeUTF8(plaintext);
+      const encrypted = nacl.box(messageUint8, nonce, recipientPublicKey, senderSecretKey);
+      const combined = new Uint8Array(nonce.length + encrypted.length);
+      combined.set(nonce);
+      combined.set(encrypted, nonce.length);
+      return nacl.util.encodeBase64(combined);
+    }
+
+    function decryptMessage(encryptedBase64, senderPublicKeyBase64) {
+      const combined = nacl.util.decodeBase64(encryptedBase64);
+      const nonce = combined.slice(0, 24);
+      const ciphertext = combined.slice(24);
+      const senderPublicKey = nacl.util.decodeBase64(senderPublicKeyBase64);
+      const receiverSecretKey = getMySecretKey();
+      const decrypted = nacl.box.open(ciphertext, nonce, senderPublicKey, receiverSecretKey);
+      if (!decrypted) {
+        throw new Error('Не удалось расшифровать сообщение');
+      }
+      return nacl.util.encodeUTF8(decrypted);
+    }
+
+    // ====== WEBSOCKET ======
     function connectWebSocket() {
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
@@ -387,7 +453,6 @@
         }
       };
       ws.onclose = () => {
-        // Проверяем бан при закрытии соединения (например, если сервер закрыл)
         checkBanAndRedirect();
         setTimeout(connectWebSocket, 3000);
       };
@@ -554,7 +619,7 @@
       }
     });
 
-    // ====== РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ ======
+    // ====== РЕДАКТИРОВАНИЕ / УДАЛЕНИЕ (глобальные функции для onclick) ======
     window.editMessage = (id) => {
       const chat = chats[activeChatId];
       if (!chat || !chat.messages) return;
@@ -753,73 +818,8 @@
     // ====== ПРОФИЛЬ ======
     document.getElementById('profileBtn').addEventListener('click', () => alert('Профиль в разработке'));
 
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ======
-    function escapeHtml(text) { return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-    function formatSize(bytes) {
-      if (bytes < 1024) return bytes + ' B';
-      if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-      return (bytes / 1048576).toFixed(1) + ' MB';
-    }
-
     // ====== ИНИЦИАЛИЗАЦИЯ ======
     console.log('SkyMessage загружен. Модель будет загружена после входа.');
-    // ====== КРИПТОГРАФИЯ С ИСПОЛЬЗОВАНИЕМ tweetnacl ======
-const KEY_STORAGE_KEY = 'sky_message_keypair';
-
-function getOrCreateKeyPair() {
-  let keypair = localStorage.getItem(KEY_STORAGE_KEY);
-  if (keypair) {
-    return JSON.parse(keypair);
-  } else {
-    const pair = nacl.box.keyPair();
-    const keypairObj = {
-      publicKey: nacl.util.encodeBase64(pair.publicKey),
-      secretKey: nacl.util.encodeBase64(pair.secretKey)
-    };
-    localStorage.setItem(KEY_STORAGE_KEY, JSON.stringify(keypairObj));
-    return keypairObj;
-  }
-}
-
-const myKeyPair = getOrCreateKeyPair();
-
-// Получить публичный ключ в base64
-function getMyPublicKey() {
-  return myKeyPair.publicKey;
-}
-
-// Получить приватный ключ (для дешифрования)
-function getMySecretKey() {
-  return nacl.util.decodeBase64(myKeyPair.secretKey);
-}
-
-// Зашифровать сообщение для получателя по его публичному ключу (base64)
-function encryptMessage(plaintext, recipientPublicKeyBase64) {
-  const recipientPublicKey = nacl.util.decodeBase64(recipientPublicKeyBase64);
-  const senderSecretKey = getMySecretKey();
-  const nonce = nacl.randomBytes(24);
-  const messageUint8 = nacl.util.decodeUTF8(plaintext);
-  const encrypted = nacl.box(messageUint8, nonce, recipientPublicKey, senderSecretKey);
-  // Склеиваем nonce + encrypted
-  const combined = new Uint8Array(nonce.length + encrypted.length);
-  combined.set(nonce);
-  combined.set(encrypted, nonce.length);
-  return nacl.util.encodeBase64(combined);
-}
-
-// Расшифровать сообщение (encryptedBase64) от отправителя по его публичному ключу
-function decryptMessage(encryptedBase64, senderPublicKeyBase64) {
-  const combined = nacl.util.decodeBase64(encryptedBase64);
-  const nonce = combined.slice(0, 24);
-  const ciphertext = combined.slice(24);
-  const senderPublicKey = nacl.util.decodeBase64(senderPublicKeyBase64);
-  const receiverSecretKey = getMySecretKey();
-  const decrypted = nacl.box.open(ciphertext, nonce, senderPublicKey, receiverSecretKey);
-  if (!decrypted) {
-    throw new Error('Не удалось расшифровать сообщение');
-  }
-  return nacl.util.encodeUTF8(decrypted);
-} 
   </script>
 </body>
 </html>
