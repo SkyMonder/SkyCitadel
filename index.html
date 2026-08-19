@@ -250,6 +250,225 @@
 		  .route-controls input {
 		    width: 100%;
 		  }
+          /* ===== МУЗЫКАЛЬНЫЙ ПЛЕЕР ===== */
+          .player-container {
+            background: rgba(13, 18, 37, 0.6);
+            border-radius: 16px;
+            padding: 1rem;
+            border: 1px solid #2a3450;
+          }
+          .player-upload {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 1rem;
+          }
+          .player-upload input[type="text"] {
+            flex: 1;
+            min-width: 150px;
+            padding: 0.4rem 0.8rem;
+            background: #0d1225;
+            border: 1px solid #2a3450;
+            color: white;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            outline: none;
+          }
+          .player-upload input[type="text"]:focus {
+            border-color: #5f7ecf;
+          }
+          .player-content {
+            display: flex;
+            gap: 1.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+          }
+          .player-disc-wrapper {
+            position: relative;
+            width: 140px;
+            height: 140px;
+            flex-shrink: 0;
+          }
+          .player-disc {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            background: #1a1a2e;
+            border: 3px solid #2a3450;
+            position: relative;
+            animation: spin 8s linear infinite;
+            animation-play-state: paused;
+            box-shadow: 0 0 30px rgba(95, 126, 207, 0.15);
+            overflow: hidden;
+          }
+          .player-disc.playing {
+            animation-play-state: running;
+          }
+          .player-disc img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 50%;
+          }
+          .player-center-hole {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #0a0f1e;
+            border: 2px solid #2a3450;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            z-index: 2;
+          }
+          .player-arm {
+            position: absolute;
+            top: -15px;
+            right: -20px;
+            width: 50px;
+            height: 50px;
+            z-index: 3;
+          }
+          .player-arm::before {
+            content: '';
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 30px;
+            height: 3px;
+            background: #8899cc;
+            transform: rotate(45deg);
+            transform-origin: right center;
+            border-radius: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+          }
+          .player-arm::after {
+            content: '';
+            position: absolute;
+            top: 8px;
+            right: 35px;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #5f7ecf;
+            box-shadow: 0 0 10px rgba(95,126,207,0.3);
+          }
+          .player-info {
+            flex: 1;
+            min-width: 180px;
+          }
+          .player-track {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #b7ceff;
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .player-artist {
+            font-size: 0.85rem;
+            color: #8899cc;
+            margin-bottom: 0.5rem;
+          }
+          .player-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+          }
+          .player-controls .btn {
+            background: #2f4b8c;
+            border: none;
+            color: white;
+            padding: 0.3rem 0.7rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            transition: background 0.2s;
+          }
+          .player-controls .btn:hover {
+            background: #4a6bb0;
+          }
+          #playerProgress {
+            flex: 1;
+            min-width: 80px;
+            height: 4px;
+            background: #2a3450;
+            border-radius: 2px;
+            -webkit-appearance: none;
+            appearance: none;
+            outline: none;
+          }
+          #playerProgress::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #5f7ecf;
+            cursor: pointer;
+          }
+          #playerVolume {
+            width: 60px;
+            height: 4px;
+            background: #2a3450;
+            border-radius: 2px;
+            -webkit-appearance: none;
+            appearance: none;
+            outline: none;
+          }
+          #playerVolume::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #5f7ecf;
+            cursor: pointer;
+          }
+          @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+          }
+          .player-empty {
+            text-align: center;
+            padding: 1rem;
+            color: #8899cc;
+          }
+          body.light .player-container {
+            background: rgba(255,255,255,0.6);
+            border-color: #d0d0d0;
+          }
+          body.light .player-disc {
+            border-color: #d0d0d0;
+            background: #e8e8e8;
+          }
+          body.light .player-upload input[type="text"] {
+            background: #f5f5f5;
+            border-color: #d0d0d0;
+            color: #1a1a2e;
+          }
+          @media (max-width: 600px) {
+            .player-content {
+              flex-direction: column;
+              align-items: center;
+            }
+            .player-disc-wrapper {
+              width: 120px;
+              height: 120px;
+            }
+            .player-disc {
+              width: 120px;
+              height: 120px;
+            }
+            .player-controls {
+              justify-content: center;
+            }
+          }
 		}
   </style>
 
@@ -1431,6 +1650,166 @@ window.addEventListener('hashchange', function() {
 if (window.location.hash) {
   window.dispatchEvent(new Event('hashchange'));
 }
+// ===== МУЗЫКАЛЬНЫЙ ПЛЕЕР =====
+(function initPlayer() {
+  const fileInput = document.getElementById('playerFileInput');
+  const uploadBtn = document.getElementById('playerUploadBtn');
+  const urlInput = document.getElementById('playerUrlInput');
+  const urlBtn = document.getElementById('playerUrlBtn');
+  const content = document.getElementById('playerContent');
+  const empty = document.getElementById('playerEmpty');
+  const disc = document.getElementById('playerDisc');
+  const cover = document.getElementById('playerCover');
+  const trackEl = document.getElementById('playerTrack');
+  const artistEl = document.getElementById('playerArtist');
+  const playBtn = document.getElementById('playerPlayBtn');
+  const prevBtn = document.getElementById('playerPrevBtn');
+  const nextBtn = document.getElementById('playerNextBtn');
+  const progress = document.getElementById('playerProgress');
+  const timeEl = document.getElementById('playerTime');
+  const volume = document.getElementById('playerVolume');
+
+  let audio = new Audio();
+  let isPlaying = false;
+  let currentTrack = null;
+
+  // Функция загрузки трека
+  function loadTrack(url, title, artist, coverUrl) {
+    audio.src = url;
+    audio.load();
+    trackEl.textContent = title || 'Неизвестный трек';
+    artistEl.textContent = artist || 'Неизвестный исполнитель';
+    if (coverUrl) {
+      cover.src = coverUrl;
+    } else {
+      cover.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200"%3E%3Crect width="200" height="200" fill="%231a233a"/%3E%3Ctext x="100" y="110" font-family="sans-serif" font-size="60" fill="%235f7ecf" text-anchor="middle"%3E🎵%3C/text%3E%3C/svg%3E';
+    }
+    content.style.display = 'flex';
+    empty.style.display = 'none';
+    disc.classList.remove('playing');
+    playBtn.textContent = '▶️';
+    isPlaying = false;
+    audio.currentTime = 0;
+    progress.value = 0;
+    timeEl.textContent = '0:00 / 0:00';
+  }
+
+  // Загрузка через FileReader
+  function loadFromFile(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+      const dataUrl = e.target.result;
+      // Пытаемся извлечь ID3-теги
+      const metadata = extractMetadata(file);
+      loadTrack(dataUrl, metadata.title, metadata.artist, metadata.cover);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Загрузка по URL
+  function loadFromUrl(url) {
+    // Извлекаем имя из URL
+    const filename = url.split('/').pop().replace(/\.[^/.]+$/, '');
+    const parts = filename.split(' - ');
+    const artist = parts.length > 1 ? parts[0] : '';
+    const title = parts.length > 1 ? parts.slice(1).join(' - ') : filename;
+    loadTrack(url, title, artist, null);
+  }
+
+  // Извлечение ID3-тегов (упрощённо)
+  function extractMetadata(file) {
+    let title = file.name.replace(/\.[^/.]+$/, '');
+    let artist = '';
+    let cover = null;
+    try {
+      // Используем браузерный API для чтения метаданных
+      if (window.webkitAudioContext || window.AudioContext) {
+        // Для простоты пока оставляем заглушку
+        // В будущем можно использовать библиотеку jsmediatags
+      }
+    } catch(e) {}
+    return { title, artist, cover };
+  }
+
+  // Управление воспроизведением
+  playBtn.addEventListener('click', function() {
+    if (!audio.src) return;
+    if (isPlaying) {
+      audio.pause();
+      disc.classList.remove('playing');
+      playBtn.textContent = '▶️';
+    } else {
+      audio.play().catch(() => {});
+      disc.classList.add('playing');
+      playBtn.textContent = '⏸️';
+    }
+    isPlaying = !isPlaying;
+  });
+
+  // Прогресс
+  audio.addEventListener('timeupdate', function() {
+    if (audio.duration) {
+      const pct = (audio.currentTime / audio.duration) * 100;
+      progress.value = pct;
+      timeEl.textContent = formatTime(audio.currentTime) + ' / ' + formatTime(audio.duration);
+    }
+  });
+
+  // Перемотка
+  progress.addEventListener('input', function() {
+    if (audio.duration) {
+      audio.currentTime = (this.value / 100) * audio.duration;
+    }
+  });
+
+  // Громкость
+  volume.addEventListener('input', function() {
+    audio.volume = this.value / 100;
+  });
+
+  // Форматирование времени
+  function formatTime(seconds) {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return m + ':' + String(s).padStart(2, '0');
+  }
+
+  // Обработчики кнопок
+  uploadBtn.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', function(e) {
+    if (this.files && this.files[0]) {
+      loadFromFile(this.files[0]);
+    }
+  });
+
+  urlBtn.addEventListener('click', function() {
+    const url = urlInput.value.trim();
+    if (!url) { alert('Введите ссылку на MP3'); return; }
+    loadFromUrl(url);
+  });
+
+  urlInput.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') urlBtn.click();
+  });
+
+  // Кнопки пропуска (заглушки)
+  prevBtn.addEventListener('click', function() {
+    // Можно реализовать переключение между треками в плейлисте
+  });
+  nextBtn.addEventListener('click', function() {
+    // Можно реализовать переключение между треками в плейлисте
+  });
+
+  // При окончании трека
+  audio.addEventListener('ended', function() {
+    disc.classList.remove('playing');
+    playBtn.textContent = '▶️';
+    isPlaying = false;
+  });
+
+  console.log('🎵 Музыкальный плеер загружен');
+})();
 </script>
 </body>
 </html>
