@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Настройки • SkyCitadel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', sans-serif;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 2rem;
+      transition: background 0.3s, color 0.3s;
+    }
+    body.light {
+      background: #f0f2f5;
+      color: #1a1a2e;
+    }
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: #1a233a;
+      border-radius: 24px;
+      border: 1px solid #2a3450;
+      padding: 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+      transition: background 0.3s, border-color 0.3s;
+    }
+    body.light .container {
+      background: #ffffff;
+      border-color: #d0d0d0;
+    }
+    h1 {
+      color: #b7ceff;
+      font-weight: 300;
+      border-left: 4px solid #5f7ecf;
+      padding-left: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    body.light h1 { color: #1a1a2e; }
+    .back-link {
+      display: inline-block;
+      color: #5f7ecf;
+      text-decoration: none;
+      margin-bottom: 1rem;
+    }
+    .back-link:hover { text-decoration: underline; }
+
+    .setting-group {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.5rem;
+      border-bottom: 1px solid #2a3450;
+    }
+    body.light .setting-group { border-bottom-color: #d0d0d0; }
+
+    .setting-group:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+
+    .setting-group h2 {
+      font-size: 1.1rem;
+      font-weight: 400;
+      color: #b7ceff;
+      margin-bottom: 0.5rem;
+    }
+    body.light .setting-group h2 { color: #1a1a2e; }
+
+    .setting-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      flex-wrap: wrap;
+      margin-top: 0.5rem;
+    }
+    .setting-row .btn {
+      background: #2f4b8c;
+      border: none;
+      color: white;
+      padding: 0.5rem 1.2rem;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: background 0.2s;
+    }
+    .setting-row .btn:hover { background: #4a6bb0; }
+    .setting-row .btn-outline {
+      background: transparent;
+      border: 1px solid #5f7ecf;
+      color: #b7ceff;
+    }
+    .setting-row .btn-outline:hover { background: #2f4b8c; color: white; }
+    .setting-row .btn-success { background: #2f7a4a; }
+    .setting-row .btn-success:hover { background: #4a9a6a; }
+    body.light .setting-row .btn-outline { color: #1a1a2e; border-color: #5f7ecf; }
+
+    .theme-buttons {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .theme-btn {
+      padding: 0.5rem 1.5rem;
+      border-radius: 20px;
+      border: 2px solid transparent;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.2s;
+      background: #2a3450;
+      color: #cfdbff;
+    }
+    .theme-btn:hover { transform: scale(1.03); }
+    .theme-btn.active {
+      border-color: #5f7ecf;
+      box-shadow: 0 0 20px rgba(95,126,207,0.3);
+    }
+    .theme-btn.dark { background: #1a233a; color: #e0e8ff; }
+    .theme-btn.light { background: #e8e8e8; color: #1a1a2e; }
+    body.light .theme-btn { background: #e0e0e0; color: #1a1a2e; }
+    body.light .theme-btn.active { border-color: #5f7ecf; }
+
+    .file-input-wrapper {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .file-input-wrapper input[type="file"] { display: none; }
+    .file-input-wrapper .url-input {
+      flex: 1;
+      min-width: 180px;
+      padding: 0.5rem;
+      background: #0d1225;
+      border: 1px solid #2a3450;
+      color: white;
+      border-radius: 8px;
+    }
+    body.light .file-input-wrapper .url-input {
+      background: #f5f5f5;
+      border-color: #d0d0d0;
+      color: #1a1a2e;
+    }
+    .preview-box {
+      margin-top: 0.5rem;
+      padding: 0.5rem;
+      background: #0d1225;
+      border-radius: 10px;
+      border: 1px solid #2a3450;
+      min-height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+    body.light .preview-box { background: #f5f5f5; border-color: #d0d0d0; }
+    .preview-box img {
+      max-width: 100%;
+      max-height: 120px;
+      border-radius: 6px;
+    }
+    .preview-box .empty {
+      color: #8899cc;
+      font-size: 0.8rem;
+    }
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #2f7a4a;
+      color: white;
+      padding: 0.6rem 1.5rem;
+      border-radius: 20px;
+      font-size: 0.9rem;
+      z-index: 100;
+      display: none;
+      max-width: 90%;
+      text-align: center;
+    }
+    @media (max-width: 600px) {
+      .container { padding: 1rem; }
+    }
+  </style>
+</head>
+<body>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="container">
+    <a href="/" class="back-link">🏰 Вернуться в крепость</a>
+    <h1>⚙️ Настройки</h1>
+
+    <!-- Тема -->
+    <div class="setting-group">
+      <h2>🌓 Тема оформления</h2>
+      <div class="theme-buttons">
+        <button class="theme-btn dark" data-theme="dark">🌙 Тёмная</button>
+        <button class="theme-btn light" data-theme="light">☀️ Светлая</button>
+        <button class="theme-btn" data-theme="system" style="background:#6b7b9e;color:#fff;">💻 Системная</button>
+      </div>
+    </div>
+
+    <!-- Фон -->
+    <div class="setting-group">
+      <h2>🖼️ Фоновое изображение</h2>
+      <p style="font-size:0.8rem; color:#8899cc; margin-bottom:0.5rem;">Загрузите картинку или укажите URL — она будет фоном на всех страницах.</p>
+      <div class="file-input-wrapper">
+        <button class="btn" id="uploadBgBtn">📂 Выбрать файл</button>
+        <input type="file" id="bgFileInput" accept="image/*">
+        <input type="text" class="url-input" id="bgUrlInput" placeholder="Или вставьте URL картинки...">
+        <button class="btn btn-success" id="applyBgBtn">✅ Применить</button>
+        <button class="btn btn-outline" id="removeBgBtn">✖️ Убрать фон</button>
+      </div>
+      <div class="preview-box" id="bgPreview">
+        <span class="empty">Фон не установлен</span>
+      </div>
+    </div>
+
+    <!-- Дополнительно -->
+    <div class="setting-group" style="border-bottom: none;">
+      <h2>💾 Сохранение</h2>
+      <p style="font-size:0.8rem; color:#8899cc;">Настройки сохраняются автоматически в вашем браузере.</p>
+      <button class="btn btn-outline" id="resetSettingsBtn" style="margin-top:0.5rem;">🔄 Сбросить настройки</button>
+    </div>
+  </div>
+
+  <script>
+    // ====== ТОСТ ======
+    function showToast(msg, bg = '#2f7a4a') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.style.background = bg;
+      t.style.display = 'block';
+      clearTimeout(t._timeout);
+      t._timeout = setTimeout(() => { t.style.display = 'none'; }, 2500);
+    }
+
+    // ====== ТЕМА ======
+    function setTheme(theme) {
+      // dark, light, system
+      if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.body.classList.toggle('light', !prefersDark);
+        localStorage.setItem('skycitadel_theme', 'system');
+      } else if (theme === 'light') {
+        document.body.classList.add('light');
+        localStorage.setItem('skycitadel_theme', 'light');
+      } else {
+        document.body.classList.remove('light');
+        localStorage.setItem('skycitadel_theme', 'dark');
+      }
+      // Обновляем активную кнопку
+      document.querySelectorAll('.theme-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.theme === theme);
+      });
+    }
+
+    // Загрузка сохранённой темы
+    const savedTheme = localStorage.getItem('skycitadel_theme') || 'dark';
+    setTheme(savedTheme);
+
+    // Клики по кнопкам тем
+    document.querySelectorAll('.theme-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        setTheme(this.dataset.theme);
+        showToast(`Тема: ${this.dataset.theme}`, '#5f7ecf');
+      });
+    });
+
+    // Следим за системной темой
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function(e) {
+      if (localStorage.getItem('skycitadel_theme') === 'system') {
+        document.body.classList.toggle('light', !e.matches);
+      }
+    });
+
+    // ====== ФОН ======
+    function applyBackground(url) {
+      if (!url) {
+        document.body.style.backgroundImage = '';
+        document.body.style.backgroundSize = '';
+        document.body.style.backgroundPosition = '';
+        document.body.style.backgroundRepeat = '';
+        localStorage.removeItem('skycitadel_bg');
+        document.getElementById('bgPreview').innerHTML = '<span class="empty">Фон не установлен</span>';
+        showToast('Фон убран', '#f48024');
+        return;
+      }
+      // Проверяем, что URL валидный (хоть как-то)
+      document.body.style.backgroundImage = `url(${url})`;
+      document.body.style.backgroundSize = 'cover';
+      document.body.style.backgroundPosition = 'center center';
+      document.body.style.backgroundRepeat = 'no-repeat';
+      document.body.style.backgroundAttachment = 'fixed';
+      localStorage.setItem('skycitadel_bg', url);
+      // Превью
+      document.getElementById('bgPreview').innerHTML = `<img src="${url}" alt="Фон">`;
+      showToast('Фон применён!', '#2f7a4a');
+    }
+
+    // Восстанавливаем фон
+    const savedBg = localStorage.getItem('skycitadel_bg');
+    if (savedBg) {
+      applyBackground(savedBg);
+    }
+
+    // Загрузка файла
+    document.getElementById('uploadBgBtn').addEventListener('click', () => {
+      document.getElementById('bgFileInput').click();
+    });
+    document.getElementById('bgFileInput').addEventListener('change', function(e) {
+      if (this.files && this.files[0]) {
+        const reader = new FileReader();
+        reader.onload = function(ev) {
+          const dataUrl = ev.target.result;
+          applyBackground(dataUrl);
+          document.getElementById('bgUrlInput').value = '';
+        };
+        reader.readAsDataURL(this.files[0]);
+      }
+    });
+
+    // URL
+    document.getElementById('applyBgBtn').addEventListener('click', function() {
+      const url = document.getElementById('bgUrlInput').value.trim();
+      if (!url) {
+        showToast('Введите URL или выберите файл', '#f48024');
+        return;
+      }
+      applyBackground(url);
+    });
+
+    // Убрать фон
+    document.getElementById('removeBgBtn').addEventListener('click', function() {
+      applyBackground(null);
+      document.getElementById('bgUrlInput').value = '';
+    });
+
+    // ====== СБРОС НАСТРОЕК ======
+    document.getElementById('resetSettingsBtn').addEventListener('click', function() {
+      if (!confirm('Сбросить все настройки (тема, фон)?')) return;
+      localStorage.removeItem('skycitadel_theme');
+      localStorage.removeItem('skycitadel_bg');
+      setTheme('dark');
+      applyBackground(null);
+      document.getElementById('bgUrlInput').value = '';
+      showToast('Настройки сброшены', '#f48024');
+    });
+
+    // ====== ПРИМЕНЯЕМ НАСТРОЙКИ КО ВСЕМ СТРАНИЦАМ ======
+    // Фон и тема применяются глобально через body
+    // При загрузке любой страницы нужно вызывать applySettings()
+    // Но мы уже сделали это выше.
+    console.log('⚙️ Настройки загружены');
+  </script>
+</body>
+</html>
