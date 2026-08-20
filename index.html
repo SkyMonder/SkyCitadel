@@ -947,23 +947,24 @@ async function loadAnnouncementsAsync() {
   const deviceType = isMobile ? 'mobile' : 'desktop';
   const page = window.location.pathname || '/';
 
-  fetch('http://ip-api.com/json/')
-  .then(res => res.json())
-  .then(data => {
-    const country = data.countryCode || 'Unknown';
-    fetch(`${API_BASE}/api/analytics`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ page, deviceType, country })
-    }).catch(() => {});
-  })
-  .catch(() => {
-    fetch(`${API_BASE}/api/analytics`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ page, deviceType, country: 'Unknown' })
-    }).catch(() => {});
-  });
+  fetch('https://api.ippubblico.org/v1/country/')
+    .then(res => res.text())
+    .then(country => {
+      fetch(`${API_BASE}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page, deviceType, country })
+      }).catch(() => {});
+    })
+    .catch(() => {
+      fetch(`${API_BASE}/api/analytics`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page, deviceType })
+      }).catch(() => {});
+    });
+})();
+
 // ====== PUSH-УВЕДОМЛЕНИЯ (опционально) ======
 const VAPID_PUBLIC_KEY = 'BLFgEgN5br8c2rKhWVb84W5lOVFZ727Rgwno-oC6DBpYbZH1QtRl80T-5U6CJEU25v_sHAlYRnijITpvpYu9lis';
 
