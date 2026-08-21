@@ -480,6 +480,7 @@
 
     document.getElementById('searchQuery').addEventListener('input', () => {
       const q = document.getElementById('searchQuery').value.trim();
+      console.log('🔍 Поиск запроса:', q);
       if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
       sendServerMessage('search_user', { query: q });
     });
