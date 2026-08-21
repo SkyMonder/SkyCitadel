@@ -145,6 +145,7 @@
       <button class="btn" id="endCallBtn" style="background:#c44;">Завершить</button>
     </div>
   </div>
+
   <script src="/settings-loader.js"></script>
   <script>
     // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (в начале) ======
@@ -170,7 +171,7 @@
     };
 
     // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
-    let ws, currentUser = null, cryptoKey = null, chats = {}, activeChatId = null;
+    let ws, currentUser = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
@@ -185,26 +186,25 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== ШИФРОВАНИЕ (для старой схемы) ======
-    const enc = new TextEncoder();
-    async function deriveKey(password, saltBase64) {
-      const salt = Uint8Array.from(atob(saltBase64), c => c.charCodeAt(0));
-      const keyMaterial = await crypto.subtle.importKey('raw', enc.encode(password), 'PBKDF2', false, ['deriveKey']);
-      return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, keyMaterial, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
-    }
-
-    // ====== WEBSOCKET ======
+    // ====== WEBSOCKET (с авторизацией по токену) ======
     function connectWebSocket() {
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        ws.send(JSON.stringify({ type: 'auth', login: currentUser.login }));
+        const token = localStorage.getItem('skyid_token');
+        if (token) {
+          ws.send(JSON.stringify({ type: 'auth', token: token }));
+        } else {
+          console.warn('⚠️ Нет токена, попробуйте войти снова');
+        }
         sendServerMessage('get_chats', {});
       };
       ws.onmessage = (e) => {
         console.log('📨 WebSocket сообщение:', e.data);
         const msg = JSON.parse(e.data);
         switch (msg.type) {
-          case 'auth_ok': currentUser = { ...currentUser, ...msg }; break;
+          case 'auth_ok':
+            currentUser = { ...currentUser, ...msg };
+            break;
           case 'message': handleIncomingMessage(msg); break;
           case 'message_edited': handleMessageEdited(msg); break;
           case 'message_deleted': handleMessageDeleted(msg); break;
@@ -244,7 +244,7 @@
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
-    // ====== АВТОРИЗАЦИЯ ======
+    // ====== АВТОРИЗАЦИЯ (новые эндпоинты /smreg и /smlog) ======
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -255,29 +255,40 @@
       const login = document.getElementById('loginInput').value.trim();
       const password = document.getElementById('passInput').value;
       if (!login || !password) return alert('Заполни поля');
+
       const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
+      const url = isReg ? `${SERVER_URL}/smreg` : `${SERVER_URL}/smlog`;
+      const body = JSON.stringify({ login, password });
+
       try {
-        if (isReg) {
-          const salt = window.crypto.getRandomValues(new Uint8Array(16));
-          const saltB64 = btoa(String.fromCharCode(...salt));
-          cryptoKey = await deriveKey(password, saltB64);
-          const res = await fetch(`${SERVER_URL}/chat/register`, {
-            method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ login, salt: saltB64 })
-          });
-          if (!res.ok) { alert(res.status === 409 ? 'Логин занят' : 'Ошибка регистрации'); return; }
-          alert('Аккаунт создан! Войдите.');
-          document.getElementById('authTitle').textContent='Вход';
-          document.getElementById('authBtn').textContent='Войти';
-          document.getElementById('switchAuth').textContent='Нет аккаунта? Зарегистрироваться';
-        } else {
-          const res = await fetch(`${SERVER_URL}/chat/login_salt?login=${encodeURIComponent(login)}`);
-          if (!res.ok) { alert('Пользователь не найден'); return; }
-          const { salt: saltB64 } = await res.json();
-          cryptoKey = await deriveKey(password, saltB64);
-          currentUser = { login };
-          showAuth(false); showApp(true); connectWebSocket();
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: body
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          alert(data.error || 'Ошибка');
+          return;
         }
-      } catch(e) { alert('Ошибка: '+e.message); }
+        if (isReg) {
+          alert('Аккаунт создан! Теперь войдите.');
+          document.getElementById('authTitle').textContent = 'Вход';
+          document.getElementById('authBtn').textContent = 'Войти';
+          document.getElementById('switchAuth').textContent = 'Нет аккаунта? Зарегистрироваться';
+          return;
+        }
+        // Вход успешен — сохраняем токен
+        const token = data.jwt || data.token;
+        if (token) {
+          localStorage.setItem('skyid_token', token);
+        }
+        currentUser = { login };
+        showAuth(false); showApp(true);
+        connectWebSocket();
+      } catch(e) {
+        alert('Ошибка: '+e.message);
+      }
     });
 
     // ====== UI ======
@@ -606,7 +617,17 @@
     // ====== ПРОФИЛЬ ======
     document.getElementById('profileBtn').addEventListener('click', () => alert('Профиль в разработке'));
 
-    console.log('SkyMessage загружен.');
+    // ====== ИНИЦИАЛИЗАЦИЯ: если есть токен, сразу показываем приложение ======
+    (function init() {
+      const token = localStorage.getItem('skyid_token');
+      if (token) {
+        // Можно попытаться восстановить сессию, но пока просто показываем экран входа
+        // Если токен есть, но невалидный, пользователь перелогинится
+        console.log('🔑 Токен найден, пытаемся войти автоматически...');
+        // В идеале сделать /verify, но пока оставляем ручной вход
+      }
+      console.log('SkyMessage загружен.');
+    })();
   </script>
 </body>
 </html>
