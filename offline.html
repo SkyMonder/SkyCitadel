@@ -1,1 +1,63 @@
-
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Нет интернета • SkyCitadel</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #0a0f1e;
+      color: #e0e8ff;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      padding: 2rem;
+      text-align: center;
+    }
+    .container {
+      max-width: 400px;
+    }
+    .icon { font-size: 4rem; margin-bottom: 1rem; }
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 300;
+      color: #b7ceff;
+      margin-bottom: 0.5rem;
+    }
+    p {
+      color: #8899cc;
+      margin: 0.5rem 0 1.5rem 0;
+      line-height: 1.6;
+    }
+    .btn {
+      background: #5f7ecf;
+      border: none;
+      color: white;
+      padding: 0.7rem 2rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #7a9aef; }
+    .sub {
+      margin-top: 1rem;
+      font-size: 0.7rem;
+      color: #4a5a7a;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📡</div>
+    <h1>Нет подключения к интернету</h1>
+    <p>Проверьте соединение и нажмите «Обновить», чтобы попробовать снова.</p>
+    <button class="btn" onclick="location.reload()">🔄 Обновить</button>
+    <div class="sub">SkyCitadel — цифровая крепость</div>
+  </div>
+</body>
+</html>
