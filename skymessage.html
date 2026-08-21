@@ -146,13 +146,11 @@
     </div>
   </div>
 
-  <script src="/settings-loader.js"></script>
   <script>
-    // ====== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (в начале) ======
+    // ====== ВСПОМОГАТЕЛЬНЫЕ ======
     function escapeHtml(text) {
       return String(text).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
     }
-
     function formatSize(bytes) {
       if (bytes < 1024) return bytes + ' B';
       if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
@@ -162,21 +160,18 @@
     // ====== КОНСТАНТЫ ======
     const SERVER_URL = 'https://skymutant-prox.rilloperdagelo.workers.dev';
     const WS_URL = SERVER_URL.replace('https', 'wss');
-    const ICE_SERVERS = {
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' },
-        { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-      ]
-    };
+    const ICE_SERVERS = { iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' },
+      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
+    ] };
 
-    // ====== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ======
+    // ====== ГЛОБАЛЬНЫЕ ======
     let ws, currentUser = null, chats = {}, activeChatId = null;
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
 
-    // ====== ТОСТ ======
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
       toast.textContent = message;
@@ -186,23 +181,30 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== WEBSOCKET (с авторизацией по токену) ======
+    // ====== WEBSOCKET (с поддержкой токена и fallback по логину) ======
     function connectWebSocket() {
+      console.log('🔌 Подключение к WebSocket...');
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
+        console.log('✅ WebSocket открыт');
         const token = localStorage.getItem('skyid_token');
         if (token) {
+          console.log('📤 Отправка токена:', token);
           ws.send(JSON.stringify({ type: 'auth', token: token }));
         } else {
-          console.warn('⚠️ Нет токена, попробуйте войти снова');
+          console.warn('⚠️ Токен отсутствует, пробуем войти по логину (если есть)');
+          if (currentUser && currentUser.login) {
+            ws.send(JSON.stringify({ type: 'auth_legacy', login: currentUser.login }));
+          }
         }
         sendServerMessage('get_chats', {});
       };
       ws.onmessage = (e) => {
-        console.log('📨 WebSocket сообщение:', e.data);
+        console.log('📨 Входящее сообщение:', e.data);
         const msg = JSON.parse(e.data);
         switch (msg.type) {
           case 'auth_ok':
+            console.log('✅ Авторизация успешна!', msg);
             currentUser = { ...currentUser, ...msg };
             break;
           case 'message': handleIncomingMessage(msg); break;
@@ -232,19 +234,27 @@
             break;
         }
       };
-      ws.onclose = () => {
+      ws.onclose = (e) => {
+        console.warn('❌ WebSocket закрыт, код:', e.code, 'причина:', e.reason);
         setTimeout(connectWebSocket, 3000);
+      };
+      ws.onerror = (e) => {
+        console.error('❌ WebSocket ошибка:', e);
       };
     }
 
     function sendServerMessage(type, data = {}) {
-      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type, ...data }));
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ type, ...data }));
+      } else {
+        console.warn('⚠️ WebSocket не открыт, сообщение не отправлено');
+      }
     }
 
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
-    // ====== АВТОРИЗАЦИЯ (новые эндпоинты /smreg и /smlog) ======
+    // ====== АВТОРИЗАЦИЯ ======
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -278,10 +288,13 @@
           document.getElementById('switchAuth').textContent = 'Нет аккаунта? Зарегистрироваться';
           return;
         }
-        // Вход успешен — сохраняем токен
+        // Вход успешен
         const token = data.jwt || data.token;
         if (token) {
           localStorage.setItem('skyid_token', token);
+          console.log('🔑 Токен сохранён:', token);
+        } else {
+          console.warn('⚠️ Токен не получен от сервера:', data);
         }
         currentUser = { login };
         showAuth(false); showApp(true);
@@ -617,16 +630,16 @@
     // ====== ПРОФИЛЬ ======
     document.getElementById('profileBtn').addEventListener('click', () => alert('Профиль в разработке'));
 
-    // ====== ИНИЦИАЛИЗАЦИЯ: если есть токен, сразу показываем приложение ======
+    // ====== ИНИЦИАЛИЗАЦИЯ ======
     (function init() {
       const token = localStorage.getItem('skyid_token');
       if (token) {
-        // Можно попытаться восстановить сессию, но пока просто показываем экран входа
-        // Если токен есть, но невалидный, пользователь перелогинится
-        console.log('🔑 Токен найден, пытаемся войти автоматически...');
-        // В идеале сделать /verify, но пока оставляем ручной вход
+        console.log('🔑 Токен найден, пытаемся восстановить сессию...');
+        // Пытаемся соединиться, но сначала показываем экран входа (без принудительного входа)
+        // Пользователь залогинится вручную или через WebSocket.
+        // Можно также автоматически отправить /verify, но пока оставляем.
       }
-      console.log('SkyMessage загружен.');
+      console.log('🚀 SkyMessage загружен');
     })();
   </script>
 </body>
