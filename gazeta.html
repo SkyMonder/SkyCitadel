@@ -549,5 +549,17 @@
     init();
     setInterval(init, 600000); // обновление каждые 10 минут
   </script>
+  <script>
+  // Регистрация Service Worker
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(function(registration) {
+        console.log('✅ Service Worker зарегистрирован:', registration);
+      })
+      .catch(function(error) {
+        console.warn('⚠️ Ошибка регистрации Service Worker:', error);
+      });
+  }
+</script>
 </body>
 </html>
