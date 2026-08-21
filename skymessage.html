@@ -201,6 +201,7 @@
         sendServerMessage('get_chats', {});
       };
       ws.onmessage = (e) => {
+        console.log('📨 WebSocket сообщение:', e.data);
         const msg = JSON.parse(e.data);
         switch (msg.type) {
           case 'auth_ok': currentUser = { ...currentUser, ...msg }; break;
