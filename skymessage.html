@@ -186,11 +186,12 @@
       console.log('🔌 Подключение к WebSocket...');
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        console.log('✅ WebSocket открыт');
         const token = localStorage.getItem('skyid_token');
         if (token) {
-          console.log('📤 Отправка токена:', token);
-          ws.send(JSON.stringify({ type: 'auth', token: token }));
+          setTimeout(() => {
+            console.log('📤 Отправка токена с задержкой');
+            ws.send(JSON.stringify({ type: 'auth', token: token }));
+          }, 300); // 300 мс задержки
         } else {
           console.warn('⚠️ Токен отсутствует, пробуем войти по логину (если есть)');
           if (currentUser && currentUser.login) {
