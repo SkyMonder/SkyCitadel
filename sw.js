@@ -1,13 +1,33 @@
-// ====== sw.js — УПРОЩЁННАЯ ВЕРСИЯ (без ошибок addAll) ======
+// ====== sw.js — С ЯВНЫМ СПИСКОМ СТРАНИЦ ======
 
-const CACHE_NAME = 'skycitadel-v7';
+const CACHE_NAME = 'skycitadel-v9';
 const OFFLINE_URL = '/offline.html';
 
-// ====== КЕШИРУЕМ ТОЛЬКО НЕОБХОДИМЫЕ ФАЙЛЫ ======
+// ====== ВСЕ СТРАНИЦЫ, КОТОРЫЕ НУЖНО ЗАКЕШИРОВАТЬ ======
 const STATIC_ASSETS = [
+  '/',
+  '/index.html',
+  '/welcome.html',
   '/offline.html',
-  '/favicon.ico'
-  // остальные страницы будут кешироваться динамически при первом посещении
+  '/skymessage.html',
+  '/socnet.html',
+  '/skyvideo.html',
+  '/map.html',
+  '/settings.html',
+  '/account.html',
+  '/search.html',
+  '/gazeta.html',
+  '/skyai.html',
+  '/music.html',
+  '/radio.html',
+  '/tv.html',
+  '/photoshop.html',
+  '/stats.html',
+  '/privacy.html',
+  '/terms.html',
+  '/no-data.html',
+  '/support.html',
+  '/manifest.json'
 ];
 
 // ====== УСТАНОВКА ======
@@ -16,11 +36,22 @@ self.addEventListener('install', (event) => {
 
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then((cache) => {
-        return cache.addAll(STATIC_ASSETS)
-          .catch((err) => {
-            console.warn('⚠️ Ошибка кеширования, но SW продолжит работу:', err);
-          });
+      .then(async (cache) => {
+        // Кешируем каждый файл отдельно с логами
+        for (const url of STATIC_ASSETS) {
+          try {
+            const response = await fetch(url);
+            if (response.ok) {
+              await cache.put(url, response);
+              console.log(`✅ Закеширован: ${url}`);
+            } else {
+              console.warn(`⚠️ Не закеширован: ${url} (статус ${response.status})`);
+            }
+          } catch (err) {
+            console.warn(`❌ Ошибка кеширования: ${url}`, err);
+          }
+        }
+        console.log('✅ Все файлы обработаны');
       })
       .then(() => self.skipWaiting())
   );
@@ -29,14 +60,13 @@ self.addEventListener('install', (event) => {
 // ====== АКТИВАЦИЯ ======
 self.addEventListener('activate', (event) => {
   console.log('✅ Service Worker активирован');
-
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
+    caches.keys().then((keys) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          if (cacheName !== CACHE_NAME) {
-            console.log('🗑️ Удаляем старый кеш:', cacheName);
-            return caches.delete(cacheName);
+        keys.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('🗑️ Удаляем старый кеш:', key);
+            return caches.delete(key);
           }
         })
       );
@@ -57,23 +87,22 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Кешируем только успешные ответы на HTML-страницы
+        // Кешируем успешные HTML-ответы для будущих офлайн-сессий
         if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone);
-          });
+          const cloned = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
         }
         return response;
       })
       .catch(() => {
         // При ошибке сети — ищем в кеше
         return caches.match(event.request)
-          .then((cachedResponse) => {
-            if (cachedResponse) {
-              return cachedResponse;
+          .then((cached) => {
+            if (cached) {
+              console.log(`📦 Отдаём из кеша: ${url.pathname}`);
+              return cached;
             }
-            // Если ничего нет — отдаём офлайн-страницу
+            console.log(`📄 Отдаём офлайн-страницу для: ${url.pathname}`);
             return caches.match(OFFLINE_URL);
           });
       })
@@ -88,7 +117,6 @@ self.addEventListener('push', (event) => {
   } catch (e) {
     data = { title: 'SkyCitadel', body: 'Новое уведомление' };
   }
-
   const options = {
     body: data.body || 'Новое уведомление',
     icon: data.icon || '/favicon.ico',
@@ -99,7 +127,6 @@ self.addEventListener('push', (event) => {
     requireInteraction: data.requireInteraction || false,
     vibrate: [200, 100, 200]
   };
-
   event.waitUntil(
     self.registration.showNotification(data.title || 'SkyCitadel', options)
   );
