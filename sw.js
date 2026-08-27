@@ -1,13 +1,13 @@
-// ====== sw.js — ПОЛНАЯ ВЕРСИЯ ======
+// ====== sw.js — ИСПРАВЛЕННАЯ ВЕРСИЯ ======
 
-const CACHE_NAME = 'skycitadel-v3';
+const CACHE_NAME = 'skycitadel-v5';
 const OFFLINE_URL = '/offline.html';
 const STATIC_ASSETS = [
   '/',
   '/index.html',
   '/offline.html',
-  '/style.css', // если есть
   '/favicon.ico'
+  // style.css убрали — его нет на сайте
 ];
 
 // ====== УСТАНОВКА: кешируем офлайн-страницу и статику ======
@@ -18,7 +18,11 @@ self.addEventListener('install', (event) => {
     caches.open(CACHE_NAME)
       .then((cache) => {
         // Добавляем офлайн-страницу и основные файлы
-        return cache.addAll(STATIC_ASSETS);
+        return cache.addAll(STATIC_ASSETS)
+          .catch((err) => {
+            console.warn('⚠️ Ошибка кеширования:', err);
+            // Даже если часть файлов не закешировалась, продолжаем установку
+          });
       })
       .then(() => {
         // Активируем сразу
@@ -50,12 +54,10 @@ self.addEventListener('activate', (event) => {
 
 // ====== ПЕРЕХВАТ ЗАПРОСОВ: стратегия "сначала сеть, при ошибке — кеш" ======
 self.addEventListener('fetch', (event) => {
-  // Игнорируем запросы к аналитике, API и т.д., чтобы не кешировать их
   const url = new URL(event.request.url);
 
-  // Если запрос к API или внешнему ресурсу — пропускаем (пусть работает как обычно)
+  // Если запрос к API или внешнему ресурсу — пропускаем
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
-    // Просто передаём запрос без кеширования
     event.respondWith(fetch(event.request));
     return;
   }
@@ -74,7 +76,6 @@ self.addEventListener('fetch', (event) => {
         // Если сеть недоступна — пытаемся отдать из кеша
         return caches.match(event.request)
           .then((cachedResponse) => {
-            // Если запрашиваемый ресурс есть в кеше — отдаём его
             if (cachedResponse) {
               return cachedResponse;
             }
@@ -85,7 +86,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// ====== PUSH-УВЕДОМЛЕНИЯ (как было) ======
+// ====== PUSH-УВЕДОМЛЕНИЯ ======
 self.addEventListener('push', (event) => {
   let data = {};
   try {
