@@ -1,37 +1,57 @@
-// ====== sw.js — ИСПРАВЛЕННАЯ ВЕРСИЯ ======
+// ====== sw.js — ПОЛНАЯ ВЕРСИЯ ДЛЯ ВСЕХ СТРАНИЦ ======
 
-const CACHE_NAME = 'skycitadel-v5';
+const CACHE_NAME = 'skycitadel-v6';
 const OFFLINE_URL = '/offline.html';
+
+// ====== ВСЕ СТРАНИЦЫ ПРИЛОЖЕНИЯ ======
 const STATIC_ASSETS = [
   '/',
   '/index.html',
+  '/welcome.html',
+  '/ban.html',
   '/offline.html',
-  '/favicon.ico'
-  // style.css убрали — его нет на сайте
+  '/skymessage.html',
+  '/socnet.html',
+  '/skyvideo.html',
+  '/map.html',
+  '/settings.html',
+  '/account.html',
+  '/search.html',
+  '/gazeta.html',
+  '/skyai.html',
+  '/music.html',
+  '/radio.html',
+  '/tv.html',
+  '/photoshop.html',
+  '/qr.html',
+  '/stats.html',
+  '/privacy.html',
+  '/terms.html',
+  '/no-data.html',
+  '/support.html',
+  '/favicon.ico',
+  '/manifest.json',
+  // если есть другие CSS/JS — добавь их сюда
 ];
 
-// ====== УСТАНОВКА: кешируем офлайн-страницу и статику ======
+// ====== УСТАНОВКА ======
 self.addEventListener('install', (event) => {
   console.log('✅ Service Worker установлен');
 
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        // Добавляем офлайн-страницу и основные файлы
         return cache.addAll(STATIC_ASSETS)
           .catch((err) => {
-            console.warn('⚠️ Ошибка кеширования:', err);
-            // Даже если часть файлов не закешировалась, продолжаем установку
+            console.warn('⚠️ Ошибка кеширования некоторых файлов:', err);
+            // Продолжаем установку даже если часть файлов не закешировалась
           });
       })
-      .then(() => {
-        // Активируем сразу
-        self.skipWaiting();
-      })
+      .then(() => self.skipWaiting())
   );
 });
 
-// ====== АКТИВАЦИЯ: очищаем старые кеши ======
+// ====== АКТИВАЦИЯ ======
 self.addEventListener('activate', (event) => {
   console.log('✅ Service Worker активирован');
 
@@ -45,18 +65,15 @@ self.addEventListener('activate', (event) => {
           }
         })
       );
-    }).then(() => {
-      // Принимаем контроль над всеми страницами
-      return self.clients.claim();
-    })
+    }).then(() => self.clients.claim())
   );
 });
 
-// ====== ПЕРЕХВАТ ЗАПРОСОВ: стратегия "сначала сеть, при ошибке — кеш" ======
+// ====== ПЕРЕХВАТ ЗАПРОСОВ ======
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Если запрос к API или внешнему ресурсу — пропускаем
+  // API и внешние запросы не кешируем
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
     event.respondWith(fetch(event.request));
     return;
@@ -65,7 +82,7 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Если ответ успешный — кешируем его (для будущих офлайн-сессий)
+        // Кешируем успешные ответы для будущих офлайн-сессий
         const responseClone = response.clone();
         caches.open(CACHE_NAME).then((cache) => {
           cache.put(event.request, responseClone);
@@ -73,13 +90,13 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        // Если сеть недоступна — пытаемся отдать из кеша
+        // При ошибке сети — ищем в кеше
         return caches.match(event.request)
           .then((cachedResponse) => {
             if (cachedResponse) {
               return cachedResponse;
             }
-            // Если ресурса нет в кеше — отдаём офлайн-страницу
+            // Если ничего нет — отдаём офлайн-страницу
             return caches.match(OFFLINE_URL);
           });
       })
@@ -111,7 +128,6 @@ self.addEventListener('push', (event) => {
   );
 });
 
-// Клик по уведомлению
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
