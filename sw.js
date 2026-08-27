@@ -1,37 +1,13 @@
-// ====== sw.js — ПОЛНАЯ ВЕРСИЯ ДЛЯ ВСЕХ СТРАНИЦ ======
+// ====== sw.js — УПРОЩЁННАЯ ВЕРСИЯ (без ошибок addAll) ======
 
-const CACHE_NAME = 'skycitadel-v6';
+const CACHE_NAME = 'skycitadel-v7';
 const OFFLINE_URL = '/offline.html';
 
-// ====== ВСЕ СТРАНИЦЫ ПРИЛОЖЕНИЯ ======
+// ====== КЕШИРУЕМ ТОЛЬКО НЕОБХОДИМЫЕ ФАЙЛЫ ======
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/welcome.html',
-  '/ban.html',
   '/offline.html',
-  '/skymessage.html',
-  '/socnet.html',
-  '/skyvideo.html',
-  '/map.html',
-  '/settings.html',
-  '/account.html',
-  '/search.html',
-  '/gazeta.html',
-  '/skyai.html',
-  '/music.html',
-  '/radio.html',
-  '/tv.html',
-  '/photoshop.html',
-  '/qr.html',
-  '/stats.html',
-  '/privacy.html',
-  '/terms.html',
-  '/no-data.html',
-  '/support.html',
-  '/favicon.ico',
-  '/manifest.json',
-  // если есть другие CSS/JS — добавь их сюда
+  '/favicon.ico'
+  // остальные страницы будут кешироваться динамически при первом посещении
 ];
 
 // ====== УСТАНОВКА ======
@@ -43,8 +19,7 @@ self.addEventListener('install', (event) => {
       .then((cache) => {
         return cache.addAll(STATIC_ASSETS)
           .catch((err) => {
-            console.warn('⚠️ Ошибка кеширования некоторых файлов:', err);
-            // Продолжаем установку даже если часть файлов не закешировалась
+            console.warn('⚠️ Ошибка кеширования, но SW продолжит работу:', err);
           });
       })
       .then(() => self.skipWaiting())
@@ -82,11 +57,13 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(event.request)
       .then((response) => {
-        // Кешируем успешные ответы для будущих офлайн-сессий
-        const responseClone = response.clone();
-        caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, responseClone);
-        });
+        // Кешируем только успешные ответы на HTML-страницы
+        if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone);
+          });
+        }
         return response;
       })
       .catch(() => {
