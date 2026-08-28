@@ -1,65 +1,21 @@
-// ====== sw.js — С ЯВНЫМ СПИСКОМ СТРАНИЦ ======
+// ====== sw.js — ФИНАЛЬНАЯ ВЕРСИЯ ======
 
-const CACHE_NAME = 'skycitadel-v9';
+const CACHE_NAME = 'skycitadel-v11';
 const OFFLINE_URL = '/offline.html';
-
-// ====== ВСЕ СТРАНИЦЫ, КОТОРЫЕ НУЖНО ЗАКЕШИРОВАТЬ ======
-const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/welcome.html',
-  '/offline.html',
-  '/skymessage.html',
-  '/socnet.html',
-  '/skyvideo.html',
-  '/map.html',
-  '/settings.html',
-  '/account.html',
-  '/search.html',
-  '/gazeta.html',
-  '/skyai.html',
-  '/music.html',
-  '/radio.html',
-  '/tv.html',
-  '/photoshop.html',
-  '/stats.html',
-  '/privacy.html',
-  '/terms.html',
-  '/no-data.html',
-  '/support.html',
-  '/manifest.json'
-];
 
 // ====== УСТАНОВКА ======
 self.addEventListener('install', (event) => {
-  console.log('✅ Service Worker установлен');
-
+  console.log('✅ SW установлен');
   event.waitUntil(
     caches.open(CACHE_NAME)
-      .then(async (cache) => {
-        // Кешируем каждый файл отдельно с логами
-        for (const url of STATIC_ASSETS) {
-          try {
-            const response = await fetch(url);
-            if (response.ok) {
-              await cache.put(url, response);
-              console.log(`✅ Закеширован: ${url}`);
-            } else {
-              console.warn(`⚠️ Не закеширован: ${url} (статус ${response.status})`);
-            }
-          } catch (err) {
-            console.warn(`❌ Ошибка кеширования: ${url}`, err);
-          }
-        }
-        console.log('✅ Все файлы обработаны');
-      })
+      .then((cache) => cache.add(OFFLINE_URL))
       .then(() => self.skipWaiting())
   );
 });
 
 // ====== АКТИВАЦИЯ ======
 self.addEventListener('activate', (event) => {
-  console.log('✅ Service Worker активирован');
+  console.log('✅ SW активирован');
   event.waitUntil(
     caches.keys().then((keys) => {
       return Promise.all(
@@ -77,34 +33,54 @@ self.addEventListener('activate', (event) => {
 // ====== ПЕРЕХВАТ ЗАПРОСОВ ======
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
+  const request = event.request;
 
-  // API и внешние запросы не кешируем
-  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
-    event.respondWith(fetch(event.request));
+  // ====== НЕ КЕШИРУЕМ API И БЭКЕНД-ЗАПРОСЫ ======
+  if (
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/_next/') ||
+    url.pathname.startsWith('/spotify/') ||
+    url.pathname.startsWith('/announcements') ||
+    url.pathname.startsWith('/smlog') ||
+    url.pathname.startsWith('/smreg') ||
+    url.pathname.startsWith('/posts') ||
+    url.pathname.startsWith('/account/') ||
+    url.pathname.startsWith('/admin') ||
+    url.pathname.startsWith('/video/') ||
+    url.pathname.startsWith('/chat/')
+  ) {
+    event.respondWith(fetch(request));
     return;
   }
 
+  // ====== ОБРАБОТКА НАВИГАЦИОННЫХ ЗАПРОСОВ (HTML-страницы) ======
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
+            const cloned = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, cloned));
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request)
+            .then((cached) => cached || caches.match(OFFLINE_URL));
+        })
+    );
+    return;
+  }
+
+  // ====== ДЛЯ ВСЕХ ОСТАЛЬНЫХ ЗАПРОСОВ (CSS, JS, картинки) ======
   event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Кешируем успешные HTML-ответы для будущих офлайн-сессий
-        if (response.ok && response.headers.get('content-type')?.includes('text/html')) {
-          const cloned = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, cloned));
+    caches.match(request)
+      .then((cached) => {
+        if (cached) {
+          console.log(`📦 Из кеша: ${url.pathname}`);
+          return cached;
         }
-        return response;
-      })
-      .catch(() => {
-        // При ошибке сети — ищем в кеше
-        return caches.match(event.request)
-          .then((cached) => {
-            if (cached) {
-              console.log(`📦 Отдаём из кеша: ${url.pathname}`);
-              return cached;
-            }
-            console.log(`📄 Отдаём офлайн-страницу для: ${url.pathname}`);
-            return caches.match(OFFLINE_URL);
-          });
+        return fetch(request);
       })
   );
 });
