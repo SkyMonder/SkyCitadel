@@ -294,13 +294,11 @@
           return;
         }
         // Вход успешен
-        const token = data.jwt || data.token;
-        if (token) {
-          localStorage.setItem('skyid_token', token);
-          console.log('🔑 Токен сохранён:', token);
-        } else {
-          console.warn('⚠️ Токен не получен от сервера:', data);
-        }
+        const token = data.jwt; // всегда используем JWT
+          if (!token) {
+            alert('Ошибка: сервер не вернул JWT');
+            return;
+          }
         currentUser = { login };
         showAuth(false); showApp(true);
         connectWebSocket();
