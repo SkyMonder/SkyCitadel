@@ -191,7 +191,7 @@
           setTimeout(() => {
             console.log('📤 Отправка токена с задержкой');
             ws.send(JSON.stringify({ type: 'auth', token: token }));
-          }, 300); // 300 мс задержки
+          }, 300);
         } else {
           console.warn('⚠️ Токен отсутствует, пробуем войти по логину (если есть)');
           if (currentUser && currentUser.login) {
@@ -293,12 +293,14 @@
           document.getElementById('switchAuth').textContent = 'Нет аккаунта? Зарегистрироваться';
           return;
         }
-        // Вход успешен
-        const token = data.jwt; // всегда используем JWT
-          if (!token) {
-            alert('Ошибка: сервер не вернул JWT');
-            return;
-          }
+        // Вход успешен — сохраняем JWT
+        const token = data.jwt;
+        if (!token) {
+          alert('Ошибка: сервер не вернул JWT');
+          return;
+        }
+        // Сохраняем токен в localStorage
+        localStorage.setItem('skyid_token', token);
         currentUser = { login };
         showAuth(false); showApp(true);
         connectWebSocket();
@@ -639,9 +641,6 @@
       const token = localStorage.getItem('skyid_token');
       if (token) {
         console.log('🔑 Токен найден, пытаемся восстановить сессию...');
-        // Пытаемся соединиться, но сначала показываем экран входа (без принудительного входа)
-        // Пользователь залогинится вручную или через WebSocket.
-        // Можно также автоматически отправить /verify, но пока оставляем.
       }
       console.log('🚀 SkyMessage загружен');
     })();
