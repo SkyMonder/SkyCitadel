@@ -212,10 +212,13 @@
           case 'message_edited': handleMessageEdited(msg); break;
           case 'message_deleted': handleMessageDeleted(msg); break;
           case 'chat_list':
+            console.log('📨 Получен chat_list:', msg.chats);
             chats = msg.chats;
             renderChatList();
+            console.log('🔍 activeChatId:', activeChatId);
             if (!activeChatId || !chats[activeChatId]) {
               const firstId = Object.keys(chats)[0];
+              console.log('🔍 Первый чат:', firstId);
               if (firstId) { activeChatId = firstId; openChat(firstId); }
             }
             break;
@@ -245,6 +248,7 @@
     }
 
     function sendServerMessage(type, data = {}) {
+      console.log('📤 Отправка серверу:', type, data);
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ type, ...data }));
       } else {
@@ -330,6 +334,7 @@
     }
 
     function openChat(id) {
+      console.log('📂 Открытие чата:', id);
       document.getElementById('inputArea').style.display = 'flex';
       document.getElementById('chatHeader').textContent = chats[id]?.name || '';
       sendServerMessage('get_messages', { chatId: id });
