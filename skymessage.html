@@ -193,12 +193,18 @@
             ws.send(JSON.stringify({ type: 'auth', token: token }));
           }, 300);
         } else {
-          console.warn('⚠️ Токен отсутствует, пробуем войти по логину (если есть)');
-          if (currentUser && currentUser.login) {
-            ws.send(JSON.stringify({ type: 'auth_legacy', login: currentUser.login }));
-          }
+          console.warn('⚠️ Токен отсутствует');
         }
         sendServerMessage('get_chats', {});
+
+        // Запускаем клиентский пинг каждые 20 секунд
+        if (pingInterval) clearInterval(pingInterval);
+        pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+            console.log('📤 Отправлен ping клиентом');
+          }
+        }, 20000);
       };
       ws.onmessage = (e) => {
         console.log('📨 Входящее сообщение:', e.data);
