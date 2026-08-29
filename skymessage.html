@@ -196,7 +196,7 @@
           console.warn('⚠️ Токен отсутствует');
         }
         sendServerMessage('get_chats', {});
-
+        let pingInterval = null;
         // Запускаем клиентский пинг каждые 20 секунд
         if (pingInterval) clearInterval(pingInterval);
         pingInterval = setInterval(() => {
