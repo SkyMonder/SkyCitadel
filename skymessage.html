@@ -181,7 +181,7 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== WEBSOCKET (с поддержкой токена и fallback по логину) ======
+    // ====== WEBSOCKET (с авто-переподключением и проверкой токена) ======
     function connectWebSocket() {
       console.log('🔌 Подключение к WebSocket...');
       ws = new WebSocket(WS_URL);
@@ -215,10 +215,8 @@
             console.log('📨 Получен chat_list:', msg.chats);
             chats = msg.chats;
             renderChatList();
-            console.log('🔍 activeChatId:', activeChatId);
             if (!activeChatId || !chats[activeChatId]) {
               const firstId = Object.keys(chats)[0];
-              console.log('🔍 Первый чат:', firstId);
               if (firstId) { activeChatId = firstId; openChat(firstId); }
             }
             break;
@@ -234,6 +232,11 @@
             if (msg.message && msg.message.includes('заблокирован')) {
               alert(msg.message);
               window.location.href = '/ban.html';
+            }
+            if (msg.message && msg.message.includes('Invalid or expired token')) {
+              localStorage.removeItem('skyid_token');
+              alert('Сессия истекла, войдите заново');
+              window.location.reload();
             }
             break;
         }
@@ -299,7 +302,6 @@
           alert('Ошибка: сервер не вернул JWT');
           return;
         }
-        // Сохраняем токен в localStorage
         localStorage.setItem('skyid_token', token);
         currentUser = { login };
         showAuth(false); showApp(true);
@@ -309,7 +311,7 @@
       }
     });
 
-    // ====== UI ======
+    // ====== UI (все функции рендеринга и обработки сообщений) ======
     function renderChatList() {
       const container = document.getElementById('chatList');
       container.innerHTML = '';
@@ -641,6 +643,8 @@
       const token = localStorage.getItem('skyid_token');
       if (token) {
         console.log('🔑 Токен найден, пытаемся восстановить сессию...');
+        // Если есть токен — сразу подключаем WebSocket
+        connectWebSocket();
       }
       console.log('🚀 SkyMessage загружен');
     })();
