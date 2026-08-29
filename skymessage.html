@@ -215,9 +215,23 @@
             console.log('📨 Получен chat_list:', msg.chats);
             chats = msg.chats;
             renderChatList();
-            if (!activeChatId || !chats[activeChatId]) {
-              const firstId = Object.keys(chats)[0];
-              if (firstId) { activeChatId = firstId; openChat(firstId); }
+            const chatIds = Object.keys(chats);
+            if (chatIds.length > 0) {
+              if (!activeChatId || !chats[activeChatId]) {
+                const firstId = chatIds[0];
+                console.log('🔍 Первый чат:', firstId);
+                if (firstId) { activeChatId = firstId; openChat(firstId); }
+              }
+            } else {
+              console.log('📭 Чатов нет, ожидаем создания...');
+              // Показываем сообщение "Нет чатов"
+              document.getElementById('messagesContainer').innerHTML = `
+                <div style="text-align:center;color:#8899cc;padding:2rem;">
+                  <span style="font-size:3rem;">💬</span>
+                  <p>У вас пока нет чатов</p>
+                  <p style="font-size:0.8rem;">Нажмите «+» чтобы начать</p>
+                </div>
+              `;
             }
             break;
           case 'chat_created': activeChatId = msg.chatId; sendServerMessage('get_chats', {}); break;
