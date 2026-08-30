@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <title>SkyMessage (Long Polling)</title>
   <style>
     /* (стили без изменений, те же, что были) */
@@ -133,6 +136,7 @@
     let lastMsgId = 0;
     let isPolling = false;
     let editingMessageId = null;
+    let pollTimer = null;
 
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
@@ -146,6 +150,7 @@
     // ====== HTTP-запросы с авторизацией ======
     async function apiRequest(endpoint, method = 'POST', data = null) {
       const token = localStorage.getItem('skyid_token');
+      if (!token) throw new Error('No token');
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
@@ -180,6 +185,7 @@
           }
         } catch (err) {
           console.error('Poll error:', err);
+          // Ждём 3 секунды перед повторной попыткой
           await new Promise(r => setTimeout(r, 3000));
         }
       }
@@ -195,6 +201,7 @@
       }
       try {
         await apiRequest('/send', 'POST', { chatId, text });
+        // Оптимистичное добавление
         const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
         if (!chats[chatId]) chats[chatId] = { messages: [] };
         if (!chats[chatId].messages) chats[chatId].messages = [];
