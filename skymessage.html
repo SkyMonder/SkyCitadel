@@ -171,7 +171,8 @@
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
-    let pingInterval = null;   // <-- ОБЪЯВЛЕНА ГЛОБАЛЬНО
+    let pingInterval = null;
+    let isAuthorized = false;
 
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
@@ -182,22 +183,22 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== WEBSOCKET (с авто-переподключением и проверкой токена) ======
+    // ====== WEBSOCKET ======
     function connectWebSocket() {
       console.log('🔌 Подключение к WebSocket...');
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
         const token = localStorage.getItem('skyid_token');
         if (token) {
-          setTimeout(() => {
-            console.log('📤 Отправка токена с задержкой');
+          if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'auth', token: token }));
-          }, 300);
+            console.log('📤 Отправлен токен');
+          }
         } else {
           console.warn('⚠️ Токен отсутствует');
         }
 
-        // --- Управление пингом (глобальный интервал) ---
+        // Пинг-интервал
         if (pingInterval) {
           clearInterval(pingInterval);
           pingInterval = null;
@@ -208,32 +209,38 @@
             console.log('📤 Отправлен ping клиентом');
           }
         }, 20000);
-
-        // Запрос списка чатов – отправим после авторизации (через 500 мс)
-        setTimeout(() => {
-          sendServerMessage('get_chats', {});
-        }, 500);
       };
 
       ws.onmessage = (e) => {
         console.log('📨 Входящее сообщение:', e.data);
-        const msg = JSON.parse(e.data);
+        let msg;
+        try {
+          msg = JSON.parse(e.data);
+        } catch (err) {
+          console.error('Ошибка парсинга JSON:', err);
+          return;
+        }
+
         switch (msg.type) {
-          case 'ping':   // ← сервер просит ответить
+          case 'ping':
             ws.send(JSON.stringify({ type: 'pong' }));
             console.log('📤 Отправлен pong на сервер');
             return;
-          case 'pong':   // ← это ответ на наш ping (можно игнорировать)
+          case 'pong':
             console.log('📶 Pong от сервера');
             return;
 
           case 'auth_ok':
             console.log('✅ Авторизация успешна!', msg);
             currentUser = { ...currentUser, ...msg };
+            isAuthorized = true;
+            sendServerMessage('get_chats', {});
             break;
+
           case 'message': handleIncomingMessage(msg); break;
           case 'message_edited': handleMessageEdited(msg); break;
           case 'message_deleted': handleMessageDeleted(msg); break;
+
           case 'chat_list':
             console.log('📨 Получен chat_list:', msg.chats);
             chats = msg.chats;
@@ -256,6 +263,7 @@
               `;
             }
             break;
+
           case 'chat_created': activeChatId = msg.chatId; sendServerMessage('get_chats', {}); break;
           case 'messages': displayMessages(msg.messages); break;
           case 'user_search_result': showSearchResults(msg.users, 'user'); break;
@@ -264,6 +272,7 @@
           case 'ice_candidate': handleICECandidate(msg); break;
           case 'call_end': handleCallEnded(); break;
           case 'profile_updated': updateLocalProfile(msg.profile); break;
+
           case 'error':
             if (msg.message && msg.message.includes('заблокирован')) {
               alert(msg.message);
@@ -275,6 +284,9 @@
               window.location.reload();
             }
             break;
+
+          default:
+            console.log('⚠️ Неизвестный тип сообщения:', msg.type);
         }
       };
 
@@ -284,6 +296,7 @@
           clearInterval(pingInterval);
           pingInterval = null;
         }
+        isAuthorized = false;
         setTimeout(connectWebSocket, 3000);
       };
 
@@ -301,10 +314,10 @@
       }
     }
 
+    // ====== АВТОРИЗАЦИЯ ======
     function showAuth(s) { document.getElementById('authScreen').style.display = s?'flex':'none'; }
     function showApp(s) { document.getElementById('app').style.display = s?'flex':'none'; }
 
-    // ====== АВТОРИЗАЦИЯ ======
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
       if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
@@ -338,7 +351,6 @@
           document.getElementById('switchAuth').textContent = 'Нет аккаунта? Зарегистрироваться';
           return;
         }
-        // Вход успешен — сохраняем JWT
         const token = data.jwt;
         if (!token) {
           alert('Ошибка: сервер не вернул JWT');
@@ -353,7 +365,7 @@
       }
     });
 
-    // ====== UI (все функции рендеринга и обработки сообщений) ======
+    // ====== UI ======
     function renderChatList() {
       const container = document.getElementById('chatList');
       container.innerHTML = '';
@@ -686,6 +698,9 @@
       if (token) {
         console.log('🔑 Токен найден, пытаемся восстановить сессию...');
         connectWebSocket();
+      } else {
+        showAuth(true);
+        showApp(false);
       }
       console.log('🚀 SkyMessage загружен');
     })();
