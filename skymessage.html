@@ -3,15 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <title>SkyMessage (Long Polling)</title>
   <style>
-    :root {
-      --bg: #0a0f1e; --panel: #111827; --card: #1a233a;
-      --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf;
-    }
+    /* (стили без изменений, те же, что были) */
+    :root { --bg: #0a0f1e; --panel: #111827; --card: #1a233a; --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf; }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     .auth-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
@@ -194,6 +189,10 @@
 
     // ====== ОТПРАВКА СООБЩЕНИЯ ======
     async function sendMessage(chatId, text) {
+      if (!currentUser || !currentUser.login) {
+        showToast('Ошибка: пользователь не авторизован');
+        return;
+      }
       try {
         await apiRequest('/send', 'POST', { chatId, text });
         const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
@@ -205,6 +204,21 @@
       } catch (err) {
         showToast('Ошибка отправки: ' + err.message);
       }
+    }
+
+    // ====== ВЕРИФИКАЦИЯ ТОКЕНА (восстановление сессии) ======
+    async function verifySession() {
+      try {
+        const data = await apiRequest('/verify', 'POST', {});
+        if (data.login) {
+          currentUser = { login: data.login, skyid: data.skyid };
+          console.log('✅ Сессия восстановлена:', currentUser);
+          return true;
+        }
+      } catch (err) {
+        console.warn('❌ Ошибка верификации:', err.message);
+      }
+      return false;
     }
 
     // ====== АВТОРИЗАЦИЯ ======
@@ -317,6 +331,7 @@
     }
 
     function addMessageToUI(msg) {
+      if (!currentUser) return;
       const div = document.createElement('div');
       div.className = 'msg' + (msg.from === currentUser.login ? ' own' : '');
       div.setAttribute('data-id', msg.id);
@@ -341,6 +356,7 @@
     }
 
     function handleIncomingMessage(msg) {
+      if (!currentUser) return;
       if (msg.from === currentUser.login) return;
       if (!chats[msg.chatId]) { loadChats(); return; }
       if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
@@ -476,12 +492,20 @@
     document.addEventListener('click', () => { emojiPanel.style.display = 'none'; });
 
     // ====== ИНИЦИАЛИЗАЦИЯ ======
-    (function init() {
+    (async function init() {
       const token = localStorage.getItem('skyid_token');
       if (token) {
         console.log('🔑 Токен найден, пытаемся восстановить сессию...');
         showAuth(false); showApp(true);
-        loadChats().then(() => startPolling());
+        const ok = await verifySession();
+        if (ok) {
+          await loadChats();
+          startPolling();
+        } else {
+          localStorage.removeItem('skyid_token');
+          showAuth(true); showApp(false);
+          showToast('Сессия истекла, войдите заново');
+        }
       } else {
         showAuth(true); showApp(false);
       }
