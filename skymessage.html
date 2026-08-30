@@ -159,10 +159,7 @@
 
     // ====== КОНСТАНТЫ ======
     const SERVER_URL = 'https://skymutant-prox.rilloperdagelo.workers.dev';
-    // ВАЖНО: WebSocket подключаем напрямую к серверу, а не через прокси
-    const WS_URL = 'wss://skymutant.onrender.com';   // для защищённого соединения
-    // Если сервер не поддерживает wss, попробуйте ws://skymutant.onrender.com
-
+    const WS_URL = SERVER_URL.replace('https', 'wss');
     const ICE_SERVERS = { iceServers: [
       { urls: 'stun:stun.l.google.com:19302' },
       { urls: 'stun:stun1.l.google.com:19302' },
@@ -191,20 +188,27 @@
       console.log('🔌 Подключение к WebSocket...');
       ws = new WebSocket(WS_URL);
       ws.onopen = () => {
-        console.log('✅ WebSocket открыт');
         const token = localStorage.getItem('skyid_token');
         if (token) {
-          // Небольшая задержка, чтобы сервер успел обработать рукопожатие
-          setTimeout(() => {
-            if (ws.readyState === WebSocket.OPEN) {
-              ws.send(JSON.stringify({ type: 'auth', token: token }));
-              console.log('📤 Отправлен токен');
-            }
-          }, 100);
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'auth', token: token }));
+            console.log('📤 Отправлен токен');
+          }
         } else {
           console.warn('⚠️ Токен отсутствует');
         }
-        // Пинг-интервал пока не запускаем – дождёмся auth_ok
+
+        // Пинг-интервал
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
+        pingInterval = setInterval(() => {
+          if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'ping' }));
+            console.log('📤 Отправлен ping клиентом');
+          }
+        }, 20000);
       };
 
       ws.onmessage = (e) => {
@@ -230,18 +234,6 @@
             console.log('✅ Авторизация успешна!', msg);
             currentUser = { ...currentUser, ...msg };
             isAuthorized = true;
-            // Запускаем пинг-интервал только после успешной авторизации
-            if (pingInterval) {
-              clearInterval(pingInterval);
-              pingInterval = null;
-            }
-            pingInterval = setInterval(() => {
-              if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'ping' }));
-                console.log('📤 Отправлен ping клиентом');
-              }
-            }, 20000);
-            // Запрашиваем чаты
             sendServerMessage('get_chats', {});
             break;
 
