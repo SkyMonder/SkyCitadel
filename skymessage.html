@@ -6,7 +6,7 @@
   <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
-  <title>SkyMessage</title>
+  <title>SkyMessage (Long Polling)</title>
   <style>
     :root {
       --bg: #0a0f1e; --panel: #111827; --card: #1a233a;
@@ -53,12 +53,9 @@
     .search-results { max-height: 200px; overflow-y: auto; margin: 0.5rem 0; }
     .search-result-item { padding: 0.5rem; cursor: pointer; border-radius: 8px; }
     .search-result-item:hover { background: #1f2b4a; }
-    .call-ui { position: fixed; bottom: 20px; right: 20px; background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 1rem; display: none; z-index: 30; flex-direction: column; gap: 0.8rem; }
-    .call-ui.active { display: flex; }
-    video { width: 200px; border-radius: 8px; background: #000; }
+    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #c44; color: white; padding: 0.6rem 1.2rem; border-radius: 20px; font-size: 0.9rem; z-index: 100; display: none; }
     .emoji-panel { display: none; flex-wrap: wrap; gap: 0.3rem; padding: 0.5rem; background: var(--card); border: 1px solid var(--border); border-radius: 10px; max-width: 280px; position: absolute; bottom: 70px; left: 10px; z-index: 40; }
     .emoji-panel span { cursor: pointer; font-size: 1.4rem; }
-    .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%); background: #c44; color: white; padding: 0.6rem 1.2rem; border-radius: 20px; font-size: 0.9rem; z-index: 100; display: none; }
   </style>
 </head>
 <body>
@@ -94,8 +91,6 @@
         <div class="emoji-panel" id="emojiPanel"></div>
         <input type="text" id="messageInput" placeholder="Сообщение...">
         <button class="btn" id="sendBtn">➤</button>
-        <button class="btn" id="audioCallBtn" title="Аудиозвонок">📞</button>
-        <button class="btn" id="videoCallBtn" title="Видеозвонок">📹</button>
       </div>
     </div>
   </div>
@@ -123,29 +118,6 @@
     </div>
   </div>
 
-  <div class="modal-overlay" id="callModal">
-    <div class="modal">
-      <h3 id="callModalTitle">Вызов</h3>
-      <p id="callModalName"></p>
-      <p id="callModalStatus" style="color:#8899cc;"></p>
-      <div class="btn-row" id="callModalActions">
-        <button class="btn" id="callModalAcceptBtn" style="display:none;">Принять</button>
-        <button class="btn" id="callModalRejectBtn" style="background:#c44;">Отклонить</button>
-      </div>
-    </div>
-  </div>
-
-  <div class="call-ui" id="currentCallUI">
-    <video id="localVideo" autoplay muted playsinline></video>
-    <video id="remoteVideo" autoplay playsinline></video>
-    <div id="callStatus" style="font-size:0.9rem; color:#8899cc;"></div>
-    <div style="display:flex; gap:0.5rem;">
-      <button class="btn" id="toggleMic">🎤 Mic</button>
-      <button class="btn" id="toggleCam">📷 Cam</button>
-      <button class="btn" id="endCallBtn" style="background:#c44;">Завершить</button>
-    </div>
-  </div>
-
   <script>
     // ====== ВСПОМОГАТЕЛЬНЫЕ ======
     function escapeHtml(text) {
@@ -159,20 +131,13 @@
 
     // ====== КОНСТАНТЫ ======
     const SERVER_URL = 'https://skymutant-prox.rilloperdagelo.workers.dev';
-    const WS_URL = SERVER_URL.replace('https', 'wss');
-    const ICE_SERVERS = { iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' },
-      { urls: 'turn:openrelay.metered.ca:80', username: 'openrelayproject', credential: 'openrelayproject' }
-    ] };
+    const API_URL = SERVER_URL;
 
     // ====== ГЛОБАЛЬНЫЕ ======
-    let ws, currentUser = null, chats = {}, activeChatId = null;
-    let localStream = null, peerConnection = null, activeCall = null;
-    let uploadToken = null;
+    let currentUser = null, chats = {}, activeChatId = null;
+    let lastMsgId = 0;
+    let isPolling = false;
     let editingMessageId = null;
-    let pingInterval = null;
-    let isAuthorized = false;
 
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
@@ -183,134 +148,62 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== WEBSOCKET ======
-    function connectWebSocket() {
-      console.log('🔌 Подключение к WebSocket...');
-      ws = new WebSocket(WS_URL);
-      ws.onopen = () => {
-        const token = localStorage.getItem('skyid_token');
-        if (token) {
-          if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'auth', token: token }));
-            console.log('📤 Отправлен токен');
-          }
-        } else {
-          console.warn('⚠️ Токен отсутствует');
-        }
-
-        // Пинг-интервал
-        if (pingInterval) {
-          clearInterval(pingInterval);
-          pingInterval = null;
-        }
-        pingInterval = setInterval(() => {
-          if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'ping' }));
-            console.log('📤 Отправлен ping клиентом');
-          }
-        }, 20000);
+    // ====== HTTP-запросы с авторизацией ======
+    async function apiRequest(endpoint, method = 'POST', data = null) {
+      const token = localStorage.getItem('skyid_token');
+      const headers = {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
       };
-
-      ws.onmessage = (e) => {
-        console.log('📨 Входящее сообщение:', e.data);
-        let msg;
-        try {
-          msg = JSON.parse(e.data);
-        } catch (err) {
-          console.error('Ошибка парсинга JSON:', err);
-          return;
-        }
-
-        switch (msg.type) {
-          case 'ping':
-            ws.send(JSON.stringify({ type: 'pong' }));
-            console.log('📤 Отправлен pong на сервер');
-            return;
-          case 'pong':
-            console.log('📶 Pong от сервера');
-            return;
-
-          case 'auth_ok':
-            console.log('✅ Авторизация успешна!', msg);
-            currentUser = { ...currentUser, ...msg };
-            isAuthorized = true;
-            sendServerMessage('get_chats', {});
-            break;
-
-          case 'message': handleIncomingMessage(msg); break;
-          case 'message_edited': handleMessageEdited(msg); break;
-          case 'message_deleted': handleMessageDeleted(msg); break;
-
-          case 'chat_list':
-            console.log('📨 Получен chat_list:', msg.chats);
-            chats = msg.chats;
-            renderChatList();
-            const chatIds = Object.keys(chats);
-            if (chatIds.length > 0) {
-              if (!activeChatId || !chats[activeChatId]) {
-                const firstId = chatIds[0];
-                console.log('🔍 Первый чат:', firstId);
-                if (firstId) { activeChatId = firstId; openChat(firstId); }
-              }
-            } else {
-              console.log('📭 Чатов нет, ожидаем создания...');
-              document.getElementById('messagesContainer').innerHTML = `
-                <div style="text-align:center;color:#8899cc;padding:2rem;">
-                  <span style="font-size:3rem;">💬</span>
-                  <p>У вас пока нет чатов</p>
-                  <p style="font-size:0.8rem;">Нажмите «+» чтобы начать</p>
-                </div>
-              `;
-            }
-            break;
-
-          case 'chat_created': activeChatId = msg.chatId; sendServerMessage('get_chats', {}); break;
-          case 'messages': displayMessages(msg.messages); break;
-          case 'user_search_result': showSearchResults(msg.users, 'user'); break;
-          case 'call_offer': handleCallOffer(msg); break;
-          case 'call_answer': handleCallAnswer(msg); break;
-          case 'ice_candidate': handleICECandidate(msg); break;
-          case 'call_end': handleCallEnded(); break;
-          case 'profile_updated': updateLocalProfile(msg.profile); break;
-
-          case 'error':
-            if (msg.message && msg.message.includes('заблокирован')) {
-              alert(msg.message);
-              window.location.href = '/ban.html';
-            }
-            if (msg.message && msg.message.includes('Invalid or expired token')) {
-              localStorage.removeItem('skyid_token');
-              alert('Сессия истекла, войдите заново');
-              window.location.reload();
-            }
-            break;
-
-          default:
-            console.log('⚠️ Неизвестный тип сообщения:', msg.type);
-        }
-      };
-
-      ws.onclose = (e) => {
-        console.warn('❌ WebSocket закрыт, код:', e.code, 'причина:', e.reason);
-        if (pingInterval) {
-          clearInterval(pingInterval);
-          pingInterval = null;
-        }
-        isAuthorized = false;
-        setTimeout(connectWebSocket, 3000);
-      };
-
-      ws.onerror = (e) => {
-        console.error('❌ WebSocket ошибка:', e);
-      };
+      const options = { method, headers };
+      if (data) options.body = JSON.stringify(data);
+      const response = await fetch(API_URL + endpoint, options);
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error(err.error || `HTTP ${response.status}`);
+      }
+      return await response.json();
     }
 
-    function sendServerMessage(type, data = {}) {
-      console.log('📤 Отправка серверу:', type, data);
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ type, ...data }));
-      } else {
-        console.warn('⚠️ WebSocket не открыт, сообщение не отправлено');
+    // ====== ПОЛЛИНГ ======
+    async function startPolling() {
+      if (isPolling) return;
+      isPolling = true;
+      while (isPolling) {
+        try {
+          const result = await apiRequest('/poll', 'POST', { lastMsgId });
+          if (result.messages && result.messages.length > 0) {
+            const maxId = result.messages.reduce((max, m) => m.id > max ? m.id : max, lastMsgId);
+            if (maxId > lastMsgId) lastMsgId = maxId;
+            result.messages.forEach(msg => {
+              if (msg.type === 'chat_update') {
+                loadChats();
+              } else {
+                handleIncomingMessage(msg);
+              }
+            });
+          }
+        } catch (err) {
+          console.error('Poll error:', err);
+          await new Promise(r => setTimeout(r, 3000));
+        }
+      }
+    }
+
+    function stopPolling() { isPolling = false; }
+
+    // ====== ОТПРАВКА СООБЩЕНИЯ ======
+    async function sendMessage(chatId, text) {
+      try {
+        await apiRequest('/send', 'POST', { chatId, text });
+        const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
+        if (!chats[chatId]) chats[chatId] = { messages: [] };
+        if (!chats[chatId].messages) chats[chatId].messages = [];
+        chats[chatId].messages.push(msg);
+        if (activeChatId === chatId) addMessageToUI(msg);
+        renderChatList();
+      } catch (err) {
+        showToast('Ошибка отправки: ' + err.message);
       }
     }
 
@@ -320,30 +213,27 @@
 
     document.getElementById('switchAuth').addEventListener('click', function() {
       const t = document.getElementById('authTitle'), b = document.getElementById('authBtn');
-      if (t.textContent === 'Вход') { t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти'; }
-      else { t.textContent='Вход'; b.textContent='Войти'; this.textContent='Нет аккаунта? Зарегистрироваться'; }
+      if (t.textContent === 'Вход') {
+        t.textContent='Регистрация'; b.textContent='Создать аккаунт'; this.textContent='Уже есть аккаунт? Войти';
+      } else {
+        t.textContent='Вход'; b.textContent='Войти'; this.textContent='Нет аккаунта? Зарегистрироваться';
+      }
     });
 
     document.getElementById('authBtn').addEventListener('click', async () => {
       const login = document.getElementById('loginInput').value.trim();
       const password = document.getElementById('passInput').value;
       if (!login || !password) return alert('Заполни поля');
-
       const isReg = document.getElementById('authTitle').textContent === 'Регистрация';
-      const url = isReg ? `${SERVER_URL}/smreg` : `${SERVER_URL}/smlog`;
-      const body = JSON.stringify({ login, password });
-
+      const url = isReg ? `${API_URL}/smreg` : `${API_URL}/smlog`;
       try {
         const res = await fetch(url, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: body
+          body: JSON.stringify({ login, password })
         });
         const data = await res.json();
-        if (!res.ok) {
-          alert(data.error || 'Ошибка');
-          return;
-        }
+        if (!res.ok) { alert(data.error || 'Ошибка'); return; }
         if (isReg) {
           alert('Аккаунт создан! Теперь войдите.');
           document.getElementById('authTitle').textContent = 'Вход';
@@ -352,18 +242,31 @@
           return;
         }
         const token = data.jwt;
-        if (!token) {
-          alert('Ошибка: сервер не вернул JWT');
-          return;
-        }
+        if (!token) { alert('Ошибка: сервер не вернул JWT'); return; }
         localStorage.setItem('skyid_token', token);
         currentUser = { login };
         showAuth(false); showApp(true);
-        connectWebSocket();
-      } catch(e) {
-        alert('Ошибка: '+e.message);
-      }
+        await loadChats();
+        startPolling();
+      } catch(e) { alert('Ошибка: '+e.message); }
     });
+
+    // ====== ЗАГРУЗКА ЧАТОВ ======
+    async function loadChats() {
+      try {
+        const data = await apiRequest('/get_chats', 'POST', {});
+        chats = data.chats || {};
+        renderChatList();
+        const ids = Object.keys(chats);
+        if (ids.length > 0 && (!activeChatId || !chats[activeChatId])) {
+          activeChatId = ids[0];
+          openChat(activeChatId);
+        }
+      } catch (err) {
+        console.error('Ошибка загрузки чатов:', err);
+        showToast('Ошибка загрузки чатов');
+      }
+    }
 
     // ====== UI ======
     function renderChatList() {
@@ -383,21 +286,32 @@
         div.addEventListener('click', (e) => { if(e.target.closest('.chat-actions')) return; activeChatId=id; openChat(id); renderChatList(); });
         container.appendChild(div);
       });
-      document.querySelectorAll('.delete-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Удалить чат?'))sendServerMessage('delete_chat',{chatId:b.dataset.id})}));
-      document.querySelectorAll('.block-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();sendServerMessage('block_chat',{chatId:b.dataset.id})}));
-      document.querySelectorAll('.unblock-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();sendServerMessage('unblock_chat',{chatId:b.dataset.id})}));
-      document.querySelectorAll('.leave-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Покинуть?'))sendServerMessage('leave_group',{chatId:b.dataset.id})}));
+      document.querySelectorAll('.delete-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Удалить чат?'))deleteChat(b.dataset.id)}));
+      document.querySelectorAll('.block-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();blockChat(b.dataset.id)}));
+      document.querySelectorAll('.unblock-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();unblockChat(b.dataset.id)}));
+      document.querySelectorAll('.leave-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Покинуть?'))leaveGroup(b.dataset.id)}));
     }
 
     function openChat(id) {
       console.log('📂 Открытие чата:', id);
       document.getElementById('inputArea').style.display = 'flex';
       document.getElementById('chatHeader').textContent = chats[id]?.name || '';
-      sendServerMessage('get_messages', { chatId: id });
+      loadMessages(id);
+    }
+
+    async function loadMessages(chatId) {
+      try {
+        const data = await apiRequest('/get_messages', 'POST', { chatId });
+        displayMessages(data.messages || []);
+      } catch (err) {
+        console.error('Ошибка загрузки сообщений:', err);
+        showToast('Ошибка загрузки сообщений');
+      }
     }
 
     function displayMessages(msgs) {
-      const cont = document.getElementById('messagesContainer'); cont.innerHTML = '';
+      const cont = document.getElementById('messagesContainer');
+      cont.innerHTML = '';
       msgs.forEach(m => addMessageToUI(m));
       cont.scrollTop = cont.scrollHeight;
     }
@@ -428,61 +342,42 @@
 
     function handleIncomingMessage(msg) {
       if (msg.from === currentUser.login) return;
-      if (!chats[msg.chatId]) { sendServerMessage('get_chats', {}); return; }
+      if (!chats[msg.chatId]) { loadChats(); return; }
       if (!chats[msg.chatId].messages) chats[msg.chatId].messages = [];
       if (chats[msg.chatId].messages.find(m => m.id === msg.id)) return;
       chats[msg.chatId].messages.push(msg);
-      if (activeChatId === msg.chatId) { addMessageToUI(msg); }
+      if (activeChatId === msg.chatId) addMessageToUI(msg);
       renderChatList();
     }
 
-    function handleMessageEdited(msg) {
-      const chat = chats[msg.chatId];
-      if (!chat || !chat.messages) return;
-      const found = chat.messages.find(m => m.id === msg.messageId);
-      if (found) { found.text = msg.newText; found.edited = true; }
-      if (activeChatId === msg.chatId) {
-        const msgDiv = document.querySelector(`.msg[data-id="${msg.messageId}"]`);
-        if (msgDiv) {
-          const textSpan = msgDiv.querySelector('.msg-text');
-          if (textSpan) textSpan.textContent = msg.newText;
-          if (!msgDiv.querySelector('.edited-mark')) {
-            const mark = document.createElement('span');
-            mark.className = 'edited-mark';
-            mark.textContent = ' (изменено)';
-            msgDiv.appendChild(mark);
-          }
-        } else sendServerMessage('get_messages', { chatId: msg.chatId });
-      }
+    // ====== ДЕЙСТВИЯ С ЧАТАМИ ======
+    async function deleteChat(chatId) {
+      try { await apiRequest('/delete_chat', 'POST', { chatId }); loadChats(); } catch(err) { showToast(err.message); }
+    }
+    async function blockChat(chatId) {
+      try { await apiRequest('/block_chat', 'POST', { chatId }); loadChats(); } catch(err) { showToast(err.message); }
+    }
+    async function unblockChat(chatId) {
+      try { await apiRequest('/unblock_chat', 'POST', { chatId }); loadChats(); } catch(err) { showToast(err.message); }
+    }
+    async function leaveGroup(chatId) {
+      try { await apiRequest('/leave_group', 'POST', { chatId }); loadChats(); } catch(err) { showToast(err.message); }
     }
 
-    function handleMessageDeleted(msg) {
-      const chat = chats[msg.chatId];
-      if (chat && chat.messages) chat.messages = chat.messages.filter(m => m.id !== msg.messageId);
-      if (activeChatId === msg.chatId) {
-        const msgDiv = document.querySelector(`.msg[data-id="${msg.messageId}"]`);
-        if (msgDiv) msgDiv.remove();
-      }
-    }
-
-    // ====== ОТПРАВКА ======
+    // ====== ОТПРАВКА СООБЩЕНИЯ (кнопка) ======
     document.getElementById('sendBtn').addEventListener('click', () => {
       const input = document.getElementById('messageInput');
       const text = input.value.trim();
       if (!text && !editingMessageId) return;
       if (editingMessageId) {
-        sendServerMessage('edit_message', { chatId: activeChatId, messageId: editingMessageId, newText: text });
+        // Редактирование – не реализовано в Long Polling
         editingMessageId = null;
         document.getElementById('sendBtn').textContent = '➤';
         input.value = '';
         return;
       }
-      const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
-      if (!chats[activeChatId]) chats[activeChatId] = { messages: [] };
-      if (!chats[activeChatId].messages) chats[activeChatId].messages = [];
-      chats[activeChatId].messages.push(msg);
-      addMessageToUI(msg);
-      sendServerMessage('send_message', { chatId: activeChatId, text });
+      if (!activeChatId) return;
+      sendMessage(activeChatId, text);
       input.value = '';
     });
 
@@ -493,24 +388,80 @@
       }
     });
 
-    window.editMessage = (id) => {
-      const chat = chats[activeChatId];
-      if (!chat || !chat.messages) return;
-      const msg = chat.messages.find(m => m.id === id);
-      if (!msg || msg.from !== currentUser.login) return;
-      document.getElementById('messageInput').value = msg.text;
-      editingMessageId = id;
-      document.getElementById('sendBtn').textContent = '✏️';
-    };
+    // ====== НОВЫЙ ЧАТ ======
+    document.getElementById('newChatBtn').addEventListener('click', () => {
+      const action = prompt('1 - Личный чат\n2 - Создать группу\n3 - Создать канал');
+      if (action === '1') openSearchModal('user');
+      else if (action === '2') { const n = prompt('Название группы:'); if(n) createGroup(n); }
+      else if (action === '3') { const n = prompt('Название канала:'); if(n) createChannel(n); }
+    });
 
-    window.deleteMessage = (id) => {
-      if (!confirm('Удалить сообщение?')) return;
-      sendServerMessage('delete_message', { chatId: activeChatId, messageId: id });
-      const chat = chats[activeChatId];
-      if (chat && chat.messages) chat.messages = chat.messages.filter(m => m.id !== id);
-      const msgDiv = document.querySelector(`.msg[data-id="${id}"]`);
-      if (msgDiv) msgDiv.remove();
-    };
+    async function createGroup(name) {
+      try { await apiRequest('/create_group', 'POST', { name }); loadChats(); } catch(err) { showToast(err.message); }
+    }
+    async function createChannel(name) {
+      try { await apiRequest('/create_channel', 'POST', { name }); loadChats(); } catch(err) { showToast(err.message); }
+    }
+
+    // ====== ПОИСК ======
+    document.getElementById('findGroupsBtn').addEventListener('click', () => openSearchModal('group'));
+
+    function openSearchModal(type) {
+      if (type === 'user') {
+        document.getElementById('searchModal').classList.add('active');
+        document.getElementById('searchQuery').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+      } else {
+        document.getElementById('groupsModal').classList.add('active');
+        document.getElementById('groupSearchQuery').value = '';
+        document.getElementById('groupSearchResults').innerHTML = '';
+      }
+    }
+    document.getElementById('modalCancel').addEventListener('click', () => document.getElementById('searchModal').classList.remove('active'));
+    document.getElementById('groupsModalCancel').addEventListener('click', () => document.getElementById('groupsModal').classList.remove('active'));
+
+    document.getElementById('searchQuery').addEventListener('input', async () => {
+      const q = document.getElementById('searchQuery').value.trim();
+      if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
+      try {
+        const data = await apiRequest('/search_user', 'POST', { query: q });
+        showSearchResults(data.users || [], 'user');
+      } catch(err) { showToast(err.message); }
+    });
+
+    document.getElementById('groupSearchQuery').addEventListener('input', async () => {
+      const q = document.getElementById('groupSearchQuery').value.trim();
+      if (!q) { document.getElementById('groupSearchResults').innerHTML = ''; return; }
+      try {
+        const data = await apiRequest('/search_groups', 'POST', { query: q });
+        showSearchResults(data.groups || [], 'group');
+      } catch(err) { showToast(err.message); }
+    });
+
+    function showSearchResults(items, type) {
+      const container = type === 'user' ? document.getElementById('searchResults') : document.getElementById('groupSearchResults');
+      container.innerHTML = '';
+      if (!items.length) { container.innerHTML = '<div>Ничего не найдено</div>'; return; }
+      items.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        if (type === 'user') {
+          div.textContent = item.login;
+          div.addEventListener('click', async () => {
+            try { await apiRequest('/create_private_chat', 'POST', { target: item.login }); loadChats(); } catch(err) { showToast(err.message); }
+            document.getElementById('searchModal').classList.remove('active');
+          });
+        } else {
+          div.innerHTML = `${escapeHtml(item.name)} (${item.type==='group'?'Группа':'Канал'}) <button class="btn btn-sm join-btn" data-id="${item.id}">Вступить</button>`;
+          div.querySelector('.join-btn').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try { await apiRequest('/join_group', 'POST', { chatId: item.id }); loadChats(); } catch(err) { showToast(err.message); }
+            document.getElementById('groupsModal').classList.remove('active');
+          });
+        }
+        container.appendChild(div);
+      });
+    }
 
     // ====== ЭМОДЗИ ======
     const emojis = '😀😃😄😁😆😅😂🤣😊😇🙂😉😌😍🥰😘😗😙😚😋😛😝😜🤪🤨🧐🤓😎🤩🥳😏😒😞😔😟😕🙁☹️😣😖😫😩🥺😢😭😤😠😡🤬🤯😳🥵🥶😱😨😰😥😓🤗🤔🤭🤫🤥😶😐😑😬🙄😯😦😧😮😲🥱😴🤤😪😵🤐🤢🤮🤧😷🤒🤕🤑🤠😈👿👹👺🤡💩👻💀☠️👽👾🤖🎃😺😸😹😻😼😽🙀😿😾'.split('');
@@ -524,185 +475,17 @@
     document.getElementById('emojiBtn').addEventListener('click', (e) => { e.stopPropagation(); emojiPanel.style.display = emojiPanel.style.display === 'flex' ? 'none' : 'flex'; });
     document.addEventListener('click', () => { emojiPanel.style.display = 'none'; });
 
-    // ====== ФАЙЛЫ ======
-    async function ensureUploadToken() { if(!uploadToken){ const r=await fetch(`${SERVER_URL}/get_upload_token`); const d=await r.json(); uploadToken=d.token; } }
-    document.getElementById('attachBtn').addEventListener('click', async () => { await ensureUploadToken(); document.getElementById('fileInput').click(); });
-    document.getElementById('fileInput').addEventListener('change', async (e) => {
-      const files = Array.from(e.target.files);
-      if(!files.length) return;
-      for(const file of files){
-        const fd=new FormData(); fd.append('file',file);
-        const xhr=new XMLHttpRequest();
-        xhr.open('POST',`${SERVER_URL}/upload_file`);
-        xhr.setRequestHeader('x-upload-token',uploadToken);
-        xhr.send(fd);
-        xhr.onload=()=>{
-          const r=JSON.parse(xhr.responseText);
-          sendServerMessage('file_message',{chatId:activeChatId,text:'',file:{name:r.name,size:r.size,type:r.type,url:`${SERVER_URL}${r.url}`}});
-        };
-      }
-      e.target.value='';
-    });
-
-    // ====== ПОИСК ======
-    document.getElementById('newChatBtn').addEventListener('click', () => {
-      const action = prompt('1 - Личный чат\n2 - Создать группу\n3 - Создать канал');
-      if (action === '1') openSearchModal('user');
-      else if (action === '2') { const n = prompt('Название группы:'); if(n) sendServerMessage('create_group', { name: n }); }
-      else if (action === '3') { const n = prompt('Название канала:'); if(n) sendServerMessage('create_channel', { name: n }); }
-    });
-    document.getElementById('findGroupsBtn').addEventListener('click', () => openSearchModal('group'));
-
-    function openSearchModal(type) {
-      if (type === 'user') {
-        document.getElementById('searchModal').classList.add('active');
-        document.getElementById('searchQuery').value = ''; document.getElementById('searchResults').innerHTML = '';
-      } else {
-        document.getElementById('groupsModal').classList.add('active');
-        document.getElementById('groupSearchQuery').value = ''; document.getElementById('groupSearchResults').innerHTML = '';
-      }
-    }
-    document.getElementById('modalCancel').addEventListener('click', () => document.getElementById('searchModal').classList.remove('active'));
-    document.getElementById('groupsModalCancel').addEventListener('click', () => document.getElementById('groupsModal').classList.remove('active'));
-
-    document.getElementById('searchQuery').addEventListener('input', () => {
-      const q = document.getElementById('searchQuery').value.trim();
-      console.log('🔍 Поиск запроса:', q);
-      if (!q) { document.getElementById('searchResults').innerHTML = ''; return; }
-      sendServerMessage('search_user', { query: q });
-    });
-    document.getElementById('groupSearchQuery').addEventListener('input', async () => {
-      const q = document.getElementById('groupSearchQuery').value.trim();
-      if (!q) { document.getElementById('groupSearchResults').innerHTML = ''; return; }
-      const res = await fetch(`${SERVER_URL}/search_groups?q=${encodeURIComponent(q)}`);
-      const groups = await res.json();
-      showSearchResults(groups, 'group');
-    });
-
-    function showSearchResults(items, type) {
-      const container = type === 'user' ? document.getElementById('searchResults') : document.getElementById('groupSearchResults');
-      container.innerHTML = '';
-      if (!items.length) { container.innerHTML = '<div>Ничего не найдено</div>'; return; }
-      items.forEach(item => {
-        const div = document.createElement('div');
-        div.className = 'search-result-item';
-        if (type === 'user') {
-          div.textContent = item.login;
-          div.addEventListener('click', () => { sendServerMessage('create_private_chat', { target: item.login }); document.getElementById('searchModal').classList.remove('active'); });
-        } else {
-          div.innerHTML = `${escapeHtml(item.name)} (${item.type==='group'?'Группа':'Канал'}) <button class="btn btn-sm join-btn" data-id="${item.id}">Вступить</button>`;
-          div.querySelector('.join-btn').addEventListener('click', (e) => { e.stopPropagation(); sendServerMessage('join_group', { chatId: item.id }); document.getElementById('groupsModal').classList.remove('active'); });
-        }
-        container.appendChild(div);
-      });
-    }
-
-    // ====== ЗВОНКИ ======
-    const callModal = document.getElementById('callModal');
-    function showCallModalWindow(title, name, showAccept) {
-      document.getElementById('callModalTitle').textContent = title;
-      document.getElementById('callModalName').textContent = name;
-      document.getElementById('callModalAcceptBtn').style.display = showAccept ? 'inline-block' : 'none';
-      document.getElementById('callModalRejectBtn').textContent = showAccept ? 'Отклонить' : 'Отменить';
-      callModal.classList.add('active');
-    }
-    function hideCallModalWindow() { callModal.classList.remove('active'); }
-    function cleanupCall() {
-      if (peerConnection) { peerConnection.close(); peerConnection = null; }
-      if (localStream) { localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-      document.getElementById('localVideo').srcObject = null;
-      document.getElementById('remoteVideo').srcObject = null;
-      document.getElementById('currentCallUI').classList.remove('active');
-      activeCall = null;
-    }
-    async function createPeerConnection() {
-      peerConnection = new RTCPeerConnection(ICE_SERVERS);
-      peerConnection.onicecandidate = (event) => { if (event.candidate && activeCall) sendServerMessage('ice_candidate', { chatId: activeCall.chatId, candidate: event.candidate }); };
-      peerConnection.ontrack = (event) => { if (event.streams?.[0]) document.getElementById('remoteVideo').srcObject = event.streams[0]; };
-      if (localStream) localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-    }
-    async function startCall(callType) {
-      if (!activeChatId) return;
-      const chat = chats[activeChatId];
-      if (!chat || chat.type !== 'private') return alert('Звонки только в личных чатах');
-      if (activeCall) return alert('Уже есть активный звонок');
-      try {
-        const constraints = callType === 'video' ? { audio: true, video: { width: 640, height: 480 } } : { audio: true, video: false };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        document.getElementById('localVideo').srcObject = localStream;
-        document.getElementById('localVideo').style.display = callType === 'audio' ? 'none' : 'block';
-        activeCall = { chatId: activeChatId, callType, incoming: false };
-        showCallModalWindow('Идёт вызов', chat.name, false);
-        await createPeerConnection();
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        sendServerMessage('call_offer', { chatId: activeChatId, sdp: peerConnection.localDescription, callType });
-      } catch (e) { alert('Не удалось начать звонок: ' + e.message); cleanupCall(); hideCallModalWindow(); }
-    }
-    document.getElementById('audioCallBtn').addEventListener('click', () => startCall('audio'));
-    document.getElementById('videoCallBtn').addEventListener('click', () => startCall('video'));
-    document.getElementById('callModalRejectBtn').addEventListener('click', () => {
-      if (activeCall) { sendServerMessage('call_end', { chatId: activeCall.chatId }); cleanupCall(); }
-      hideCallModalWindow();
-    });
-    function handleCallOffer(msg) {
-      if (activeCall) { sendServerMessage('call_end', { chatId: msg.chatId }); return; }
-      activeCall = { chatId: msg.chatId, callType: msg.callType || 'video', incoming: true, from: msg.from, sdp: msg.sdp };
-      showCallModalWindow('Входящий ' + (activeCall.callType === 'audio' ? 'аудиозвонок' : 'видеозвонок'), msg.from, true);
-    }
-    document.getElementById('callModalAcceptBtn').addEventListener('click', async () => {
-      const callInfo = activeCall;
-      if (!callInfo || !callInfo.incoming) return;
-      hideCallModalWindow();
-      try {
-        const constraints = callInfo.callType === 'video' ? { audio: true, video: { width: 640, height: 480 } } : { audio: true, video: false };
-        localStream = await navigator.mediaDevices.getUserMedia(constraints);
-        document.getElementById('localVideo').srcObject = localStream;
-        document.getElementById('localVideo').style.display = callInfo.callType === 'audio' ? 'none' : 'block';
-        document.getElementById('remoteVideo').style.display = 'block';
-        document.getElementById('currentCallUI').classList.add('active');
-        await createPeerConnection();
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(callInfo.sdp));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
-        sendServerMessage('call_answer', { chatId: callInfo.chatId, sdp: peerConnection.localDescription });
-      } catch (e) { alert('Не удалось принять звонок: ' + e.message); cleanupCall(); }
-    });
-    function handleCallAnswer(msg) {
-      if (!activeCall || activeCall.incoming) return;
-      hideCallModalWindow();
-      document.getElementById('currentCallUI').classList.add('active');
-      if (peerConnection) peerConnection.setRemoteDescription(new RTCSessionDescription(msg.sdp));
-    }
-    function handleICECandidate(msg) {
-      if (peerConnection && msg.candidate) peerConnection.addIceCandidate(new RTCIceCandidate(msg.candidate));
-    }
-    document.getElementById('endCallBtn').addEventListener('click', () => {
-      if (activeCall) sendServerMessage('call_end', { chatId: activeCall.chatId });
-      cleanupCall(); hideCallModalWindow();
-    });
-    function handleCallEnded() { cleanupCall(); hideCallModalWindow(); }
-    document.getElementById('toggleMic').addEventListener('click', () => {
-      if (localStream) { const t = localStream.getAudioTracks()[0]; if (t) t.enabled = !t.enabled; }
-    });
-    document.getElementById('toggleCam').addEventListener('click', () => {
-      if (localStream) { const t = localStream.getVideoTracks()[0]; if (t) { t.enabled = !t.enabled; document.getElementById('localVideo').style.display = t.enabled ? 'block' : 'none'; } }
-    });
-
-    // ====== ПРОФИЛЬ ======
-    document.getElementById('profileBtn').addEventListener('click', () => alert('Профиль в разработке'));
-
     // ====== ИНИЦИАЛИЗАЦИЯ ======
     (function init() {
       const token = localStorage.getItem('skyid_token');
       if (token) {
         console.log('🔑 Токен найден, пытаемся восстановить сессию...');
-        connectWebSocket();
+        showAuth(false); showApp(true);
+        loadChats().then(() => startPolling());
       } else {
-        showAuth(true);
-        showApp(false);
+        showAuth(true); showApp(false);
       }
-      console.log('🚀 SkyMessage загружен');
+      console.log('🚀 SkyMessage (Long Polling) загружен');
     })();
   </script>
 </body>
