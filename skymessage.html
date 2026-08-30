@@ -171,6 +171,7 @@
     let localStream = null, peerConnection = null, activeCall = null;
     let uploadToken = null;
     let editingMessageId = null;
+    let pingInterval = null;   // <-- ОБЪЯВЛЕНА ГЛОБАЛЬНО
 
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
@@ -195,21 +196,37 @@
         } else {
           console.warn('⚠️ Токен отсутствует');
         }
-        sendServerMessage('get_chats', {});
-        let pingInterval = null;
-        // Запускаем клиентский пинг каждые 20 секунд
-        if (pingInterval) clearInterval(pingInterval);
+
+        // --- Управление пингом (глобальный интервал) ---
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
         pingInterval = setInterval(() => {
           if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'ping' }));
             console.log('📤 Отправлен ping клиентом');
           }
         }, 20000);
+
+        // Запрос списка чатов – отправим после авторизации (через 500 мс)
+        setTimeout(() => {
+          sendServerMessage('get_chats', {});
+        }, 500);
       };
+
       ws.onmessage = (e) => {
         console.log('📨 Входящее сообщение:', e.data);
         const msg = JSON.parse(e.data);
         switch (msg.type) {
+          case 'ping':   // ← сервер просит ответить
+            ws.send(JSON.stringify({ type: 'pong' }));
+            console.log('📤 Отправлен pong на сервер');
+            return;
+          case 'pong':   // ← это ответ на наш ping (можно игнорировать)
+            console.log('📶 Pong от сервера');
+            return;
+
           case 'auth_ok':
             console.log('✅ Авторизация успешна!', msg);
             currentUser = { ...currentUser, ...msg };
@@ -230,7 +247,6 @@
               }
             } else {
               console.log('📭 Чатов нет, ожидаем создания...');
-              // Показываем сообщение "Нет чатов"
               document.getElementById('messagesContainer').innerHTML = `
                 <div style="text-align:center;color:#8899cc;padding:2rem;">
                   <span style="font-size:3rem;">💬</span>
@@ -261,10 +277,16 @@
             break;
         }
       };
+
       ws.onclose = (e) => {
         console.warn('❌ WebSocket закрыт, код:', e.code, 'причина:', e.reason);
+        if (pingInterval) {
+          clearInterval(pingInterval);
+          pingInterval = null;
+        }
         setTimeout(connectWebSocket, 3000);
       };
+
       ws.onerror = (e) => {
         console.error('❌ WebSocket ошибка:', e);
       };
@@ -663,7 +685,6 @@
       const token = localStorage.getItem('skyid_token');
       if (token) {
         console.log('🔑 Токен найден, пытаемся восстановить сессию...');
-        // Если есть токен — сразу подключаем WebSocket
         connectWebSocket();
       }
       console.log('🚀 SkyMessage загружен');
