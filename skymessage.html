@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
-  <title>SkyMessage (Long Polling)</title>
+  <title>SkyMessage (SSE)</title>
   <style>
-    /* (стили без изменений, те же, что были) */
-    :root { --bg: #0a0f1e; --panel: #111827; --card: #1a233a; --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf; }
+    :root {
+      --bg: #0a0f1e; --panel: #111827; --card: #1a233a;
+      --border: #2a3450; --text: #e0e8ff; --accent: #5f7ecf;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
     .auth-screen { position: absolute; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 20; }
@@ -133,10 +132,8 @@
 
     // ====== ГЛОБАЛЬНЫЕ ======
     let currentUser = null, chats = {}, activeChatId = null;
-    let lastMsgId = 0;
-    let isPolling = false;
     let editingMessageId = null;
-    let pollTimer = null;
+    let eventSource = null;
 
     function showToast(message, bg = '#c44') {
       const toast = document.getElementById('toast');
@@ -147,60 +144,97 @@
       toast._timeout = setTimeout(() => { toast.style.display = 'none'; }, 3000);
     }
 
-    // ====== HTTP-запросы с авторизацией ======
-    async function apiRequest(endpoint, method = 'POST', data = null) {
+    // ====== HTTP-запросы ======
+    async function apiRequest(endpoint, method = 'POST', data = null, timeout = 15000) {
       const token = localStorage.getItem('skyid_token');
-      if (!token) throw new Error('No token');
       const headers = {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${token}`
       };
       const options = { method, headers };
       if (data) options.body = JSON.stringify(data);
-      const response = await fetch(API_URL + endpoint, options);
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error(err.error || `HTTP ${response.status}`);
-      }
-      return await response.json();
-    }
 
-    // ====== ПОЛЛИНГ ======
-    async function startPolling() {
-      if (isPolling) return;
-      isPolling = true;
-      while (isPolling) {
-        try {
-          const result = await apiRequest('/poll', 'POST', { lastMsgId });
-          if (result.messages && result.messages.length > 0) {
-            const maxId = result.messages.reduce((max, m) => m.id > max ? m.id : max, lastMsgId);
-            if (maxId > lastMsgId) lastMsgId = maxId;
-            result.messages.forEach(msg => {
-              if (msg.type === 'chat_update') {
-                loadChats();
-              } else {
-                handleIncomingMessage(msg);
-              }
-            });
-          }
-        } catch (err) {
-          console.error('Poll error:', err);
-          // Ждём 3 секунды перед повторной попыткой
-          await new Promise(r => setTimeout(r, 3000));
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), timeout);
+      options.signal = controller.signal;
+
+      try {
+        const response = await fetch(API_URL + endpoint, options);
+        clearTimeout(timer);
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error || `HTTP ${response.status}`);
         }
+        return await response.json();
+      } catch (err) {
+        clearTimeout(timer);
+        throw err;
       }
     }
 
-    function stopPolling() { isPolling = false; }
+    // ====== SSE КЛИЕНТ ======
+    function connectSSE() {
+      const token = localStorage.getItem('skyid_token');
+      if (!token) {
+        console.warn('⚠️ Нет токена, SSE не подключён');
+        return;
+      }
+      // Закрываем предыдущее соединение
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+      }
+
+      // EventSource не поддерживает кастомные заголовки, передаём токен в URL
+      const url = API_URL + '/events?token=' + encodeURIComponent(token);
+      eventSource = new EventSource(url);
+
+      eventSource.onopen = () => {
+        console.log('📡 SSE соединение открыто');
+      };
+
+      eventSource.onmessage = (event) => {
+        console.log('📨 SSE событие:', event.data);
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'connected') {
+            console.log('✅ SSE подключено для', msg.userId);
+            return;
+          }
+          // Обработка сообщений
+          if (msg.type === 'chat_update') {
+            loadChats();
+          } else {
+            handleIncomingMessage(msg);
+          }
+        } catch (e) {
+          console.error('Ошибка парсинга SSE:', e);
+        }
+      };
+
+      eventSource.onerror = (err) => {
+        console.warn('⚠️ SSE ошибка, переподключение через 3 сек...', err);
+        eventSource.close();
+        setTimeout(connectSSE, 3000);
+      };
+    }
+
+    function disconnectSSE() {
+      if (eventSource) {
+        eventSource.close();
+        eventSource = null;
+        console.log('📡 SSE отключено');
+      }
+    }
 
     // ====== ОТПРАВКА СООБЩЕНИЯ ======
     async function sendMessage(chatId, text) {
       if (!currentUser || !currentUser.login) {
-        showToast('Ошибка: пользователь не авторизован');
+        showToast('Ошибка: не авторизован');
         return;
       }
       try {
-        await apiRequest('/send', 'POST', { chatId, text });
+        await apiRequest('/send', 'POST', { chatId, text }, 10000);
         // Оптимистичное добавление
         const msg = { id: 'msg_' + Date.now(), from: currentUser.login, text, time: Date.now() };
         if (!chats[chatId]) chats[chatId] = { messages: [] };
@@ -213,13 +247,12 @@
       }
     }
 
-    // ====== ВЕРИФИКАЦИЯ ТОКЕНА (восстановление сессии) ======
+    // ====== ВЕРИФИКАЦИЯ ======
     async function verifySession() {
       try {
-        const data = await apiRequest('/verify', 'POST', {});
+        const data = await apiRequest('/verify', 'POST', {}, 10000);
         if (data.login) {
           currentUser = { login: data.login, skyid: data.skyid };
-          console.log('✅ Сессия восстановлена:', currentUser);
           return true;
         }
       } catch (err) {
@@ -268,14 +301,14 @@
         currentUser = { login };
         showAuth(false); showApp(true);
         await loadChats();
-        startPolling();
+        connectSSE();
       } catch(e) { alert('Ошибка: '+e.message); }
     });
 
     // ====== ЗАГРУЗКА ЧАТОВ ======
     async function loadChats() {
       try {
-        const data = await apiRequest('/get_chats', 'POST', {});
+        const data = await apiRequest('/get_chats', 'POST', {}, 10000);
         chats = data.chats || {};
         renderChatList();
         const ids = Object.keys(chats);
@@ -307,6 +340,7 @@
         div.addEventListener('click', (e) => { if(e.target.closest('.chat-actions')) return; activeChatId=id; openChat(id); renderChatList(); });
         container.appendChild(div);
       });
+      // Обработчики кнопок
       document.querySelectorAll('.delete-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();if(confirm('Удалить чат?'))deleteChat(b.dataset.id)}));
       document.querySelectorAll('.block-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();blockChat(b.dataset.id)}));
       document.querySelectorAll('.unblock-btn').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();unblockChat(b.dataset.id)}));
@@ -322,7 +356,7 @@
 
     async function loadMessages(chatId) {
       try {
-        const data = await apiRequest('/get_messages', 'POST', { chatId });
+        const data = await apiRequest('/get_messages', 'POST', { chatId }, 10000);
         displayMessages(data.messages || []);
       } catch (err) {
         console.error('Ошибка загрузки сообщений:', err);
@@ -393,7 +427,6 @@
       const text = input.value.trim();
       if (!text && !editingMessageId) return;
       if (editingMessageId) {
-        // Редактирование – не реализовано в Long Polling
         editingMessageId = null;
         document.getElementById('sendBtn').textContent = '➤';
         input.value = '';
@@ -507,7 +540,7 @@
         const ok = await verifySession();
         if (ok) {
           await loadChats();
-          startPolling();
+          connectSSE();
         } else {
           localStorage.removeItem('skyid_token');
           showAuth(true); showApp(false);
@@ -516,7 +549,7 @@
       } else {
         showAuth(true); showApp(false);
       }
-      console.log('🚀 SkyMessage (Long Polling) загружен');
+      console.log('🚀 SkyMessage (SSE) загружен');
     })();
   </script>
 </body>
